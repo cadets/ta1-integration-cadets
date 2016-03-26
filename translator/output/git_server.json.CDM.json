@@ -1,0 +1,31 @@
+{"datum": {"uuid": 0, "userId": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "groupIds": [], "type": "PRINCIPAL_LOCAL", "properties": {}}}
+{"datum": {"uuid": 4294971037, "startTimestampMicros": 1455740857435004796, "pid": 3741, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"uuid": 8590035238, "startTimestampMicros": 1455740857435004796, "pid": 100646, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_THREAD", "properties": {}}}
+{"datum": {"timestampMicros": 1455740857435004796, "uuid": 12884901888, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100646, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 1001, "userId": 1001, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "groupIds": [], "type": "PRINCIPAL_LOCAL", "properties": {}}}
+{"datum": {"uuid": 4294971040, "startTimestampMicros": 1455740857617999772, "pid": 3744, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"uuid": 8590035197, "startTimestampMicros": 1455740857617999772, "pid": 100605, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_THREAD", "properties": {}}}
+{"datum": {"timestampMicros": 1455740857617999772, "uuid": 12884901889, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100605, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971041, "startTimestampMicros": 1455740857639046511, "pid": 3745, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"uuid": 8590035217, "startTimestampMicros": 1455740857639046511, "pid": 100625, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_THREAD", "properties": {}}}
+{"datum": {"timestampMicros": 1455740857639046511, "uuid": 12884901890, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100625, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971042, "startTimestampMicros": 1455740859897006461, "pid": 3746, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"timestampMicros": 1455740859897006461, "uuid": 12884901891, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100646, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971045, "startTimestampMicros": 1455740860094005870, "pid": 3749, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"timestampMicros": 1455740860094005870, "uuid": 12884901892, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100605, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971046, "startTimestampMicros": 1455740860116005663, "pid": 3750, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"uuid": 8590035216, "startTimestampMicros": 1455740860116005663, "pid": 100624, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_THREAD", "properties": {}}}
+{"datum": {"timestampMicros": 1455740860116005663, "uuid": 12884901893, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100624, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971047, "startTimestampMicros": 1455740860136002828, "pid": 3751, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"timestampMicros": 1455740860136002828, "uuid": 12884901894, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100624, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971048, "startTimestampMicros": 1455740860174163963, "pid": 3752, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"timestampMicros": 1455740860174163963, "uuid": 12884901895, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100624, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971049, "startTimestampMicros": 1455740862705006500, "pid": 3753, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"timestampMicros": 1455740862705006500, "uuid": 12884901896, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100646, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971052, "startTimestampMicros": 1455740862897038658, "pid": 3756, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"timestampMicros": 1455740862897038658, "uuid": 12884901897, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100605, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971053, "startTimestampMicros": 1455740865791002416, "pid": 3757, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"timestampMicros": 1455740865791002416, "uuid": 12884901898, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100646, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
+{"datum": {"uuid": 4294971056, "startTimestampMicros": 1455740865976006376, "pid": 3760, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_PROCESS", "properties": {}}}
+{"datum": {"uuid": 8590035141, "startTimestampMicros": 1455740865976006376, "pid": 100549, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "ppid": -1, "type": "SUBJECT_THREAD", "properties": {}}}
+{"datum": {"timestampMicros": 1455740865976006376, "uuid": 12884901899, "sequence": 0, "source": "SOURCE_FREEBSD_DTRACE_CADETS", "threadId": 100549, "type": "EVENT_OS_UNKNOWN", "properties": {}}}
