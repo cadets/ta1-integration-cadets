@@ -158,6 +158,7 @@ class CDMTranslator(object):
         if user_uuid == None:
             self.logger.info("Creating new User Principal for {u}".format(u=uid))
             principal = self.create_user_principal(uid, self.get_source())
+            user_uuid = principal["datum"]["uuid"]
             datums.append(principal)
             
         # Create a new Process subject if necessary
@@ -166,6 +167,7 @@ class CDMTranslator(object):
         if proc_uuid == None:
             self.logger.info("Creating new Process Subject for {p}".format(p=pid))
             process = self.create_process_subject(pid, time_micros, self.get_source())
+            proc_uuid = process["datum"]["uuid"]
             datums.append(process)
             
         # Create a new Thread subject if necessary
@@ -174,6 +176,7 @@ class CDMTranslator(object):
         if thread_uuid == None:
             self.logger.info("Creating new Thread Subject for {t}".format(t=tid))
             thread = self.create_thread_subject(tid, time_micros, self.get_source())
+            thread_uuid = thread["datum"]["uuid"]
             datums.append(thread)
         
         # dispatch based on type
@@ -187,20 +190,22 @@ class CDMTranslator(object):
         probe = event_components[3]
                 
         if event_components[0] == "syscall":
-            datums.append(self.translate_syscall(module, call, probe, cadets_record))
+            event1 = self.translate_syscall(module, call, probe, cadets_record)
+            edge1 = self.create_edge(proc_uuid, event1["datum"])
+            datums.append(event1)
+            datums.append(edge1)
         else:
-            datums.append(self.translate_appcall(event_components[0], module, call, probe, cadets_record))
+            event2 = self.translate_appcall(event_components[0], module, call, probe, cadets_record)
+            edge2 = self.create_edge(proc_uuid, event2["datum"])
+            datums.append(event2)
+            datums.append(edge2)
                     
         return datums
     
     def translate_syscall(self, module, call, probe, cadets_record):
         ''' Translate a syscall event '''
         
-        # for now, ignore return probe, only translate entry
-        if probe == "return":
-            self.logger.warn("Ignoring return probe")
-            return None
-        
+        # for now, translate the probe value (entry / exit) as a property
         record = {}
         event = {}
         event["properties"] = {}
@@ -216,7 +221,22 @@ class CDMTranslator(object):
         event["sequence"] = 0 # TODO: Sequence numbers
         event["source"] = self.get_source()
         # TODO: arguments
+
+        event["properties"]["probe"] = probe        
         
-        # TODO: Add event edge
         record["datum"] = event
+        return record
+    
+    def create_edge(self, proc_uuid, event):    
+        edge = {}
+        event_uuid = event["uuid"]
+        timestamp = event["timestampMicros"]
+        edge["properties"] = {}
+        edge["fromUuid"] = proc_uuid
+        edge["toUuid"] = event_uuid
+        edge["type"] = "EDGE_EVENT_ISGENERATEDBY_SUBJECT"
+        edge["timestamp"] = timestamp
+
+        record = {}
+        record["datum"] = edge
         return record
