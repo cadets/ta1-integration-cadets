@@ -120,6 +120,8 @@ def main():
         logger.info("Wrote JSON CDM records to {jo}".format(jo=json_out.name))
          
     if bin_out != None:
+        file_writer.flush()
+        file_writer.close()
         bin_out.close()
         logger.info("Wrote binary CDM records to {bo}".format(bo=bin_out.name))
         
