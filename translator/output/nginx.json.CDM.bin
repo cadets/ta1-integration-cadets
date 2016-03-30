@@ -1,0 +1,1985 @@
+Objavro.schemaØî{"doc": "* A record representing either a vertex or an edge. This is the top level record that allows\n     * us to easily mix the vertices and edges defined above on the wire.", "namespace": "com.bbn.tc.schema.avro", "name": "TCCDMDatum", "fields": [{"type": [{"doc": "* A provenance tag defines source dependence on specific data sources (inputs).\n     * A tag identifier is typically bound to a source and used by the tracking system to\n     * capture dependence on this source input.\n     * A provenance tag is represented as a tree. Each node in the tree has a value and\n     * a set of children nodes.", "namespace": "com.bbn.tc.schema.avro", "name": "ProvenanceTagNode", "fields": [{"doc": "*  the value of the node: can have the following types\n         *   int                 references another node by tagId\n         *   long                object uuid (source or sink for example)\n         *   TaOpCode            the opcode applied to the children nodes, see TaOpCode\n         *   IntegrityTag        an integrity tag\n         *   ConfidentialityTag  a confidentiality tag", "type": ["int", "long", {"symbols": ["TAG_OP_SEQUENCE", "TAG_OP_UNION", "TAG_OP_ENCODE", "TAG_OP_STRONG", "TAG_OP_MEDIUM", "TAG_OP_WEAK"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "TagOpCode", "doc": "* The tag opcode describes the provenance relation i.e., how multiple sources are combined to\n     * produce the output. We identify the following provenance relations\n     *\n     *   TAG_OP_SEQUENCE       the output is derived from the specified inputs in order, sequentially\n     *   TAG_OP_UNION,         the output is the union of its inputs\n     *   TAG_OP_ENCODE         the output is some encoding of the input\n     *   TAG_OP_STRONG         this is more qualitative (coarse) saying there is strong dependence\n     *   TAG_OP_MEDIUM         this is more qualitative (coarse) saying there is medium dependence\n     *   TAG_OP_WEAK           this is more qualitative (coarse) saying there is weak   dependence"}, {"symbols": ["INTEGRITY_UNTRUSTED", "INTEGRITY_BENIGN", "INTEGRITY_INVULNERABLE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "IntegrityTag", "doc": "* The integrity tag may be used to specify the initial integrity of an entity,\n     * or to endorse its content after performing appropriate checking/sanitization."}, {"symbols": ["CONFIDENTIALITY_SECRET", "CONFIDENTIALITY_SENSITIVE", "CONFIDENTIALITY_PRIVATE", "CONFIDENTIALITY_PUBLIC"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ConfidentialityTag", "doc": "* The confidentiality tag may be used to specify the initial confidentiality of an entity,\n     * or to declassify its content after performing appropriate checking/sanitization."}], "name": "value"}, {"default": null, "doc": "the child nodes", "type": ["null", {"items": "com.bbn.tc.schema.avro.ProvenanceTagNode", "type": "array"}], "name": "children"}, {"default": null, "doc": "* the id to be assigned to this tag node\n         * typically set once when the node is first created, and used in value afterwards", "type": ["null", "int"], "name": "tagId"}, {"default": null, "doc": "Arbitrary key, value pairs associated with a tag node", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Subjects represent execution contexts and include mainly threads and processes.\n     * They can be more granular and can represent other execution boundaries such as\n     * functions and blocks if needed.", "namespace": "com.bbn.tc.schema.avro", "name": "Subject", "fields": [{"doc": "universally unique identifier for the subject", "type": "long", "name": "uuid"}, {"doc": "the subject type", "type": {"symbols": ["SUBJECT_PROCESS", "SUBJECT_THREAD", "SUBJECT_UNIT"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "SubjectType", "doc": "* SUBJECT_PROCESS,    process\n     * SUBJECT_THREAD,     thread within a process\n     * SUBJECT_UNIT        so far we only know of TRACE BEEP using this"}, "name": "type"}, {"doc": "OS process id for type process and unit id for a unit (Optional)", "type": "int", "name": "pid"}, {"doc": "OS parent process id for type process and pid for type unit (Optional)", "type": "int", "name": "ppid"}, {"doc": "Where it came from, see InstrumentationSource", "type": {"symbols": ["SOURCE_LINUX_AUDIT_TRACE", "SOURCE_LINUX_PROC_TRACE", "SOURCE_FREEBSD_OPENBSM_TRACE", "SOURCE_ANDROID_JAVA_CLEARSCOPE", "SOURCE_ANDROID_NATIVE_CLEARSCOPE", "SOURCE_FREEBSD_DTRACE_CADETS", "SOURCE_FREEBSD_TESLA_CADETS", "SOURCE_FREEBSD_LOOM_CADETS", "SOURCE_FREEBSD_MACIF_CADETS", "SOURCE_WINDOWS_DIFT_FAROS"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "InstrumentationSource", "doc": "* SOURCE_LINUX_AUDIT_TRACE,          from Linux /dev/audit\n     * SOURCE_LINUX_PROC_TRACE,           from Linux's /proc\n     * SOURCE_FREEBSD_OPENBSM_TRACE,      from FreeBSD openBSM\n     * SOURCE_ANDROID_JAVA_CLEARSCOPE,    from android java instrumentation\n     * SOURCE_ANDROID_NATIVE_CLEARSCOPE,  from android's native instrumentation\n     * SOURCE_FREEBSD_DTRACE_CADETS, SOURCE_FREEBSD_TESLA_CADETS  for CADETS freebsd instrumentation\n     * SOURCE_FREEBSD_LOOM_CADETS, SOURCE_FREEBSD_MACIF_CADETS    for CADETS freebsd instrumentation\n     *"}, "name": "source"}, {"doc": "* The start time of the subject\n         * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": "long", "name": "startTimestampMicros"}, {"default": null, "doc": "unit id for unit based instrumentation (Optional)", "type": ["null", "int"], "name": "unitId"}, {"default": null, "doc": "The end time of the subject (Optional)", "type": ["null", "long"], "name": "endTimestampMicros"}, {"default": null, "doc": "Process command line arguments including process name (Optional)", "type": ["null", "string"], "name": "cmdLine"}, {"default": null, "doc": "imported libraries (static or dynamic), (Optional)", "type": ["null", {"items": "string", "type": "array"}], "name": "importedLibraries"}, {"default": null, "doc": "exported libraries (static or dynamic), (Optional)", "type": ["null", {"items": "string", "type": "array"}], "name": "exportedLibraries"}, {"default": null, "doc": "additional process information, such portable execution (PE) info in windows (Optional)", "type": ["null", "string"], "name": "pInfo"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Events represent actions executed on behalf of subjects. Events could include system calls,\n     * function calls, instruction executions, or even more abstract notions representing a blind execution\n     * such as black boxes that are not instrumented (more shortly). Events are the core entity in the model\n     * and they are the main abstraction for representing information flow between data objects, and subjects.\n     * Events are atomic and immutable.", "namespace": "com.bbn.tc.schema.avro", "name": "Event", "fields": [{"doc": "A universally unique identifier for the event", "type": "long", "name": "uuid"}, {"doc": "* The time at which the event occurred. Timestamps allow reasoning about order of events\n         *  on a host when the same clock is used.\n         * TODO When different clocks are used on a host or across hosts, we need to also define a clock source\n         * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": "long", "name": "timestampMicros"}, {"doc": "A logical sequence number for ordering events relative to each other within a subject's execution context", "type": "long", "name": "sequence"}, {"doc": "The type of the event", "type": {"symbols": ["EVENT_ACCEPT", "EVENT_BIND", "EVENT_CHANGE_PRINCIPAL", "EVENT_CHECK_FILE_ATTRIBUTES", "EVENT_CLOSE", "EVENT_CONNECT", "EVENT_CREATE_OBJECT", "EVENT_CREATE_THREAD", "EVENT_EXECUTE", "EVENT_FORK", "EVENT_LINK", "EVENT_UNLINK", "EVENT_MMAP", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_MPROTECT", "EVENT_OPEN", "EVENT_READ", "EVENT_WRITE", "EVENT_SIGNAL", "EVENT_TRUNCATE", "EVENT_WAIT", "EVENT_OS_UNKNOWN", "EVENT_KERNEL_UNKNOWN", "EVENT_APP_UNKNOWN", "EVENT_UI_UNKNOWN", "EVENT_UNKNOWN", "EVENT_BLIND"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "EventType", "doc": "* These event types correspond to the common system calls. Note that we added a blind event\n     *   EVENT_ACCEPT                     accept a connection on an object\n     *   EVENT_BIND                       bind to a network endpoint object\n     *   EVENT_CHANGE_PRINCIPAL           change the principal associated with the process\n     *   EVENT_CHECK_FILE_ATTRIBUTES      check the file attributes such as permissions\n     *   EVENT_CLOSE                      close an object\n     *   EVENT_CONNECT                    connect to an object\n     *   EVENT_CREATE_OBJECT              create an object\n     *   EVENT_CREATE_THREAD              create a thread subject\n     *   EVENT_EXECUTE                    execute an object\n     *   EVENT_FORK                       fork a process subject\n     *   EVENT_LINK                       link an object to a new name\n     *   EVENT_UNLINK                     unlink a name from an object\n     *   EVENT_MMAP                       memory map an object\n     *   EVENT_MODIFY_FILE_ATTRIBUTES     modify the attributes of a file object\n     *   EVENT_MPROTECT                   change permissions of a memory object\n     *   EVENT_OPEN                       open an object\n     *   EVENT_READ                       read an object\n     *   EVENT_WRITE                      write to an object\n     *   EVENT_SIGNAL                     signal another subject\n     *   EVENT_TRUNCATE                   truncate an object\n     *   EVENT_WAIT                       wait on another subject\n     *   EVENT_KERNEL_UNKNOWN             some kernel event\n     *   EVENT_OS_UNKNOWN                 some OS layer event\n     *   EVENT_APP_UNKNOWN                some application layer event\n     *   EVENT_UI_UNKNOWN                 some UI layer event\n     *   EVENT_UNKNOWN                    some event (we don't know what layer)\n     *   EVENT_BLIND                      blind event for a black boxes that are not instrumented"}, "name": "type"}, {"doc": "The thread id to which this event belongs", "type": "int", "name": "threadId"}, {"doc": "What source system generated this event, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Event name (Optional)", "type": ["null", "string"], "name": "name"}, {"default": null, "doc": "Event parameters represented as values, see Value (Optional)", "type": ["null", {"items": {"doc": "*  Values represent transient data, mainly parameters to events\n     *  Values are created and used once within an event's execution\n     *  and are relevant mainly during fine-grained tracking (such as\n     *  with tag/taint propagation)\n     *  Values have tags describing their provenance\n     *  Sometimes the actual value's value is reported in addition to\n     *  the value's metadata", "namespace": "com.bbn.tc.schema.avro", "name": "Value", "fields": [{"doc": "The size of the value in bytes", "type": "int", "name": "size"}, {"default": null, "doc": "The actual datatype of the value, e.g., int, double, array<int>, etc. (Optional)", "type": ["null", "string"], "name": "valueDataType"}, {"default": null, "doc": "The actual bytes of the value (Optional)", "type": ["null", "bytes"], "name": "valueBytes"}, {"default": null, "doc": "* the value's tag expression describing its provenance\n         * since value could be an array, the tag can use run length\n         * encoding if needed. The format of the array is as follows\n         *   {<numBytes:int>, <tagId:int>}*\n         * For example, to assign a tag 0 (unknown) to bytes 0-3, 1 to bytes 4-7 of the value,\n         * and 2 to bytes 8-15, this would represented using\n         * the following tag array\n         *  {4, 0, 4, 1, 8, 2} meaning the first 4 bytes have tag 0, next 4 have tag 1, next 8 have tag 2\n         *\n         * Note that tagId had to be defined/emitted earlier (see ProvenanceTagNode)\n         * before it can be assigned to a value", "type": ["null", {"items": "int", "type": "array"}], "name": "tag"}], "type": "record"}, "type": "array"}], "name": "parameters"}, {"default": null, "doc": "Location refers to the location of the data affecting the event\n         *  (e.g., the read offset in the file for the read system call event (Optional)", "type": ["null", "long"], "name": "location"}, {"default": null, "doc": "Size refers to the size of the data affecting the event\n         *  (e.g., the number of bytes read from the file for the read system call event (Optional)", "type": ["null", "long"], "name": "size"}, {"default": null, "doc": "The program point where the event was triggered (e.g., executable and line number), (Optional)", "type": ["null", "string"], "name": "programPoint"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Represents a network flow object. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "NetFlowObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "long", "name": "uuid"}, {"doc": "The base object attributes", "type": {"doc": "*  Objects, in general, represent data sources and sinks which could include sockets, files,\n     *  memory, and any data in general that can be an input and/or output to an event.\n     *  This record is intended to be abstract i.e., one should not instantiate an Object\n     *  but rather instantiate one of its sub types File, NetFlow, of Memory", "namespace": "com.bbn.tc.schema.avro", "name": "AbstractObject", "fields": [{"doc": "The source that emitted the object, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Permission bits defined over the object (Optional)", "type": ["null", {"namespace": "com.bbn.tc.schema.avro", "type": "fixed", "name": "SHORT", "size": 2}], "name": "permission"}, {"default": null, "doc": "* The timestamp when the object was last modified (Optional).\n        * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "lastTimestampMicros"}, {"default": null, "doc": "An expressive tag which could include conf/integ and other source provenance (Optional)", "type": ["null", "com.bbn.tc.schema.avro.ProvenanceTagNode"], "name": "tag"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, "name": "baseObject"}, {"doc": "The ip address of the source host for this flow", "type": "string", "name": "srcAddress"}, {"doc": "The network port on the source host for this flow", "type": "int", "name": "srcPort"}, {"doc": "The ip address of the destination host for this flow", "type": "string", "name": "destAddress"}, {"doc": "The network port on the destination host for this flow", "type": "int", "name": "destPort"}], "type": "record"}, {"doc": "* Represents a file on the file system. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "FileObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "long", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The location of the file absolute path or remote url", "type": "string", "name": "url"}, {"default": 1, "doc": "The file version incremented every time the file changes", "type": "int", "name": "version"}, {"default": null, "doc": "The file size in bytes (Optional)", "type": ["null", "long"], "name": "size"}], "type": "record"}, {"doc": "* Represents a generic source or sink on the host device that is not a file, memory, or netflow.\n     * This is the most basic representation of a source or sink, basically specifying its type only.", "namespace": "com.bbn.tc.schema.avro", "name": "SrcSinkObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "long", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The type of the source", "type": {"symbols": ["SOURCE_ACCELEROMETER", "SOURCE_TEMPERATURE", "SOURCE_GYROSCOPE", "SOURCE_MAGNETIC_FIELD", "SOURCE_HEAR_RATE", "SOURCE_LIGHT", "SOURCE_PROXIMITY", "SOURCE_PRESSURE", "SOURCE_RELATIVE_HUMIDITY", "SOURCE_LINEAR_ACCELERATION", "SOURCE_MOTION", "SOURCE_STEP_DETECTOR", "SOURCE_STEP_COUNTER", "SOURCE_TILT_DETECTOR", "SOURCE_ROTATION_VECTOR", "SOURCE_GRAVITY", "SOURCE_GEOMAGNETIC_ROTATION_VECTOR", "SOURCE_CAMERA", "SOURCE_GPS", "SOURCE_AUDIO", "SOURCE_SYSTEM_PROPERTY", "SOURCE_SINK_IPC", "SOURCE_UNKNOWN"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "SrcSinkType", "doc": "* There are many types of sources such as sensors\n     * The type of a sensor could be base (close to hardware) or composite\n     * See https://source.android.com/devices/sensors/index.html for details\n     * TODO: camera and GPS ideally should be modeled separately to match the Android model. These are rich subsystems"}, "name": "type"}], "type": "record"}, {"doc": "* Represents a page in memory. Instantiates an AbstractObject.\n     * TODO: is memory really an object (with permissions and so on) or is it a transient data?", "namespace": "com.bbn.tc.schema.avro", "name": "MemoryObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "long", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The memory page number", "type": "long", "name": "pageNumber"}, {"doc": "The location in memory", "type": "long", "name": "memoryAddress"}], "type": "record"}, {"doc": "* A principal is a local user\n    * TODO: extend for second evaluation to include remote principals\n    * TODO: what happens when the user information changes (are we tracking versions?)\n    * TODO: Authentication mechanisms: are TA1s providing that information and how?", "namespace": "com.bbn.tc.schema.avro", "name": "Principal", "fields": [{"doc": "A unique id for the principal", "type": "long", "name": "uuid"}, {"default": "PRINCIPAL_LOCAL", "doc": "The type of the principal, local by default", "type": {"symbols": ["PRINCIPAL_LOCAL", "PRINCIPAL_REMOTE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "PrincipalType", "doc": "* The type of principal may be local to the host, or remote users/systems."}, "name": "type"}, {"doc": "The operating system id associated with the user", "type": "int", "name": "userId"}, {"doc": "The ids of the groups which this user is part of", "type": {"items": "int", "type": "array"}, "name": "groupIds"}, {"doc": "The source that emitted the Principal record, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Edges in the CDM only connect the entities and do not have attributes of their own.\n     *  In order to make the streaming efficient, the edge specification does not require\n     *  the objects on both ends every time it is streamed/serialized. Instead, we defined\n     *  the edge to be simple, it has a type and it connects two entities each identified by\n     *  a uid each.\n     * Since the different edge types in the current model do not have different properties\n     *  (actually no properties at all), we do not define the different edges as separate\n     *  records at this time.\n     * For example, when streaming a large number of edges having the same from node, the\n     *  from node in all these edges will be represented using the node id instead of having\n     *  to replicate the full node object on the wire.", "namespace": "com.bbn.tc.schema.avro", "name": "SimpleEdge", "fields": [{"doc": "A unique id of the From entity on the edge", "type": "long", "name": "fromUuid"}, {"doc": "The id of the To entity on the edge", "type": "long", "name": "toUuid"}, {"doc": "The type of the edge, see EdgeType", "type": {"symbols": ["EDGE_EVENT_AFFECTS_MEMORY", "EDGE_EVENT_AFFECTS_FILE", "EDGE_EVENT_AFFECTS_NETFLOW", "EDGE_EVENT_AFFECTS_SUBJECT", "EDGE_EVENT_AFFECTS_SRCSINK", "EDGE_EVENT_HASPARENT_EVENT", "EDGE_EVENT_ISGENERATEDBY_SUBJECT", "EDGE_SUBJECT_AFFECTS_EVENT", "EDGE_SUBJECT_HASPARENT_SUBJECT", "EDGE_SUBJECT_HASLOCALPRINCIPAL", "EDGE_SUBJECT_RUNSON", "EDGE_FILE_AFFECTS_EVENT", "EDGE_NETFLOW_AFFECTS_EVENT", "EDGE_MEMORY_AFFECTS_EVENT", "EDGE_SRCSINK_AFFECTS_EVENT", "EDGE_OBJECT_PREV_VERSION"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "EdgeType", "doc": "* The different types of simple edges in the CDM\n     *   EDGE_EVENT_AFFECTS_MEMORY          an event affects a memory object (such as updating a memory location)\n     *   EDGE_EVENT_AFFECTS_FILE            an event affects a file object (such as writing to a file)\n     *   EDGE_EVENT_AFFECTS_NETFLOW         an event affects a netflow object (such as writing to socket)\n     *   EDGE_EVENT_AFFECTS_SUBJECT         an event affects a subject (such as forking a process)\n     *   EDGE_EVENT_AFFECTS_SRCSINK         an event affects a generic src/sink object\n     *   EDGE_EVENT_HASPARENT_EVENT         a metaevent that represents a set of child atomic events\n     *   EDGE_EVENT_ISGENERATEDBY_SUBJECT   an event is generated by a subject (every event is)\n     *   EDGE_SUBJECT_AFFECTS_EVENT         a subject affects an event (such as when killing a process)\n     *   EDGE_SUBJECT_HASPARENT_SUBJECT     a subject has a parent subject (such as thread has parent process)\n     *   EDGE_SUBJECT_HASPRINCIPAL          a subject has a principal (such as a process owned by a user)\n     *   EDGE_SUBJECT_RUNSON                a subject runs on a host (TODO: host not yet modeled)\n     *   EDGE_FILE_AFFECTS_EVENT            an event reads from a file\n     *   EDGE_NETFLOW_AFFECTS_EVENT         an event reads from a network flow\n     *   EDGE_MEMORY_AFFECTS_EVENT          an event reads from a memory object\n     *   EDGE_SRCSINK_AFFECTS_EVENT         a generic source/sink object affects an event\n     *   EDGE_OBJECT_PREV_VERSION           the previous version of an object, typically used for file versioning\n     *"}, "name": "type"}, {"doc": "* When the edge was created.\n        * Timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": "long", "name": "timestamp"}, {"default": null, "doc": "Arbitrary key, value pairs describing the edge", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}], "name": "datum"}], "type": "record"}avro.codecnull íÿÀù,Å¿ñfÕ7©´îé    
+ Ü½€€  Ü=
+†äÛœØÓ–      exec
+nginx Ü½€€  †äÛœØÓ– ‚€€€`ÂÔ…­ éý¸(.®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_gmtimemodule
+nginxproviderpid3950 ‚€€€`Ü½€€ ÂÔ…­ éý¸( €€€€`ÂÔ…­ éý¸( .®¤
+     
+probe
+entrycallngx_time_updatemodule
+nginxproviderpid3950 €€€€`Ü½€€ ÂÔ…­ éý¸( Š€€€`ÂÔ…­ éý¸(
+.®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Š€€€`Ü½€€ ÂÔ…­ éý¸( Ž€€€`ÂÔ…­ éý¸(.®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ž€€€`Ü½€€ ÂÔ…­ éý¸( †€€€`ÂÔ…­ éý¸(.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 †€€€`Ü½€€ ÂÔ…­ éý¸( ˆ€€€`ÂÔ…­ éý¸(.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 ˆ€€€`Ü½€€ ÂÔ…­ éý¸( ’€€€`ÂÔ…­ éý¸(.®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ’€€€`Ü½€€ ÂÔ…­ éý¸( –€€€`ÂÔ…­ éý¸(.®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 –€€€`Ü½€€ ÂÔ…­ éý¸( š€€€`ÂÔ…­ éý¸(.®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 š€€€`Ü½€€ ÂÔ…­ éý¸( ž€€€`ÂÔ…­ éý¸(.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 ž€€€`Ü½€€ ÂÔ…­ éý¸(  €€€`ÂÔ…­ éý¸( .®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950  €€€`Ü½€€ ÂÔ…­ éý¸( ¢€€€`ÂÔ…­ éý¸(".®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_localtimemodule
+nginxproviderpid3950 ¢€€€`Ü½€€ ÂÔ…­ éý¸( ª€€€`ÂÔ…­ éý¸(*.®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ª€€€`Ü½€€ ÂÔ…­ éý¸( ®€€€`ÂÔ…­ éý¸(..®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ®€€€`Ü½€€ ÂÔ…­ éý¸( ¦€€€`ÂÔ…­ éý¸(&.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 ¦€€€`Ü½€€ ÂÔ…­ éý¸( ¨€€€`ÂÔ…­ éý¸((.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 ¨€€€`Ü½€€ ÂÔ…­ éý¸( ²€€€`ÂÔ…­ éý¸(2.®¤
+     
+*returnTimestampMicros&1457191165589763361
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ²€€€`Ü½€€ ÂÔ…­ éý¸( ¶€€€`ÂÔ…­ éý¸(6.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ¶€€€`Ü½€€ ÂÔ…­ éý¸( º€€€`Ø”Î­ éý¸(:.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 º€€€`Ü½€€ Ø”Î­ éý¸( ¾€€€`Ø”Î­ éý¸(>.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ¾€€€`Ü½€€ Ø”Î­ éý¸( Â€€€`Ø”Î­ éý¸(B.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 Â€€€`Ü½€€ Ø”Î­ éý¸( Ä€€€`Ø”Î­ éý¸(D.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 Ä€€€`Ü½€€ Ø”Î­ éý¸( Ê€€€`Ø”Î­ éý¸(J.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ê€€€`Ü½€€ Ø”Î­ éý¸( Î€€€`Ø”Î­ éý¸(N.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Î€€€`Ü½€€ Ø”Î­ éý¸( Æ€€€`Ø”Î­ éý¸(F.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 Æ€€€`Ü½€€ Ø”Î­ éý¸( È€€€`Ø”Î­ éý¸(H.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 È€€€`Ü½€€ Ø”Î­ éý¸( Ò€€€`Ø”Î­ éý¸(R.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ò€€€`Ü½€€ Ø”Î­ éý¸( Ö€€€`Ø”Î­ éý¸(V.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ö€€€`Ü½€€ Ø”Î­ éý¸( Ú€€€`Ø”Î­ éý¸(Z.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ú€€€`Ü½€€ Ø”Î­ éý¸( Þ€€€`Ø”Î­ éý¸(^.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Þ€€€`Ü½€€ Ø”Î­ éý¸( â€€€`Ø”Î­ éý¸(b.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 â€€€`Ü½€€ Ø”Î­ éý¸( æ€€€`Ø”Î­ éý¸(f.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 æ€€€`Ü½€€ Ø”Î­ éý¸( è€€€`Ø”Î­ éý¸(h.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 è€€€`Ü½€€ Ø”Î­ éý¸( î€€€`Ø”Î­ éý¸(n.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 î€€€`Ü½€€ Ø”Î­ éý¸( ò€€€`Ø”Î­ éý¸(r.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ò€€€`Ü½€€ Ø”Î­ éý¸( ê€€€`Ø”Î­ éý¸(j.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 ê€€€`Ü½€€ Ø”Î­ éý¸( ì€€€`Ø”Î­ éý¸(l.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 ì€€€`Ü½€€ Ø”Î­ éý¸( ö€€€`Ø”Î­ éý¸(v.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ö€€€`Ü½€€ Ø”Î­ éý¸( ú€€€`Ø”Î­ éý¸(z.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ú€€€`Ü½€€ Ø”Î­ éý¸( þ€€€`Ø”Î­ éý¸(~.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 þ€€€`Ü½€€ Ø”Î­ éý¸( ‚€€`Ø”Î­ éý¸(‚.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ‚€€`Ü½€€ Ø”Î­ éý¸( †€€`Ø”Î­ éý¸(†.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 †€€`Ü½€€ Ø”Î­ éý¸( Š€€`Ø”Î­ éý¸(Š.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Š€€`Ü½€€ Ø”Î­ éý¸( Ž€€`Ø”Î­ éý¸(Ž.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 Ž€€`Ü½€€ Ø”Î­ éý¸( €€`Ø”Î­ éý¸(.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 €€`Ü½€€ Ø”Î­ éý¸( –€€`Ø”Î­ éý¸(–.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 –€€`Ü½€€ Ø”Î­ éý¸( š€€`Ø”Î­ éý¸(š.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 š€€`Ü½€€ Ø”Î­ éý¸( ’€€`Ø”Î­ éý¸(’.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 ’€€`Ü½€€ Ø”Î­ éý¸( ”€€`Ø”Î­ éý¸(”.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 ”€€`Ü½€€ Ø”Î­ éý¸( ž€€`Ø”Î­ éý¸(ž.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ž€€`Ü½€€ Ø”Î­ éý¸( ¢€€`Ø”Î­ éý¸(¢.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ¢€€`Ü½€€ Ø”Î­ éý¸( ¦€€`Ø”Î­ éý¸(¦.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 ¦€€`Ü½€€ Ø”Î­ éý¸( ¨€€`Ø”Î­ éý¸(¨.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 ¨€€`Ü½€€ Ø”Î­ éý¸( ª€€`Ø”Î­ éý¸(ª.®¤
+     
+probereturncallngx_time_updatemodule
+nginxproviderpid3950 ª€€`Ü½€€ Ø”Î­ éý¸( ¬€€`Ø”Î­ éý¸(¬.®¤
+     
+probereturncall2ngx_kqueue_process_eventsmodule
+nginxproviderpid3950 ¬€€`Ü½€€ Ø”Î­ éý¸( ®€€`Ø”Î­ éý¸(®.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncall0ngx_event_process_postedmodule
+nginxproviderpid3950 ®€€`Ü½€€ Ø”Î­ éý¸( ²€€`Ø”Î­ éý¸(².®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncall.ngx_event_expire_timersmodule
+nginxproviderpid3950 ²€€`Ü½€€ Ø”Î­ éý¸( ¶€€`Ø”Î­ éý¸(¶.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncall0ngx_event_process_postedmodule
+nginxproviderpid3950 ¶€€`Ü½€€ Ø”Î­ éý¸( º€€`Ø”Î­ éý¸(º.®¤
+     
+probereturncall:ngx_process_events_and_timersmodule
+nginxproviderpid3950 º€€`Ü½€€ Ø”Î­ éý¸( ¾€€`Ø”Î­ éý¸(¾.®¤
+     
+*returnTimestampMicros&1457191165590357292
+probeentry:returncall(ngx_event_find_timermodule
+nginxproviderpid3950 ¾€€`Ü½€€ Ø”Î­ éý¸( ¼€€`Ø”Î­ éý¸(¼.®¤
+     
+probe
+entrycall:ngx_process_events_and_timersmodule
+nginxproviderpid3950 ¼€€`Ü½€€ Ø”Î­ éý¸( Æ€€`˜Ò×ƒ×éý¸(Æ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_gmtimemodule
+nginxproviderpid3950 Æ€€`Ü½€€ ˜Ò×ƒ×éý¸( Â€€`Ø”Î­ éý¸(Â.®¤
+     
+probe
+entrycall2ngx_kqueue_process_eventsmodule
+nginxproviderpid3950 Â€€`Ü½€€ Ø”Î­ éý¸( Ä€€`˜Ò×ƒ×éý¸(Ä.®¤
+     
+probe
+entrycallngx_time_updatemodule
+nginxproviderpid3950 Ä€€`Ü½€€ ˜Ò×ƒ×éý¸( Î€€`˜Ò×ƒ×éý¸(Î.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Î€€`Ü½€€ ˜Ò×ƒ×éý¸( Ò€€`˜Ò×ƒ×éý¸(Ò.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ò€€`Ü½€€ ˜Ò×ƒ×éý¸( Ê€€`˜Ò×ƒ×éý¸(Ê.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 Ê€€`Ü½€€ ˜Ò×ƒ×éý¸( Ì€€`˜Ò×ƒ×éý¸(Ì.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 Ì€€`Ü½€€ ˜Ò×ƒ×éý¸( Ö€€`˜Ò×ƒ×éý¸(Ö.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ö€€`Ü½€€ ˜Ò×ƒ×éý¸( Ú€€`˜Ò×ƒ×éý¸(Ú.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ú€€`Ü½€€ ˜Ò×ƒ×éý¸( Þ€€`˜Ò×ƒ×éý¸(Þ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Þ€€`Ü½€€ ˜Ò×ƒ×éý¸( â€€`˜Ò×ƒ×éý¸(â.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 â€€`Ü½€€ ˜Ò×ƒ×éý¸( ä€€`˜Ò×ƒ×éý¸(ä.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 ä€€`Ü½€€ ˜Ò×ƒ×éý¸( æ€€`˜Ò×ƒ×éý¸(æ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_localtimemodule
+nginxproviderpid3950 æ€€`Ü½€€ ˜Ò×ƒ×éý¸( î€€`˜Ò×ƒ×éý¸(î.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 î€€`Ü½€€ ˜Ò×ƒ×éý¸( ò€€`˜Ò×ƒ×éý¸(ò.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ò€€`Ü½€€ ˜Ò×ƒ×éý¸( ê€€`˜Ò×ƒ×éý¸(ê.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 ê€€`Ü½€€ ˜Ò×ƒ×éý¸( ì€€`˜Ò×ƒ×éý¸(ì.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 ì€€`Ü½€€ ˜Ò×ƒ×éý¸( ö€€`˜Ò×ƒ×éý¸(ö.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ö€€`Ü½€€ ˜Ò×ƒ×éý¸( ú€€`˜Ò×ƒ×éý¸(ú.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ú€€`Ü½€€ ˜Ò×ƒ×éý¸( þ€€`˜Ò×ƒ×éý¸(þ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 þ€€`Ü½€€ ˜Ò×ƒ×éý¸( ‚‚€€`˜Ò×ƒ×éý¸(‚.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ‚‚€€`Ü½€€ ˜Ò×ƒ×éý¸( †‚€€`˜Ò×ƒ×éý¸(†.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 †‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ˆ‚€€`˜Ò×ƒ×éý¸(ˆ.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 ˆ‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Ž‚€€`˜Ò×ƒ×éý¸(Ž.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ž‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ’‚€€`˜Ò×ƒ×éý¸(’.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ’‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Š‚€€`˜Ò×ƒ×éý¸(Š.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 Š‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Œ‚€€`˜Ò×ƒ×éý¸(Œ.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 Œ‚€€`Ü½€€ ˜Ò×ƒ×éý¸( –‚€€`˜Ò×ƒ×éý¸(–.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 –‚€€`Ü½€€ ˜Ò×ƒ×éý¸( š‚€€`˜Ò×ƒ×éý¸(š.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 š‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ž‚€€`˜Ò×ƒ×éý¸(ž.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ž‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ¢‚€€`˜Ò×ƒ×éý¸(¢.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ¢‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ¦‚€€`˜Ò×ƒ×éý¸(¦.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ¦‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ª‚€€`˜Ò×ƒ×éý¸(ª.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 ª‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ¬‚€€`˜Ò×ƒ×éý¸(¬.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 ¬‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ²‚€€`˜Ò×ƒ×éý¸(².®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ²‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ¶‚€€`˜Ò×ƒ×éý¸(¶.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ¶‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ®‚€€`˜Ò×ƒ×éý¸(®.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 ®‚€€`Ü½€€ ˜Ò×ƒ×éý¸( °‚€€`˜Ò×ƒ×éý¸(°.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 °‚€€`Ü½€€ ˜Ò×ƒ×éý¸( º‚€€`˜Ò×ƒ×éý¸(º.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 º‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ¾‚€€`˜Ò×ƒ×éý¸(¾.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ¾‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Â‚€€`˜Ò×ƒ×éý¸(Â.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Â‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Æ‚€€`˜Ò×ƒ×éý¸(Æ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Æ‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Ê‚€€`˜Ò×ƒ×éý¸(Ê.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ê‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Î‚€€`˜Ò×ƒ×éý¸(Î.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Î‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Ò‚€€`˜Ò×ƒ×éý¸(Ò.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 Ò‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Ô‚€€`˜Ò×ƒ×éý¸(Ô.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 Ô‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Ú‚€€`˜Ò×ƒ×éý¸(Ú.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ú‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Þ‚€€`˜Ò×ƒ×éý¸(Þ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Þ‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Ö‚€€`˜Ò×ƒ×éý¸(Ö.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 Ö‚€€`Ü½€€ ˜Ò×ƒ×éý¸( Ø‚€€`˜Ò×ƒ×éý¸(Ø.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 Ø‚€€`Ü½€€ ˜Ò×ƒ×éý¸( â‚€€`˜Ò×ƒ×éý¸(â.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 â‚€€`Ü½€€ ˜Ò×ƒ×éý¸( æ‚€€`˜Ò×ƒ×éý¸(æ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 æ‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ê‚€€`˜Ò×ƒ×éý¸(ê.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 ê‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ì‚€€`˜Ò×ƒ×éý¸(ì.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 ì‚€€`Ü½€€ ˜Ò×ƒ×éý¸( î‚€€`˜Ò×ƒ×éý¸(î.®¤
+     
+probereturncallngx_time_updatemodule
+nginxproviderpid3950 î‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ð‚€€`˜Ò×ƒ×éý¸(ð.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall*ngx_kqueue_dump_eventmodule
+nginxproviderpid3950 ð‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ö‚€€`˜Ò×ƒ×éý¸(ö.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall$ngx_get_connectionmodule
+nginxproviderpid3950 ö‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ü‚€€`˜Ò×ƒ×éý¸(ü.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_memalignmodule
+nginxproviderpid3950 ü‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ô‚€€`˜Ò×ƒ×éý¸(ô.®¤
+     
+probe
+entrycall ngx_event_acceptmodule
+nginxproviderpid3950 ô‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ú‚€€`˜Ò×ƒ×éý¸(ú.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_create_poolmodule
+nginxproviderpid3950 ú‚€€`Ü½€€ ˜Ò×ƒ×éý¸( ‚ƒ€€`˜Ò×ƒ×éý¸(‚.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 ‚ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( †ƒ€€`˜Ò×ƒ×éý¸(†.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 †ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Šƒ€€`˜Ò×ƒ×éý¸(Š.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pnallocmodule
+nginxproviderpid3950 Šƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ”ƒ€€`˜Ò×ƒ×éý¸(”.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ”ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Žƒ€€`˜Ò×ƒ×éý¸(Ž.®¤
+     
+probe
+entrycallngx_sock_ntopmodule
+nginxproviderpid3950 Žƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ˜ƒ€€`˜Ò×ƒ×éý¸(˜.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ˜ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ƒ€€`˜Ò×ƒ×éý¸(.®¤
+     
+probe
+entrycallngx_snprintfmodule
+nginxproviderpid3950 ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ’ƒ€€`˜Ò×ƒ×éý¸(’.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 ’ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( œƒ€€`˜Ò×ƒ×éý¸(œ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 œƒ€€`Ü½€€ ˜Ò×ƒ×éý¸(  ƒ€€`˜Ò×ƒ×éý¸( .®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950  ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ¤ƒ€€`˜Ò×ƒ×éý¸(¤.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 ¤ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ¦ƒ€€`˜Ò×ƒ×éý¸(¦.®¤
+     
+probereturncallngx_snprintfmodule
+nginxproviderpid3950 ¦ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ¨ƒ€€`˜Ò×ƒ×éý¸(¨.®¤
+     
+probereturncallngx_sock_ntopmodule
+nginxproviderpid3950 ¨ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ²ƒ€€`˜Ò×ƒ×éý¸(².®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_memalignmodule
+nginxproviderpid3950 ²ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ªƒ€€`˜Ò×ƒ×éý¸(ª.®¤
+     
+probe
+entrycall0ngx_http_init_connectionmodule
+nginxproviderpid3950 ªƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( °ƒ€€`˜Ò×ƒ×éý¸(°.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall ngx_palloc_blockmodule
+nginxproviderpid3950 °ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ¬ƒ€€`˜Ò×ƒ×éý¸(¬.®¤
+     
+probe
+entrycallngx_pcallocmodule
+nginxproviderpid3950 ¬ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ®ƒ€€`˜Ò×ƒ×éý¸(®.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 ®ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ºƒ€€`˜Ò×ƒ×éý¸(º.®¤
+     
+probereturncallngx_pcallocmodule
+nginxproviderpid3950 ºƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ¼ƒ€€`˜Ò×ƒ×éý¸(¼.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 ¼ƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Àƒ€€`˜Ò×ƒ×éý¸(À.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall"ngx_rbtree_insertmodule
+nginxproviderpid3950 Àƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Äƒ€€`˜Ò×ƒ×éý¸(Ä.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall.ngx_reusable_connectionmodule
+nginxproviderpid3950 Äƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Ìƒ€€`˜Ò×ƒ×éý¸(Ì.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall(ngx_kqueue_set_eventmodule
+nginxproviderpid3950 Ìƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Êƒ€€`˜Ò×ƒ×éý¸(Ê.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall(ngx_kqueue_add_eventmodule
+nginxproviderpid3950 Êƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Èƒ€€`˜Ò×ƒ×éý¸(È.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall*ngx_handle_read_eventmodule
+nginxproviderpid3950 Èƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Ôƒ€€`˜Ò×ƒ×éý¸(Ô.®¤
+     
+probereturncall0ngx_http_init_connectionmodule
+nginxproviderpid3950 Ôƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Öƒ€€`˜Ò×ƒ×éý¸(Ö.®¤
+     
+probereturncall ngx_event_acceptmodule
+nginxproviderpid3950 Öƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Øƒ€€`˜Ò×ƒ×éý¸(Ø.®¤
+     
+probereturncall2ngx_kqueue_process_eventsmodule
+nginxproviderpid3950 Øƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Úƒ€€`˜Ò×ƒ×éý¸(Ú.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall0ngx_event_process_postedmodule
+nginxproviderpid3950 Úƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( Þƒ€€`˜Ò×ƒ×éý¸(Þ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall.ngx_event_expire_timersmodule
+nginxproviderpid3950 Þƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( âƒ€€`˜Ò×ƒ×éý¸(â.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall0ngx_event_process_postedmodule
+nginxproviderpid3950 âƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( æƒ€€`˜Ò×ƒ×éý¸(æ.®¤
+     
+probereturncall:ngx_process_events_and_timersmodule
+nginxproviderpid3950 æƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( êƒ€€`˜Ò×ƒ×éý¸(ê.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall(ngx_event_find_timermodule
+nginxproviderpid3950 êƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ðƒ€€`˜Ò×ƒ×éý¸(ð.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_time_updatemodule
+nginxproviderpid3950 ðƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( èƒ€€`˜Ò×ƒ×éý¸(è.®¤
+     
+probe
+entrycall:ngx_process_events_and_timersmodule
+nginxproviderpid3950 èƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ôƒ€€`˜Ò×ƒ×éý¸(ô.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall*ngx_kqueue_dump_eventmodule
+nginxproviderpid3950 ôƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( îƒ€€`˜Ò×ƒ×éý¸(î.®¤
+     
+probe
+entrycall2ngx_kqueue_process_eventsmodule
+nginxproviderpid3950 îƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( þƒ€€`˜Ò×ƒ×éý¸(þ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 þƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( üƒ€€`˜Ò×ƒ×éý¸(ü.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pcallocmodule
+nginxproviderpid3950 üƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( øƒ€€`˜Ò×ƒ×éý¸(ø.®¤
+     
+probe
+entrycall:ngx_http_wait_request_handlermodule
+nginxproviderpid3950 øƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( úƒ€€`˜Ò×ƒ×éý¸(ú.®¤
+     
+probe
+entrycall&ngx_create_temp_bufmodule
+nginxproviderpid3950 úƒ€€`Ü½€€ ˜Ò×ƒ×éý¸( ˆ„€€`˜Ò×ƒ×éý¸(ˆ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_allocmodule
+nginxproviderpid3950 ˆ„€€`Ü½€€ ˜Ò×ƒ×éý¸( Œ„€€`˜Ò×ƒ×éý¸(Œ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 Œ„€€`Ü½€€ ˜Ò×ƒ×éý¸( †„€€`˜Ò×ƒ×éý¸(†.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall ngx_palloc_largemodule
+nginxproviderpid3950 †„€€`Ü½€€ ˜Ò×ƒ×éý¸( ’„€€`˜Ò×ƒ×éý¸(’.®¤
+     
+probereturncallngx_pallocmodule
+nginxproviderpid3950 ’„€€`Ü½€€ ˜Ò×ƒ×éý¸( ”„€€`˜Ò×ƒ×éý¸(”.®¤
+     
+probereturncall&ngx_create_temp_bufmodule
+nginxproviderpid3950 ”„€€`Ü½€€ ˜Ò×ƒ×éý¸( –„€€`˜Ò×ƒ×éý¸(–.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_unix_recvmodule
+nginxproviderpid3950 –„€€`Ü½€€ ˜Ò×ƒ×éý¸( š„€€`˜Ò×ƒ×éý¸(š.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall.ngx_reusable_connectionmodule
+nginxproviderpid3950 š„€€`Ü½€€ ˜Ò×ƒ×éý¸( ¢„€€`˜Ò×ƒ×éý¸(¢.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_memalignmodule
+nginxproviderpid3950 ¢„€€`Ü½€€ ˜Ò×ƒ×éý¸(  „€€`˜Ò×ƒ×éý¸( .®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_create_poolmodule
+nginxproviderpid3950  „€€`Ü½€€ ˜Ò×ƒ×éý¸( ž„€€`˜Ò×ƒ×éý¸(ž.®¤
+     
+probe
+entrycall.ngx_http_create_requestmodule
+nginxproviderpid3950 ž„€€`Ü½€€ ˜Ò×ƒ×éý¸( ª„€€`˜Ò×ƒ×éý¸(ª.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 ª„€€`Ü½€€ ˜Ò×ƒ×éý¸( ¨„€€`˜Ò×ƒ×éý¸(¨.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pcallocmodule
+nginxproviderpid3950 ¨„€€`Ü½€€ ˜Ò×ƒ×éý¸( °„€€`˜Ò×ƒ×éý¸(°.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 °„€€`Ü½€€ ˜Ò×ƒ×éý¸( ¶„€€`˜Ò×ƒ×éý¸(¶.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 ¶„€€`Ü½€€ ˜Ò×ƒ×éý¸( ´„€€`˜Ò×ƒ×éý¸(´.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pcallocmodule
+nginxproviderpid3950 ´„€€`Ü½€€ ˜Ò×ƒ×éý¸( ¾„€€`˜Ò×ƒ×éý¸(¾.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 ¾„€€`Ü½€€ ˜Ò×ƒ×éý¸( ¼„€€`˜Ò×ƒ×éý¸(¼.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pcallocmodule
+nginxproviderpid3950 ¼„€€`Ü½€€ ˜Ò×ƒ×éý¸( Ä„€€`˜Ò×ƒ×éý¸(Ä.®¤
+     
+probereturncall.ngx_http_create_requestmodule
+nginxproviderpid3950 Ä„€€`Ü½€€ ˜Ò×ƒ×éý¸( È„€€`˜Ò×ƒ×éý¸(È.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall8ngx_http_read_request_headermodule
+nginxproviderpid3950 È„€€`Ü½€€ ˜Ò×ƒ×éý¸( Ì„€€`˜Ò×ƒ×éý¸(Ì.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall6ngx_http_parse_request_linemodule
+nginxproviderpid3950 Ì„€€`Ü½€€ ˜Ò×ƒ×éý¸( Æ„€€`˜Ò×ƒ×éý¸(Æ.®¤
+     
+probe
+entrycall:ngx_http_process_request_linemodule
+nginxproviderpid3950 Æ„€€`Ü½€€ ˜Ò×ƒ×éý¸( Ð„€€`˜Ò×ƒ×éý¸(Ð.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall8ngx_http_process_request_urimodule
+nginxproviderpid3950 Ð„€€`Ü½€€ ˜Ò×ƒ×éý¸( Ô„€€`˜Ò×ƒ×éý¸(Ô.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 Ô„€€`Ü½€€ ˜Ò×ƒ×éý¸( Ú„€€`˜Ò×ƒ×éý¸(Ú.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall8ngx_http_read_request_headermodule
+nginxproviderpid3950 Ú„€€`Ü½€€ ˜Ò×ƒ×éý¸( Þ„€€`˜Ò×ƒ×éý¸(Þ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall4ngx_http_parse_header_linemodule
+nginxproviderpid3950 Þ„€€`Ü½€€ ˜Ò×ƒ×éý¸( Ø„€€`˜Ò×ƒ×éý¸(Ø.®¤
+     
+probe
+entrycall@ngx_http_process_request_headersmodule
+nginxproviderpid3950 Ø„€€`Ü½€€ ˜Ò×ƒ×éý¸( â„€€`˜Ò×ƒ×éý¸(â.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_list_pushmodule
+nginxproviderpid3950 â„€€`Ü½€€ ˜Ò×ƒ×éý¸( æ„€€`˜Ò×ƒ×éý¸(æ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pnallocmodule
+nginxproviderpid3950 æ„€€`Ü½€€ ˜Ò×ƒ×éý¸( ê„€€`˜Ò×ƒ×éý¸(ê.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_hash_findmodule
+nginxproviderpid3950 ê„€€`Ü½€€ ˜Ò×ƒ×éý¸( ð„€€`˜Ò×ƒ×éý¸(ð.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall,ngx_http_validate_hostmodule
+nginxproviderpid3950 ð„€€`Ü½€€ ˜Ò×ƒ×éý¸( ö„€€`˜Ò×ƒ×éý¸(ö.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall8ngx_http_find_virtual_servermodule
+nginxproviderpid3950 ö„€€`Ü½€€ ˜Ò×ƒ×éý¸( î„€€`˜Ò×ƒ×éý¸(î.®¤
+     
+probe
+entrycall*ngx_http_process_hostmodule
+nginxproviderpid3950 î„€€`Ü½€€ ˜Ò×ƒ×éý¸( ô„€€`˜Ò×ƒ×éý¸(ô.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall6ngx_http_set_virtual_servermodule
+nginxproviderpid3950 ô„€€`Ü½€€ ˜Ò×ƒ×éý¸( ü„€€`˜Ò×ƒ×éý¸(ü.®¤
+     
+probereturncall*ngx_http_process_hostmodule
+nginxproviderpid3950 ü„€€`Ü½€€ ˜Ò×ƒ×éý¸( þ„€€`˜Ò×ƒ×éý¸(þ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall4ngx_http_parse_header_linemodule
+nginxproviderpid3950 þ„€€`Ü½€€ ˜Ò×ƒ×éý¸( ‚…€€`˜Ò×ƒ×éý¸(‚.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_list_pushmodule
+nginxproviderpid3950 ‚…€€`Ü½€€ ˜Ò×ƒ×éý¸( †…€€`˜Ò×ƒ×éý¸(†.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pnallocmodule
+nginxproviderpid3950 †…€€`Ü½€€ ˜Ò×ƒ×éý¸( Š…€€`˜Ò×ƒ×éý¸(Š.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_hash_findmodule
+nginxproviderpid3950 Š…€€`Ü½€€ ˜Ò×ƒ×éý¸( …€€`˜Ò×ƒ×éý¸(.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_strstrnmodule
+nginxproviderpid3950 …€€`Ü½€€ ˜Ò×ƒ×éý¸( ”…€€`˜Ò×ƒ×éý¸(”.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_strstrnmodule
+nginxproviderpid3950 ”…€€`Ü½€€ ˜Ò×ƒ×éý¸( Ž…€€`˜Ò×ƒ×éý¸(Ž.®¤
+     
+probe
+entrycall6ngx_http_process_user_agentmodule
+nginxproviderpid3950 Ž…€€`Ü½€€ ˜Ò×ƒ×éý¸( ˜…€€`˜Ò×ƒ×éý¸(˜.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_strstrnmodule
+nginxproviderpid3950 ˜…€€`Ü½€€ ˜Ò×ƒ×éý¸( œ…€€`˜Ò×ƒ×éý¸(œ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_strstrnmodule
+nginxproviderpid3950 œ…€€`Ü½€€ ˜Ò×ƒ×éý¸(  …€€`˜Ò×ƒ×éý¸( .®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_strstrnmodule
+nginxproviderpid3950  …€€`Ü½€€ ˜Ò×ƒ×éý¸( ¤…€€`˜Ò×ƒ×éý¸(¤.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_strstrnmodule
+nginxproviderpid3950 ¤…€€`Ü½€€ ˜Ò×ƒ×éý¸( ¨…€€`˜Ò×ƒ×éý¸(¨.®¤
+     
+probereturncall6ngx_http_process_user_agentmodule
+nginxproviderpid3950 ¨…€€`Ü½€€ ˜Ò×ƒ×éý¸( ª…€€`˜Ò×ƒ×éý¸(ª.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall4ngx_http_parse_header_linemodule
+nginxproviderpid3950 ª…€€`Ü½€€ ˜Ò×ƒ×éý¸( ®…€€`˜Ò×ƒ×éý¸(®.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_list_pushmodule
+nginxproviderpid3950 ®…€€`Ü½€€ ˜Ò×ƒ×éý¸( ²…€€`˜Ò×ƒ×éý¸(².®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_pnallocmodule
+nginxproviderpid3950 ²…€€`Ü½€€ ˜Ò×ƒ×éý¸( ¶…€€`˜Ò×ƒ×éý¸(¶.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallngx_hash_findmodule
+nginxproviderpid3950 ¶…€€`Ü½€€ ˜Ò×ƒ×éý¸( º…€€`˜Ò×ƒ×éý¸(º.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall4ngx_http_parse_header_linemodule
+nginxproviderpid3950 º…€€`Ü½€€ ˜Ò×ƒ×éý¸( ¾…€€`˜Ò×ƒ×éý¸(¾.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall>ngx_http_process_request_headermodule
+nginxproviderpid3950 ¾…€€`Ü½€€ ˜Ò×ƒ×éý¸( Æ…€€`˜Ò×ƒ×éý¸(Æ.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall"ngx_rbtree_deletemodule
+nginxproviderpid3950 Æ…€€`Ü½€€ ˜Ò×ƒ×éý¸( Ä…€€`˜Ò×ƒ×éý¸(Ä.®¤
+     
+requestGET / HTTP/1.1
+probe
+entrycall0ngx_http_process_requestmodule
+nginxproviderpid3950 Ä…€€`Ü½€€ ˜Ò×ƒ×éý¸( Ð…€€`˜Ò×ƒ×éý¸(Ð.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall0ngx_http_rewrite_handlermodule
+nginxproviderpid3950 Ð…€€`Ü½€€ ˜Ò×ƒ×éý¸( Î…€€`˜Ò×ƒ×éý¸(Î.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall6ngx_http_core_rewrite_phasemodule
+nginxproviderpid3950 Î…€€`Ü½€€ ˜Ò×ƒ×éý¸( Ê…€€`˜Ò×ƒ×éý¸(Ê.®¤
+     
+probe
+entrycall ngx_http_handlermodule
+nginxproviderpid3950 Ê…€€`Ü½€€ ˜Ò×ƒ×éý¸( Ì…€€`˜Ò×ƒ×éý¸(Ì.®¤
+     
+probe
+entrycall0ngx_http_core_run_phasesmodule
+nginxproviderpid3950 Ì…€€`Ü½€€ ˜Ò×ƒ×éý¸( Ü…€€`˜Ò×ƒ×éý¸(Ü.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall ngx_filename_cmpmodule
+nginxproviderpid3950 Ü…€€`Ü½€€ ˜Ò×ƒ×éý¸( Ú…€€`˜Ò×ƒ×éý¸(Ú.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallDngx_http_core_find_static_locationmodule
+nginxproviderpid3950 Ú…€€`Ü½€€ ˜Ò×ƒ×éý¸( Ö…€€`˜Ò×ƒ×éý¸(Ö.®¤
+     
+probe
+entrycall>ngx_http_core_find_config_phasemodule
+nginxproviderpid3950 Ö…€€`Ü½€€ ˜Ò×ƒ×éý¸( ä…€€`˜Ò×ƒ×éý¸(ä.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncallDngx_http_core_find_static_locationmodule
+nginxproviderpid3950 ä…€€`Ü½€€ ˜Ò×ƒ×éý¸( â…€€`˜Ò×ƒ×éý¸(â.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall6ngx_http_core_find_locationmodule
+nginxproviderpid3950 â…€€`Ü½€€ ˜Ò×ƒ×éý¸( ê…€€`˜Ò×ƒ×éý¸(ê.®¤
+     
+probereturncall6ngx_http_core_find_locationmodule
+nginxproviderpid3950 ê…€€`Ü½€€ ˜Ò×ƒ×éý¸( ì…€€`˜Ò×ƒ×éý¸(ì.®¤
+     
+*returnTimestampMicros&1457191172928369804
+probeentry:returncall>ngx_http_update_location_configmodule
+nginxproviderpid3950 ì…€€`Ü½€€ ˜Ò×ƒ×éý¸( ð…€€`˜Ò×ƒ×éý¸(ð.®¤
+     
+probereturncall>ngx_http_core_find_config_phasemodule
+nginxproviderpid3950 ð…€€`Ü½€€ ˜Ò×ƒ×éý¸( ô…€€`œñÊ…×éý¸(ô.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall0ngx_http_rewrite_handlermodule
+nginxproviderpid3950 ô…€€`Ü½€€ œñÊ…×éý¸( ò…€€`˜Ò×ƒ×éý¸(ò.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_rewrite_phasemodule
+nginxproviderpid3950 ò…€€`Ü½€€ ˜Ò×ƒ×éý¸( ú…€€`œñÊ…×éý¸(ú.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall@ngx_http_core_post_rewrite_phasemodule
+nginxproviderpid3950 ú…€€`Ü½€€ œñÊ…×éý¸( €†€€`œñÊ…×éý¸(€.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall4ngx_http_limit_req_handlermodule
+nginxproviderpid3950 €†€€`Ü½€€ œñÊ…×éý¸( þ…€€`œñÊ…×éý¸(þ.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_generic_phasemodule
+nginxproviderpid3950 þ…€€`Ü½€€ œñÊ…×éý¸( ˆ†€€`œñÊ…×éý¸(ˆ.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_limit_conn_handlermodule
+nginxproviderpid3950 ˆ†€€`Ü½€€ œñÊ…×éý¸( ††€€`œñÊ…×éý¸(†.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_generic_phasemodule
+nginxproviderpid3950 ††€€`Ü½€€ œñÊ…×éý¸( †€€`œñÊ…×éý¸(.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall.ngx_http_access_handlermodule
+nginxproviderpid3950 †€€`Ü½€€ œñÊ…×éý¸( Ž†€€`œñÊ…×éý¸(Ž.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall4ngx_http_core_access_phasemodule
+nginxproviderpid3950 Ž†€€`Ü½€€ œñÊ…×éý¸( ˜†€€`œñÊ…×éý¸(˜.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_auth_basic_handlermodule
+nginxproviderpid3950 ˜†€€`Ü½€€ œñÊ…×éý¸( –†€€`œñÊ…×éý¸(–.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall4ngx_http_core_access_phasemodule
+nginxproviderpid3950 –†€€`Ü½€€ œñÊ…×éý¸( ž†€€`œñÊ…×éý¸(ž.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall>ngx_http_core_post_access_phasemodule
+nginxproviderpid3950 ž†€€`Ü½€€ œñÊ…×éý¸( ¨†€€`œñÊ…×éý¸(¨.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pnallocmodule
+nginxproviderpid3950 ¨†€€`Ü½€€ œñÊ…×éý¸( ¢†€€`œñÊ…×éý¸(¢.®¤
+     
+probe
+entrycall6ngx_http_core_content_phasemodule
+nginxproviderpid3950 ¢†€€`Ü½€€ œñÊ…×éý¸( ¬†€€`œñÊ…×éý¸(¬.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_cpystrnmodule
+nginxproviderpid3950 ¬†€€`Ü½€€ œñÊ…×éý¸( ¤†€€`œñÊ…×éý¸(¤.®¤
+     
+probe
+entrycall,ngx_http_index_handlermodule
+nginxproviderpid3950 ¤†€€`Ü½€€ œñÊ…×éý¸( ¦†€€`œñÊ…×éý¸(¦.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall0ngx_http_map_uri_to_pathmodule
+nginxproviderpid3950 ¦†€€`Ü½€€ œñÊ…×éý¸( ²†€€`œñÊ…×éý¸(².®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall:ngx_http_set_disable_symlinksmodule
+nginxproviderpid3950 ²†€€`Ü½€€ œñÊ…×éý¸( ¸†€€`œñÊ…×éý¸(¸.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall*ngx_file_info_wrappermodule
+nginxproviderpid3950 ¸†€€`Ü½€€ œñÊ…×éý¸( ¶†€€`œñÊ…×éý¸(¶.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall(ngx_open_cached_filemodule
+nginxproviderpid3950 ¶†€€`Ü½€€ œñÊ…×éý¸( À†€€`œñÊ…×éý¸(À.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall$ngx_http_set_extenmodule
+nginxproviderpid3950 À†€€`Ü½€€ œñÊ…×éý¸( Ä†€€`œñÊ…×éý¸(Ä.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall>ngx_http_update_location_configmodule
+nginxproviderpid3950 Ä†€€`Ü½€€ œñÊ…×éý¸( ¾†€€`œñÊ…×éý¸(¾.®¤
+     
+probe
+entrycall4ngx_http_internal_redirectmodule
+nginxproviderpid3950 ¾†€€`Ü½€€ œñÊ…×éý¸( Î†€€`œñÊ…×éý¸(Î.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall0ngx_http_rewrite_handlermodule
+nginxproviderpid3950 Î†€€`Ü½€€ œñÊ…×éý¸( Ì†€€`œñÊ…×éý¸(Ì.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_rewrite_phasemodule
+nginxproviderpid3950 Ì†€€`Ü½€€ œñÊ…×éý¸( È†€€`œñÊ…×éý¸(È.®¤
+     
+probe
+entrycall ngx_http_handlermodule
+nginxproviderpid3950 È†€€`Ü½€€ œñÊ…×éý¸( Ê†€€`œñÊ…×éý¸(Ê.®¤
+     
+probe
+entrycall0ngx_http_core_run_phasesmodule
+nginxproviderpid3950 Ê†€€`Ü½€€ œñÊ…×éý¸( Ú†€€`œñÊ…×éý¸(Ú.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall ngx_filename_cmpmodule
+nginxproviderpid3950 Ú†€€`Ü½€€ œñÊ…×éý¸( Ô†€€`œñÊ…×éý¸(Ô.®¤
+     
+probe
+entrycall>ngx_http_core_find_config_phasemodule
+nginxproviderpid3950 Ô†€€`Ü½€€ œñÊ…×éý¸( Þ†€€`œñÊ…×éý¸(Þ.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall ngx_filename_cmpmodule
+nginxproviderpid3950 Þ†€€`Ü½€€ œñÊ…×éý¸( Ö†€€`œñÊ…×éý¸(Ö.®¤
+     
+probe
+entrycall6ngx_http_core_find_locationmodule
+nginxproviderpid3950 Ö†€€`Ü½€€ œñÊ…×éý¸( Ø†€€`œñÊ…×éý¸(Ø.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallDngx_http_core_find_static_locationmodule
+nginxproviderpid3950 Ø†€€`Ü½€€ œñÊ…×éý¸( æ†€€`œñÊ…×éý¸(æ.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallDngx_http_core_find_static_locationmodule
+nginxproviderpid3950 æ†€€`Ü½€€ œñÊ…×éý¸( ä†€€`œñÊ…×éý¸(ä.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_find_locationmodule
+nginxproviderpid3950 ä†€€`Ü½€€ œñÊ…×éý¸( ì†€€`œñÊ…×éý¸(ì.®¤
+     
+probereturncall6ngx_http_core_find_locationmodule
+nginxproviderpid3950 ì†€€`Ü½€€ œñÊ…×éý¸( î†€€`œñÊ…×éý¸(î.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall>ngx_http_update_location_configmodule
+nginxproviderpid3950 î†€€`Ü½€€ œñÊ…×éý¸( ò†€€`œñÊ…×éý¸(ò.®¤
+     
+probereturncall>ngx_http_core_find_config_phasemodule
+nginxproviderpid3950 ò†€€`Ü½€€ œñÊ…×éý¸( ö†€€`œñÊ…×éý¸(ö.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall0ngx_http_rewrite_handlermodule
+nginxproviderpid3950 ö†€€`Ü½€€ œñÊ…×éý¸( ô†€€`œñÊ…×éý¸(ô.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_rewrite_phasemodule
+nginxproviderpid3950 ô†€€`Ü½€€ œñÊ…×éý¸( ü†€€`œñÊ…×éý¸(ü.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall@ngx_http_core_post_rewrite_phasemodule
+nginxproviderpid3950 ü†€€`Ü½€€ œñÊ…×éý¸( ‚‡€€`œñÊ…×éý¸(‚.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall4ngx_http_limit_req_handlermodule
+nginxproviderpid3950 ‚‡€€`Ü½€€ œñÊ…×éý¸( €‡€€`œñÊ…×éý¸(€.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_generic_phasemodule
+nginxproviderpid3950 €‡€€`Ü½€€ œñÊ…×éý¸( Š‡€€`œñÊ…×éý¸(Š.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_limit_conn_handlermodule
+nginxproviderpid3950 Š‡€€`Ü½€€ œñÊ…×éý¸( ˆ‡€€`œñÊ…×éý¸(ˆ.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_generic_phasemodule
+nginxproviderpid3950 ˆ‡€€`Ü½€€ œñÊ…×éý¸( ’‡€€`œñÊ…×éý¸(’.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall.ngx_http_access_handlermodule
+nginxproviderpid3950 ’‡€€`Ü½€€ œñÊ…×éý¸( ‡€€`œñÊ…×éý¸(.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall4ngx_http_core_access_phasemodule
+nginxproviderpid3950 ‡€€`Ü½€€ œñÊ…×éý¸( š‡€€`œñÊ…×éý¸(š.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_auth_basic_handlermodule
+nginxproviderpid3950 š‡€€`Ü½€€ œñÊ…×éý¸( ˜‡€€`œñÊ…×éý¸(˜.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall4ngx_http_core_access_phasemodule
+nginxproviderpid3950 ˜‡€€`Ü½€€ œñÊ…×éý¸(  ‡€€`œñÊ…×éý¸( .®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall>ngx_http_core_post_access_phasemodule
+nginxproviderpid3950  ‡€€`Ü½€€ œñÊ…×éý¸( ¦‡€€`œñÊ…×éý¸(¦.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall,ngx_http_index_handlermodule
+nginxproviderpid3950 ¦‡€€`Ü½€€ œñÊ…×éý¸( ¤‡€€`œñÊ…×éý¸(¤.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_content_phasemodule
+nginxproviderpid3950 ¤‡€€`Ü½€€ œñÊ…×éý¸( ®‡€€`œñÊ…×éý¸(®.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall4ngx_http_autoindex_handlermodule
+nginxproviderpid3950 ®‡€€`Ü½€€ œñÊ…×éý¸( ¬‡€€`œñÊ…×éý¸(¬.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall6ngx_http_core_content_phasemodule
+nginxproviderpid3950 ¬‡€€`Ü½€€ œñÊ…×éý¸( º‡€€`œñÊ…×éý¸(º.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pnallocmodule
+nginxproviderpid3950 º‡€€`Ü½€€ œñÊ…×éý¸( ´‡€€`œñÊ…×éý¸(´.®¤
+     
+probe
+entrycall6ngx_http_core_content_phasemodule
+nginxproviderpid3950 ´‡€€`Ü½€€ œñÊ…×éý¸( ¾‡€€`œñÊ…×éý¸(¾.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_cpystrnmodule
+nginxproviderpid3950 ¾‡€€`Ü½€€ œñÊ…×éý¸( ¶‡€€`œñÊ…×éý¸(¶.®¤
+     
+probe
+entrycall.ngx_http_static_handlermodule
+nginxproviderpid3950 ¶‡€€`Ü½€€ œñÊ…×éý¸( ¸‡€€`œñÊ…×éý¸(¸.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall0ngx_http_map_uri_to_pathmodule
+nginxproviderpid3950 ¸‡€€`Ü½€€ œñÊ…×éý¸( Ä‡€€`œñÊ…×éý¸(Ä.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall:ngx_http_set_disable_symlinksmodule
+nginxproviderpid3950 Ä‡€€`Ü½€€ œñÊ…×éý¸( Ì‡€€`œñÊ…×éý¸(Ì.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 Ì‡€€`Ü½€€ œñÊ…×éý¸( Ð‡€€`œñÊ…×éý¸(Ð.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 Ð‡€€`Ü½€€ œñÊ…×éý¸( È‡€€`œñÊ…×éý¸(È.®¤
+     
+probe
+entrycall(ngx_open_cached_filemodule
+nginxproviderpid3950 È‡€€`Ü½€€ œñÊ…×éý¸( Ê‡€€`œñÊ…×éý¸(Ê.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall(ngx_pool_cleanup_addmodule
+nginxproviderpid3950 Ê‡€€`Ü½€€ œñÊ…×éý¸( Ø‡€€`œñÊ…×éý¸(Ø.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall*ngx_open_file_wrappermodule
+nginxproviderpid3950 Ø‡€€`Ü½€€ œñÊ…×éý¸( Ö‡€€`œñÊ…×éý¸(Ö.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall,ngx_open_and_stat_filemodule
+nginxproviderpid3950 Ö‡€€`Ü½€€ œñÊ…×éý¸( Þ‡€€`œñÊ…×éý¸(Þ.®¤
+     
+probereturncall(ngx_open_cached_filemodule
+nginxproviderpid3950 Þ‡€€`Ü½€€ œñÊ…×éý¸( â‡€€`œñÊ…×éý¸(â.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall(ngx_http_test_expectmodule
+nginxproviderpid3950 â‡€€`Ü½€€ œñÊ…×éý¸( à‡€€`œñÊ…×éý¸(à.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall:ngx_http_discard_request_bodymodule
+nginxproviderpid3950 à‡€€`Ü½€€ œñÊ…×éý¸( ê‡€€`œñÊ…×éý¸(ê.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_list_pushmodule
+nginxproviderpid3950 ê‡€€`Ü½€€ œñÊ…×éý¸( î‡€€`œñÊ…×éý¸(î.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pnallocmodule
+nginxproviderpid3950 î‡€€`Ü½€€ œñÊ…×éý¸( è‡€€`œñÊ…×éý¸(è.®¤
+     
+probe
+entrycall"ngx_http_set_etagmodule
+nginxproviderpid3950 è‡€€`Ü½€€ œñÊ…×éý¸( ö‡€€`œñÊ…×éý¸(ö.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ö‡€€`Ü½€€ œñÊ…×éý¸( ú‡€€`œñÊ…×éý¸(ú.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ú‡€€`Ü½€€ œñÊ…×éý¸( ò‡€€`œñÊ…×éý¸(ò.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 ò‡€€`Ü½€€ œñÊ…×éý¸( ô‡€€`œñÊ…×éý¸(ô.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_vslprintfmodule
+nginxproviderpid3950 ô‡€€`Ü½€€ œñÊ…×éý¸( €ˆ€€`œñÊ…×éý¸(€.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 €ˆ€€`Ü½€€ œñÊ…×éý¸( ‚ˆ€€`œñÊ…×éý¸(‚.®¤
+     
+probereturncall"ngx_http_set_etagmodule
+nginxproviderpid3950 ‚ˆ€€`Ü½€€ œñÊ…×éý¸( †ˆ€€`œñÊ…×éý¸(†.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_hash_findmodule
+nginxproviderpid3950 †ˆ€€`Ü½€€ œñÊ…×éý¸( „ˆ€€`œñÊ…×éý¸(„.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall2ngx_http_set_content_typemodule
+nginxproviderpid3950 „ˆ€€`Ü½€€ œñÊ…×éý¸( Žˆ€€`œñÊ…×éý¸(Ž.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 Žˆ€€`Ü½€€ œñÊ…×éý¸( Œˆ€€`œñÊ…×éý¸(Œ.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pcallocmodule
+nginxproviderpid3950 Œˆ€€`Ü½€€ œñÊ…×éý¸( šˆ€€`œñÊ…×éý¸(š.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_memalignmodule
+nginxproviderpid3950 šˆ€€`Ü½€€ œñÊ…×éý¸( ˜ˆ€€`œñÊ…×éý¸(˜.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall ngx_palloc_blockmodule
+nginxproviderpid3950 ˜ˆ€€`Ü½€€ œñÊ…×éý¸( ”ˆ€€`œñÊ…×éý¸(”.®¤
+     
+probe
+entrycallngx_pcallocmodule
+nginxproviderpid3950 ”ˆ€€`Ü½€€ œñÊ…×éý¸( –ˆ€€`œñÊ…×éý¸(–.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 –ˆ€€`Ü½€€ œñÊ…×éý¸( ¢ˆ€€`œñÊ…×éý¸(¢.®¤
+     
+probereturncallngx_pcallocmodule
+nginxproviderpid3950 ¢ˆ€€`Ü½€€ œñÊ…×éý¸( ¤ˆ€€`œñÊ…×éý¸(¤.®¤
+     
+probe
+entrycall(ngx_http_send_headermodule
+nginxproviderpid3950 ¤ˆ€€`Ü½€€ œñÊ…×éý¸( ®ˆ€€`œñÊ…×éý¸(®.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncall8ngx_http_destination_charsetmodule
+nginxproviderpid3950 ®ˆ€€`Ü½€€ œñÊ…×éý¸( ¦ˆ€€`œñÊ…×éý¸(¦.®¤
+     
+probe
+entrycallFngx_http_not_modified_header_filtermodule
+nginxproviderpid3950 ¦ˆ€€`Ü½€€ œñÊ…×éý¸( ¨ˆ€€`œñÊ…×éý¸(¨.®¤
+     
+probe
+entrycall.ngx_http_headers_filtermodule
+nginxproviderpid3950 ¨ˆ€€`Ü½€€ œñÊ…×éý¸( ªˆ€€`œñÊ…×éý¸(ª.®¤
+     
+probe
+entrycall,ngx_http_userid_filtermodule
+nginxproviderpid3950 ªˆ€€`Ü½€€ œñÊ…×éý¸( ¬ˆ€€`œñÊ…×éý¸(¬.®¤
+     
+probe
+entrycall<ngx_http_charset_header_filtermodule
+nginxproviderpid3950 ¬ˆ€€`Ü½€€ œñÊ…×éý¸( ¸ˆ€€`œñÊ…×éý¸(¸.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_list_pushmodule
+nginxproviderpid3950 ¸ˆ€€`Ü½€€ œñÊ…×éý¸( ²ˆ€€`œñÊ…×éý¸(².®¤
+     
+probe
+entrycall4ngx_http_ssi_header_filtermodule
+nginxproviderpid3950 ²ˆ€€`Ü½€€ œñÊ…×éý¸( ´ˆ€€`œñÊ…×éý¸(´.®¤
+     
+probe
+entrycall6ngx_http_gzip_header_filtermodule
+nginxproviderpid3950 ´ˆ€€`Ü½€€ œñÊ…×éý¸( ¶ˆ€€`œñÊ…×éý¸(¶.®¤
+     
+probe
+entrycall8ngx_http_range_header_filtermodule
+nginxproviderpid3950 ¶ˆ€€`Ü½€€ œñÊ…×éý¸( Äˆ€€`œñÊ…×éý¸(Ä.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 Äˆ€€`Ü½€€ œñÊ…×éý¸( ¼ˆ€€`œñÊ…×éý¸(¼.®¤
+     
+probe
+entrycall<ngx_http_chunked_header_filtermodule
+nginxproviderpid3950 ¼ˆ€€`Ü½€€ œñÊ…×éý¸( Âˆ€€`œñÊ…×éý¸(Â.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pcallocmodule
+nginxproviderpid3950 Âˆ€€`Ü½€€ œñÊ…×éý¸( ¾ˆ€€`œñÊ…×éý¸(¾.®¤
+     
+probe
+entrycall,ngx_http_header_filtermodule
+nginxproviderpid3950 ¾ˆ€€`Ü½€€ œñÊ…×éý¸( Àˆ€€`œñÊ…×éý¸(À.®¤
+     
+probe
+entrycall&ngx_create_temp_bufmodule
+nginxproviderpid3950 Àˆ€€`Ü½€€ œñÊ…×éý¸( Êˆ€€`œñÊ…×éý¸(Ê.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 Êˆ€€`Ü½€€ œñÊ…×éý¸( Îˆ€€`œñÊ…×éý¸(Î.®¤
+     
+probereturncall&ngx_create_temp_bufmodule
+nginxproviderpid3950 Îˆ€€`Ü½€€ œñÊ…×éý¸( Ôˆ€€`œñÊ…×éý¸(Ô.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 Ôˆ€€`Ü½€€ œñÊ…×éý¸( Òˆ€€`œñÊ…×éý¸(Ò.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_vslprintfmodule
+nginxproviderpid3950 Òˆ€€`Ü½€€ œñÊ…×éý¸( Ðˆ€€`œñÊ…×éý¸(Ð.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_sprintfmodule
+nginxproviderpid3950 Ðˆ€€`Ü½€€ œñÊ…×éý¸( Þˆ€€`œñÊ…×éý¸(Þ.®¤
+     
+*returnTimestampMicros&1457191172930362446
+probeentry:returncallngx_gmtimemodule
+nginxproviderpid3950 Þˆ€€`Ü½€€ œñÊ…×éý¸( Üˆ€€`œñÊ…×éý¸(Ü.®¤
+     
+probe
+entrycallngx_http_timemodule
+nginxproviderpid3950 Üˆ€€`Ü½€€ œñÊ…×éý¸( æˆ€€`¾£Å†×éý¸(æ.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 æˆ€€`Ü½€€ ¾£Å†×éý¸( êˆ€€`¾£Å†×éý¸(ê.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 êˆ€€`Ü½€€ ¾£Å†×éý¸( âˆ€€`œñÊ…×éý¸(â.®¤
+     
+probe
+entrycallngx_sprintfmodule
+nginxproviderpid3950 âˆ€€`Ü½€€ œñÊ…×éý¸( äˆ€€`œñÊ…×éý¸(ä.®¤
+     
+probe
+entrycallngx_vslprintfmodule
+nginxproviderpid3950 äˆ€€`Ü½€€ œñÊ…×éý¸( îˆ€€`¾£Å†×éý¸(î.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 îˆ€€`Ü½€€ ¾£Å†×éý¸( òˆ€€`¾£Å†×éý¸(ò.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 òˆ€€`Ü½€€ ¾£Å†×éý¸( öˆ€€`¾£Å†×éý¸(ö.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 öˆ€€`Ü½€€ ¾£Å†×éý¸( úˆ€€`¾£Å†×éý¸(ú.®¤
+     
+probereturncallngx_vslprintfmodule
+nginxproviderpid3950 úˆ€€`Ü½€€ ¾£Å†×éý¸( üˆ€€`¾£Å†×éý¸(ü.®¤
+     
+probereturncallngx_sprintfmodule
+nginxproviderpid3950 üˆ€€`Ü½€€ ¾£Å†×éý¸( þˆ€€`¾£Å†×éý¸(þ.®¤
+     
+probereturncallngx_http_timemodule
+nginxproviderpid3950 þˆ€€`Ü½€€ ¾£Å†×éý¸( „‰€€`¾£Å†×éý¸(„	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 „‰€€`Ü½€€ ¾£Å†×éý¸( ‚‰€€`¾£Å†×éý¸(‚	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall(ngx_alloc_chain_linkmodule
+nginxproviderpid3950 ‚‰€€`Ü½€€ ¾£Å†×éý¸( €‰€€`¾£Å†×éý¸(€	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall*ngx_http_write_filtermodule
+nginxproviderpid3950 €‰€€`Ü½€€ ¾£Å†×éý¸( Œ‰€€`¾£Å†×éý¸(Œ	.®¤
+     
+probereturncall,ngx_http_header_filtermodule
+nginxproviderpid3950 Œ‰€€`Ü½€€ ¾£Å†×éý¸( Ž‰€€`¾£Å†×éý¸(Ž	.®¤
+     
+probereturncall<ngx_http_chunked_header_filtermodule
+nginxproviderpid3950 Ž‰€€`Ü½€€ ¾£Å†×éý¸( ‰€€`¾£Å†×éý¸(	.®¤
+     
+probereturncall8ngx_http_range_header_filtermodule
+nginxproviderpid3950 ‰€€`Ü½€€ ¾£Å†×éý¸( ’‰€€`¾£Å†×éý¸(’	.®¤
+     
+probereturncall6ngx_http_gzip_header_filtermodule
+nginxproviderpid3950 ’‰€€`Ü½€€ ¾£Å†×éý¸( ”‰€€`¾£Å†×éý¸(”	.®¤
+     
+probereturncall4ngx_http_ssi_header_filtermodule
+nginxproviderpid3950 ”‰€€`Ü½€€ ¾£Å†×éý¸( –‰€€`¾£Å†×éý¸(–	.®¤
+     
+probereturncall<ngx_http_charset_header_filtermodule
+nginxproviderpid3950 –‰€€`Ü½€€ ¾£Å†×éý¸( ˜‰€€`¾£Å†×éý¸(˜	.®¤
+     
+probereturncall,ngx_http_userid_filtermodule
+nginxproviderpid3950 ˜‰€€`Ü½€€ ¾£Å†×éý¸( š‰€€`¾£Å†×éý¸(š	.®¤
+     
+probereturncall.ngx_http_headers_filtermodule
+nginxproviderpid3950 š‰€€`Ü½€€ ¾£Å†×éý¸( œ‰€€`¾£Å†×éý¸(œ	.®¤
+     
+probereturncallFngx_http_not_modified_header_filtermodule
+nginxproviderpid3950 œ‰€€`Ü½€€ ¾£Å†×éý¸( ž‰€€`¾£Å†×éý¸(ž	.®¤
+     
+probereturncall(ngx_http_send_headermodule
+nginxproviderpid3950 ž‰€€`Ü½€€ ¾£Å†×éý¸( ¨‰€€`¾£Å†×éý¸(¨	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 ¨‰€€`Ü½€€ ¾£Å†×éý¸(  ‰€€`¾£Å†×éý¸( 	.®¤
+     
+probe
+entrycall,ngx_http_output_filtermodule
+nginxproviderpid3950  ‰€€`Ü½€€ ¾£Å†×éý¸( ¦‰€€`¾£Å†×éý¸(¦	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_pcallocmodule
+nginxproviderpid3950 ¦‰€€`Ü½€€ ¾£Å†×éý¸( ¢‰€€`¾£Å†×éý¸(¢	.®¤
+     
+probe
+entrycall4ngx_http_range_body_filtermodule
+nginxproviderpid3950 ¢‰€€`Ü½€€ ¾£Å†×éý¸( ¤‰€€`¾£Å†×éý¸(¤	.®¤
+     
+probe
+entrycall(ngx_http_copy_filtermodule
+nginxproviderpid3950 ¤‰€€`Ü½€€ ¾£Å†×éý¸( °‰€€`¾£Å†×éý¸(°	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall,ngx_output_chain_as_ismodule
+nginxproviderpid3950 °‰€€`Ü½€€ ¾£Å†×éý¸( ®‰€€`¾£Å†×éý¸(®	.®¤
+     
+probe
+entrycall ngx_output_chainmodule
+nginxproviderpid3950 ®‰€€`Ü½€€ ¾£Å†×éý¸( ´‰€€`¾£Å†×éý¸(´	.®¤
+     
+probe
+entrycall8ngx_http_charset_body_filtermodule
+nginxproviderpid3950 ´‰€€`Ü½€€ ¾£Å†×éý¸( ¶‰€€`¾£Å†×éý¸(¶	.®¤
+     
+probe
+entrycall0ngx_http_ssi_body_filtermodule
+nginxproviderpid3950 ¶‰€€`Ü½€€ ¾£Å†×éý¸( ¸‰€€`¾£Å†×éý¸(¸	.®¤
+     
+probe
+entrycall0ngx_http_postpone_filtermodule
+nginxproviderpid3950 ¸‰€€`Ü½€€ ¾£Å†×éý¸( Â‰€€`¾£Å†×éý¸(Â	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncallngx_pallocmodule
+nginxproviderpid3950 Â‰€€`Ü½€€ ¾£Å†×éý¸( º‰€€`¾£Å†×éý¸(º	.®¤
+     
+probe
+entrycall2ngx_http_gzip_body_filtermodule
+nginxproviderpid3950 º‰€€`Ü½€€ ¾£Å†×éý¸( À‰€€`¾£Å†×éý¸(À	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall(ngx_alloc_chain_linkmodule
+nginxproviderpid3950 À‰€€`Ü½€€ ¾£Å†×éý¸( ¼‰€€`¾£Å†×éý¸(¼	.®¤
+     
+probe
+entrycall8ngx_http_chunked_body_filtermodule
+nginxproviderpid3950 ¼‰€€`Ü½€€ ¾£Å†×éý¸( ¾‰€€`¾£Å†×éý¸(¾	.®¤
+     
+probe
+entrycall*ngx_http_write_filtermodule
+nginxproviderpid3950 ¾‰€€`Ü½€€ ¾£Å†×éý¸( Ê‰€€`¾£Å†×éý¸(Ê	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall2ngx_output_chain_to_iovecmodule
+nginxproviderpid3950 Ê‰€€`Ü½€€ ¾£Å†×éý¸( Î‰€€`¾£Å†×éý¸(Î	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall.ngx_chain_coalesce_filemodule
+nginxproviderpid3950 Î‰€€`Ü½€€ ¾£Å†×éý¸( È‰€€`¾£Å†×éý¸(È	.®¤
+     
+probe
+entrycall4ngx_freebsd_sendfile_chainmodule
+nginxproviderpid3950 È‰€€`Ü½€€ ¾£Å†×éý¸( Ò‰€€`¾£Å†×éý¸(Ò	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall2ngx_output_chain_to_iovecmodule
+nginxproviderpid3950 Ò‰€€`Ü½€€ ¾£Å†×éý¸( Ö‰€€`¾£Å†×éý¸(Ö	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall*ngx_chain_update_sentmodule
+nginxproviderpid3950 Ö‰€€`Ü½€€ ¾£Å†×éý¸( Ú‰€€`¾£Å†×éý¸(Ú	.®¤
+     
+probereturncall4ngx_freebsd_sendfile_chainmodule
+nginxproviderpid3950 Ú‰€€`Ü½€€ ¾£Å†×éý¸( Ü‰€€`¾£Å†×éý¸(Ü	.®¤
+     
+probereturncall*ngx_http_write_filtermodule
+nginxproviderpid3950 Ü‰€€`Ü½€€ ¾£Å†×éý¸( Þ‰€€`¾£Å†×éý¸(Þ	.®¤
+     
+probereturncall8ngx_http_chunked_body_filtermodule
+nginxproviderpid3950 Þ‰€€`Ü½€€ ¾£Å†×éý¸( à‰€€`¾£Å†×éý¸(à	.®¤
+     
+probereturncall2ngx_http_gzip_body_filtermodule
+nginxproviderpid3950 à‰€€`Ü½€€ ¾£Å†×éý¸( â‰€€`¾£Å†×éý¸(â	.®¤
+     
+probereturncall0ngx_http_postpone_filtermodule
+nginxproviderpid3950 â‰€€`Ü½€€ ¾£Å†×éý¸( ä‰€€`¾£Å†×éý¸(ä	.®¤
+     
+probereturncall0ngx_http_ssi_body_filtermodule
+nginxproviderpid3950 ä‰€€`Ü½€€ ¾£Å†×éý¸( æ‰€€`¾£Å†×éý¸(æ	.®¤
+     
+probereturncall8ngx_http_charset_body_filtermodule
+nginxproviderpid3950 æ‰€€`Ü½€€ ¾£Å†×éý¸( è‰€€`¾£Å†×éý¸(è	.®¤
+     
+probereturncall ngx_output_chainmodule
+nginxproviderpid3950 è‰€€`Ü½€€ ¾£Å†×éý¸( ê‰€€`¾£Å†×éý¸(ê	.®¤
+     
+probereturncall(ngx_http_copy_filtermodule
+nginxproviderpid3950 ê‰€€`Ü½€€ ¾£Å†×éý¸( ì‰€€`¾£Å†×éý¸(ì	.®¤
+     
+probereturncall4ngx_http_range_body_filtermodule
+nginxproviderpid3950 ì‰€€`Ü½€€ ¾£Å†×éý¸( î‰€€`¾£Å†×éý¸(î	.®¤
+     
+probereturncall,ngx_http_output_filtermodule
+nginxproviderpid3950 î‰€€`Ü½€€ ¾£Å†×éý¸( ð‰€€`¾£Å†×éý¸(ð	.®¤
+     
+probereturncall.ngx_http_static_handlermodule
+nginxproviderpid3950 ð‰€€`Ü½€€ ¾£Å†×éý¸( ô‰€€`¾£Å†×éý¸(ô	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall(ngx_http_post_actionmodule
+nginxproviderpid3950 ô‰€€`Ü½€€ ¾£Å†×éý¸( ú‰€€`¾£Å†×éý¸(ú	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall,ngx_http_close_requestmodule
+nginxproviderpid3950 ú‰€€`Ü½€€ ¾£Å†×éý¸( ò‰€€`¾£Å†×éý¸(ò	.®¤
+     
+probe
+entrycall2ngx_http_finalize_requestmodule
+nginxproviderpid3950 ò‰€€`Ü½€€ ¾£Å†×éý¸( ø‰€€`¾£Å†×éý¸(ø	.®¤
+     
+*returnTimestampMicros&1457191172931365087
+probeentry:returncall8ngx_http_finalize_connectionmodule
+nginxproviderpid3950 ø‰€€`Ü½€€ ¾£Å†×éý¸( €Š€€`¾£Å†×éý¸(€
+.®¤
+     
+probereturncall2ngx_http_finalize_requestmodule
+nginxproviderpid3950 €Š€€`Ü½€€ ¾£Å†×éý¸( ‚Š€€`¾£Å†×éý¸(‚
+.®¤
+     
+probereturncall6ngx_http_core_content_phasemodule
+nginxproviderpid3950 ‚Š€€`Ü½€€ ¾£Å†×éý¸( „Š€€`¾£Å†×éý¸(„
+.®¤
+     
+probereturncall0ngx_http_core_run_phasesmodule
+nginxproviderpid3950 „Š€€`Ü½€€ ¾£Å†×éý¸( †Š€€`¾£Å†×éý¸(†
+.®¤
+     
+probereturncall ngx_http_handlermodule
+nginxproviderpid3950 †Š€€`Ü½€€ ¾£Å†×éý¸( ˆŠ€€`¾£Å†×éý¸(ˆ
+.®¤
+     
+probereturncall4ngx_http_internal_redirectmodule
+nginxproviderpid3950 ˆŠ€€`Ü½€€ ¾£Å†×éý¸( ŠŠ€€`¾£Å†×éý¸(Š
+.®¤
+     
+probereturncall,ngx_http_index_handlermodule
+nginxproviderpid3950 ŠŠ€€`Ü½€€ ¾£Å†×éý¸( ŒŠ€€`¾£Å†×éý¸(Œ
+.®¤
+     
+probe
+entrycall2ngx_http_finalize_requestmodule
+nginxproviderpid3950 ŒŠ€€`Ü½€€ ¾£Å†×éý¸( ŽŠ€€`ÊÙ‡‡×éý¸(Ž
+.®¤
+     
+probe
+entrycall8ngx_http_finalize_connectionmodule
+nginxproviderpid3950 ŽŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ˜Š€€`ÊÙ‡‡×éý¸(˜
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncallXngx_http_script_flush_no_cacheable_variablesmodule
+nginxproviderpid3950 ˜Š€€`Ü½€€ ÊÙ‡‡×éý¸( Š€€`ÊÙ‡‡×éý¸(
+.®¤
+     
+probe
+entrycall,ngx_http_set_keepalivemodule
+nginxproviderpid3950 Š€€`Ü½€€ ÊÙ‡‡×éý¸( ’Š€€`ÊÙ‡‡×éý¸(’
+.®¤
+     
+probe
+entrycall*ngx_http_free_requestmodule
+nginxproviderpid3950 ’Š€€`Ü½€€ ÊÙ‡‡×éý¸( ”Š€€`ÊÙ‡‡×éý¸(”
+.®¤
+     
+probe
+entrycall(ngx_http_log_requestmodule
+nginxproviderpid3950 ”Š€€`Ü½€€ ÊÙ‡‡×éý¸( –Š€€`ÊÙ‡‡×éý¸(–
+.®¤
+     
+probe
+entrycall(ngx_http_log_handlermodule
+nginxproviderpid3950 –Š€€`Ü½€€ ÊÙ‡‡×éý¸(  Š€€`ÊÙ‡‡×éý¸( 
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_variable_remote_addrmodule
+nginxproviderpid3950  Š€€`Ü½€€ ÊÙ‡‡×éý¸( žŠ€€`ÊÙ‡‡×éý¸(ž
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 žŠ€€`Ü½€€ ÊÙ‡‡×éý¸( œŠ€€`ÊÙ‡‡×éý¸(œ
+.®¤
+     
+probe
+entrycall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 œŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ¦Š€€`ÊÙ‡‡×éý¸(¦
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall&ngx_http_log_escapemodule
+nginxproviderpid3950 ¦Š€€`Ü½€€ ÊÙ‡‡×éý¸( ªŠ€€`ÊÙ‡‡×éý¸(ª
+.®¤
+     
+probereturncall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 ªŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ²Š€€`ÊÙ‡‡×éý¸(²
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall0ngx_http_auth_basic_usermodule
+nginxproviderpid3950 ²Š€€`Ü½€€ ÊÙ‡‡×éý¸( °Š€€`ÊÙ‡‡×éý¸(°
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_variable_remote_usermodule
+nginxproviderpid3950 °Š€€`Ü½€€ ÊÙ‡‡×éý¸( ¬Š€€`ÊÙ‡‡×éý¸(¬
+.®¤
+     
+probe
+entrycall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 ¬Š€€`Ü½€€ ÊÙ‡‡×éý¸( ®Š€€`ÊÙ‡‡×éý¸(®
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 ®Š€€`Ü½€€ ÊÙ‡‡×éý¸( ºŠ€€`ÊÙ‡‡×éý¸(º
+.®¤
+     
+probereturncall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 ºŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ÀŠ€€`ÊÙ‡‡×éý¸(À
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall<ngx_http_variable_request_linemodule
+nginxproviderpid3950 ÀŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ¾Š€€`ÊÙ‡‡×éý¸(¾
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 ¾Š€€`Ü½€€ ÊÙ‡‡×éý¸( ¼Š€€`ÊÙ‡‡×éý¸(¼
+.®¤
+     
+probe
+entrycall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 ¼Š€€`Ü½€€ ÊÙ‡‡×éý¸( ÆŠ€€`ÊÙ‡‡×éý¸(Æ
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall&ngx_http_log_escapemodule
+nginxproviderpid3950 ÆŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ÊŠ€€`ÊÙ‡‡×éý¸(Ê
+.®¤
+     
+probereturncall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 ÊŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ÐŠ€€`ÊÙ‡‡×éý¸(Ð
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall0ngx_http_variable_headermodule
+nginxproviderpid3950 ÐŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ÎŠ€€`ÊÙ‡‡×éý¸(Î
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 ÎŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ÌŠ€€`ÊÙ‡‡×éý¸(Ì
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 ÌŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ÜŠ€€`ÊÙ‡‡×éý¸(Ü
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall0ngx_http_variable_headermodule
+nginxproviderpid3950 ÜŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ÚŠ€€`ÊÙ‡‡×éý¸(Ú
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 íÿÀù,Å¿ñfÕ7©ÊÄÅÚŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ØŠ€€`ÊÙ‡‡×éý¸(Ø
+.®¤
+     
+probe
+entrycall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 ØŠ€€`Ü½€€ ÊÙ‡‡×éý¸( âŠ€€`ÊÙ‡‡×éý¸(â
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall&ngx_http_log_escapemodule
+nginxproviderpid3950 âŠ€€`Ü½€€ ÊÙ‡‡×éý¸( æŠ€€`ÊÙ‡‡×éý¸(æ
+.®¤
+     
+probereturncall8ngx_http_log_variable_getlenmodule
+nginxproviderpid3950 æŠ€€`Ü½€€ ÊÙ‡‡×éý¸( èŠ€€`ÊÙ‡‡×éý¸(è
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncallngx_pnallocmodule
+nginxproviderpid3950 èŠ€€`Ü½€€ ÊÙ‡‡×éý¸( îŠ€€`ÊÙ‡‡×éý¸(î
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 îŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ìŠ€€`ÊÙ‡‡×éý¸(ì
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall*ngx_http_log_variablemodule
+nginxproviderpid3950 ìŠ€€`Ü½€€ ÊÙ‡‡×éý¸( ôŠ€€`ÊÙ‡‡×éý¸(ô
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall.ngx_http_log_copy_shortmodule
+nginxproviderpid3950 ôŠ€€`Ü½€€ ÊÙ‡‡×éý¸( úŠ€€`ÊÙ‡‡×éý¸(ú
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 úŠ€€`Ü½€€ ÊÙ‡‡×éý¸( øŠ€€`ÊÙ‡‡×éý¸(ø
+.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall*ngx_http_log_variablemodule
+nginxproviderpid3950 øŠ€€`Ü½€€ ÊÙ‡‡×éý¸( €‹€€`ÊÙ‡‡×éý¸(€.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall.ngx_http_log_copy_shortmodule
+nginxproviderpid3950 €‹€€`Ü½€€ ÊÙ‡‡×éý¸( „‹€€`ÊÙ‡‡×éý¸(„.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall"ngx_http_log_timemodule
+nginxproviderpid3950 „‹€€`Ü½€€ ÊÙ‡‡×éý¸( ˆ‹€€`ÊÙ‡‡×éý¸(ˆ.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall.ngx_http_log_copy_shortmodule
+nginxproviderpid3950 ˆ‹€€`Ü½€€ ÊÙ‡‡×éý¸( Ž‹€€`ÊÙ‡‡×éý¸(Ž.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 Ž‹€€`Ü½€€ ÊÙ‡‡×éý¸( Œ‹€€`ÊÙ‡‡×éý¸(Œ.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall*ngx_http_log_variablemodule
+nginxproviderpid3950 Œ‹€€`Ü½€€ ÊÙ‡‡×éý¸( ”‹€€`ÊÙ‡‡×éý¸(”.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall.ngx_http_log_copy_shortmodule
+nginxproviderpid3950 ”‹€€`Ü½€€ ÊÙ‡‡×éý¸( ž‹€€`ÊÙ‡‡×éý¸(ž.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ž‹€€`Ü½€€ ÊÙ‡‡×éý¸( œ‹€€`ÊÙ‡‡×éý¸(œ.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncallngx_vslprintfmodule
+nginxproviderpid3950 œ‹€€`Ü½€€ ÊÙ‡‡×éý¸( ˜‹€€`ÊÙ‡‡×éý¸(˜.®¤
+     
+probe
+entrycall&ngx_http_log_statusmodule
+nginxproviderpid3950 ˜‹€€`Ü½€€ ÊÙ‡‡×éý¸( š‹€€`ÊÙ‡‡×éý¸(š.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncallngx_sprintfmodule
+nginxproviderpid3950 š‹€€`Ü½€€ ÊÙ‡‡×éý¸( ¦‹€€`ÊÙ‡‡×éý¸(¦.®¤
+     
+probereturncall&ngx_http_log_statusmodule
+nginxproviderpid3950 ¦‹€€`Ü½€€ ÊÙ‡‡×éý¸( ¨‹€€`ÊÙ‡‡×éý¸(¨.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall.ngx_http_log_copy_shortmodule
+nginxproviderpid3950 ¨‹€€`Ü½€€ ÊÙ‡‡×éý¸( ²‹€€`ÊÙ‡‡×éý¸(².®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncallngx_sprintf_nummodule
+nginxproviderpid3950 ²‹€€`Ü½€€ ÊÙ‡‡×éý¸( °‹€€`ÊÙ‡‡×éý¸(°.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncallngx_vslprintfmodule
+nginxproviderpid3950 °‹€€`Ü½€€ ÊÙ‡‡×éý¸( ¬‹€€`ÊÙ‡‡×éý¸(¬.®¤
+     
+probe
+entrycall8ngx_http_log_body_bytes_sentmodule
+nginxproviderpid3950 ¬‹€€`Ü½€€ ÊÙ‡‡×éý¸( ®‹€€`ÊÙ‡‡×éý¸(®.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncallngx_sprintfmodule
+nginxproviderpid3950 ®‹€€`Ü½€€ ÊÙ‡‡×éý¸( º‹€€`ÊÙ‡‡×éý¸(º.®¤
+     
+probereturncall8ngx_http_log_body_bytes_sentmodule
+nginxproviderpid3950 º‹€€`Ü½€€ ÊÙ‡‡×éý¸( ¼‹€€`ÊÙ‡‡×éý¸(¼.®¤
+     
+*returnTimestampMicros&1457191172931909221
+probeentry:returncall.ngx_http_log_copy_shortmodule
+nginxproviderpid3950 ¼‹€€`Ü½€€ ÊÙ‡‡×éý¸( Â‹€€`°•¿‡×éý¸(Â.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 Â‹€€`Ü½€€ °•¿‡×éý¸( À‹€€`ÊÙ‡‡×éý¸(À.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall*ngx_http_log_variablemodule
+nginxproviderpid3950 À‹€€`Ü½€€ ÊÙ‡‡×éý¸( È‹€€`°•¿‡×éý¸(È.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall.ngx_http_log_copy_shortmodule
+nginxproviderpid3950 È‹€€`Ü½€€ °•¿‡×éý¸( Î‹€€`°•¿‡×éý¸(Î.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall:ngx_http_get_indexed_variablemodule
+nginxproviderpid3950 Î‹€€`Ü½€€ °•¿‡×éý¸( Ì‹€€`°•¿‡×éý¸(Ì.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall*ngx_http_log_variablemodule
+nginxproviderpid3950 Ì‹€€`Ü½€€ °•¿‡×éý¸( Ô‹€€`°•¿‡×éý¸(Ô.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall.ngx_http_log_copy_shortmodule
+nginxproviderpid3950 Ô‹€€`Ü½€€ °•¿‡×éý¸( Ø‹€€`°•¿‡×éý¸(Ø.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall$ngx_http_log_writemodule
+nginxproviderpid3950 Ø‹€€`Ü½€€ °•¿‡×éý¸( Ü‹€€`°•¿‡×éý¸(Ü.®¤
+     
+probereturncall(ngx_http_log_handlermodule
+nginxproviderpid3950 Ü‹€€`Ü½€€ °•¿‡×éý¸( Þ‹€€`°•¿‡×éý¸(Þ.®¤
+     
+probereturncall(ngx_http_log_requestmodule
+nginxproviderpid3950 Þ‹€€`Ü½€€ °•¿‡×éý¸( â‹€€`°•¿‡×éý¸(â.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall*ngx_pool_cleanup_filemodule
+nginxproviderpid3950 â‹€€`Ü½€€ °•¿‡×éý¸( à‹€€`°•¿‡×éý¸(à.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall ngx_destroy_poolmodule
+nginxproviderpid3950 à‹€€`Ü½€€ °•¿‡×éý¸( è‹€€`°•¿‡×éý¸(è.®¤
+     
+probereturncall*ngx_http_free_requestmodule
+nginxproviderpid3950 è‹€€`Ü½€€ °•¿‡×éý¸( ê‹€€`°•¿‡×éý¸(ê.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall*ngx_handle_read_eventmodule
+nginxproviderpid3950 ê‹€€`Ü½€€ °•¿‡×éý¸( î‹€€`°•¿‡×éý¸(î.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncallngx_pfreemodule
+nginxproviderpid3950 î‹€€`Ü½€€ °•¿‡×éý¸( ò‹€€`°•¿‡×éý¸(ò.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall.ngx_reusable_connectionmodule
+nginxproviderpid3950 ò‹€€`Ü½€€ °•¿‡×éý¸( ö‹€€`°•¿‡×éý¸(ö.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall"ngx_rbtree_insertmodule
+nginxproviderpid3950 ö‹€€`Ü½€€ °•¿‡×éý¸( ú‹€€`°•¿‡×éý¸(ú.®¤
+     
+probereturncall,ngx_http_set_keepalivemodule
+nginxproviderpid3950 ú‹€€`Ü½€€ °•¿‡×éý¸( ü‹€€`°•¿‡×éý¸(ü.®¤
+     
+probereturncall8ngx_http_finalize_connectionmodule
+nginxproviderpid3950 ü‹€€`Ü½€€ °•¿‡×éý¸( þ‹€€`°•¿‡×éý¸(þ.®¤
+     
+probereturncall2ngx_http_finalize_requestmodule
+nginxproviderpid3950 þ‹€€`Ü½€€ °•¿‡×éý¸( €Œ€€`°•¿‡×éý¸(€.®¤
+     
+probereturncall6ngx_http_core_content_phasemodule
+nginxproviderpid3950 €Œ€€`Ü½€€ °•¿‡×éý¸( ‚Œ€€`°•¿‡×éý¸(‚.®¤
+     
+probereturncall0ngx_http_core_run_phasesmodule
+nginxproviderpid3950 ‚Œ€€`Ü½€€ °•¿‡×éý¸( „Œ€€`°•¿‡×éý¸(„.®¤
+     
+probereturncall ngx_http_handlermodule
+nginxproviderpid3950 „Œ€€`Ü½€€ °•¿‡×éý¸( †Œ€€`°•¿‡×éý¸(†.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall8ngx_http_run_posted_requestsmodule
+nginxproviderpid3950 †Œ€€`Ü½€€ °•¿‡×éý¸( ŠŒ€€`°•¿‡×éý¸(Š.®¤
+     
+probereturncall0ngx_http_process_requestmodule
+nginxproviderpid3950 ŠŒ€€`Ü½€€ °•¿‡×éý¸( ŒŒ€€`°•¿‡×éý¸(Œ.®¤
+     
+probereturncall@ngx_http_process_request_headersmodule
+nginxproviderpid3950 ŒŒ€€`Ü½€€ °•¿‡×éý¸( ŽŒ€€`°•¿‡×éý¸(Ž.®¤
+     
+probereturncall:ngx_http_process_request_linemodule
+nginxproviderpid3950 ŽŒ€€`Ü½€€ °•¿‡×éý¸( Œ€€`°•¿‡×éý¸(.®¤
+     
+probereturncall:ngx_http_wait_request_handlermodule
+nginxproviderpid3950 Œ€€`Ü½€€ °•¿‡×éý¸( ’Œ€€`°•¿‡×éý¸(’.®¤
+     
+probereturncall2ngx_kqueue_process_eventsmodule
+nginxproviderpid3950 ’Œ€€`Ü½€€ °•¿‡×éý¸( ”Œ€€`°•¿‡×éý¸(”.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall0ngx_event_process_postedmodule
+nginxproviderpid3950 ”Œ€€`Ü½€€ °•¿‡×éý¸( ˜Œ€€`°•¿‡×éý¸(˜.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall.ngx_event_expire_timersmodule
+nginxproviderpid3950 ˜Œ€€`Ü½€€ °•¿‡×éý¸( œŒ€€`°•¿‡×éý¸(œ.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall0ngx_event_process_postedmodule
+nginxproviderpid3950 œŒ€€`Ü½€€ °•¿‡×éý¸(  Œ€€`°•¿‡×éý¸( .®¤
+     
+probereturncall:ngx_process_events_and_timersmodule
+nginxproviderpid3950  Œ€€`Ü½€€ °•¿‡×éý¸( ¤Œ€€`°•¿‡×éý¸(¤.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall(ngx_event_find_timermodule
+nginxproviderpid3950 ¤Œ€€`Ü½€€ °•¿‡×éý¸( ªŒ€€`°•¿‡×éý¸(ª.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncallngx_time_updatemodule
+nginxproviderpid3950 ªŒ€€`Ü½€€ °•¿‡×éý¸( ¢Œ€€`°•¿‡×éý¸(¢.®¤
+     
+probe
+entrycall:ngx_process_events_and_timersmodule
+nginxproviderpid3950 ¢Œ€€`Ü½€€ °•¿‡×éý¸( ®Œ€€`°•¿‡×éý¸(®.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall*ngx_kqueue_dump_eventmodule
+nginxproviderpid3950 ®Œ€€`Ü½€€ °•¿‡×éý¸( ¨Œ€€`°•¿‡×éý¸(¨.®¤
+     
+probe
+entrycall2ngx_kqueue_process_eventsmodule
+nginxproviderpid3950 ¨Œ€€`Ü½€€ °•¿‡×éý¸( ºŒ€€`°•¿‡×éý¸(º.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall"ngx_rbtree_deletemodule
+nginxproviderpid3950 ºŒ€€`Ü½€€ °•¿‡×éý¸( ²Œ€€`°•¿‡×éý¸(².®¤
+     
+probe
+entrycall4ngx_http_keepalive_handlermodule
+nginxproviderpid3950 ²Œ€€`Ü½€€ °•¿‡×éý¸( ¸Œ€€`°•¿‡×éý¸(¸.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall&ngx_event_del_timermodule
+nginxproviderpid3950 ¸Œ€€`Ü½€€ °•¿‡×éý¸( ´Œ€€`°•¿‡×éý¸(´.®¤
+     
+probe
+entrycall2ngx_http_close_connectionmodule
+nginxproviderpid3950 ´Œ€€`Ü½€€ °•¿‡×éý¸( ¶Œ€€`°•¿‡×éý¸(¶.®¤
+     
+probe
+entrycall(ngx_close_connectionmodule
+nginxproviderpid3950 ¶Œ€€`Ü½€€ °•¿‡×éý¸( ÀŒ€€`°•¿‡×éý¸(À.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall(ngx_kqueue_del_eventmodule
+nginxproviderpid3950 ÀŒ€€`Ü½€€ °•¿‡×éý¸( ÄŒ€€`°•¿‡×éý¸(Ä.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall.ngx_reusable_connectionmodule
+nginxproviderpid3950 ÄŒ€€`Ü½€€ °•¿‡×éý¸( ÈŒ€€`°•¿‡×éý¸(È.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall&ngx_free_connectionmodule
+nginxproviderpid3950 ÈŒ€€`Ü½€€ °•¿‡×éý¸( ÌŒ€€`°•¿‡×éý¸(Ì.®¤
+     
+probereturncall(ngx_close_connectionmodule
+nginxproviderpid3950 ÌŒ€€`Ü½€€ °•¿‡×éý¸( ÎŒ€€`°•¿‡×éý¸(Î.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall ngx_destroy_poolmodule
+nginxproviderpid3950 ÎŒ€€`Ü½€€ °•¿‡×éý¸( ÒŒ€€`°•¿‡×éý¸(Ò.®¤
+     
+probereturncall2ngx_http_close_connectionmodule
+nginxproviderpid3950 ÒŒ€€`Ü½€€ °•¿‡×éý¸( ÔŒ€€`°•¿‡×éý¸(Ô.®¤
+     
+probereturncall4ngx_http_keepalive_handlermodule
+nginxproviderpid3950 ÔŒ€€`Ü½€€ °•¿‡×éý¸( ÖŒ€€`°•¿‡×éý¸(Ö.®¤
+     
+probereturncall2ngx_kqueue_process_eventsmodule
+nginxproviderpid3950 ÖŒ€€`Ü½€€ °•¿‡×éý¸( ØŒ€€`°•¿‡×éý¸(Ø.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall0ngx_event_process_postedmodule
+nginxproviderpid3950 ØŒ€€`Ü½€€ °•¿‡×éý¸( ÜŒ€€`°•¿‡×éý¸(Ü.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall.ngx_event_expire_timersmodule
+nginxproviderpid3950 ÜŒ€€`Ü½€€ °•¿‡×éý¸( àŒ€€`°•¿‡×éý¸(à.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall0ngx_event_process_postedmodule
+nginxproviderpid3950 àŒ€€`Ü½€€ °•¿‡×éý¸( äŒ€€`°•¿‡×éý¸(ä.®¤
+     
+probereturncall:ngx_process_events_and_timersmodule
+nginxproviderpid3950 äŒ€€`Ü½€€ °•¿‡×éý¸( èŒ€€`°•¿‡×éý¸(è.®¤
+     
+*returnTimestampMicros&1457191172932363608
+probeentry:returncall(ngx_event_find_timermodule
+nginxproviderpid3950 èŒ€€`Ü½€€ °•¿‡×éý¸( íÿÀù,Å¿ñfÕ7©
