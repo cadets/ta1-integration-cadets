@@ -344,8 +344,7 @@ class CDMTranslator(object):
             Currently, we create:
               a subject for any file that we discover via a "path" property
               Plus an edge from the event to the subject,  EDGE_EVENT_AFFECTS_FILE or EDGE_FILE_AFFECTS_EVENT
-              
-            TODO: Add NetFlow
+
         '''
         newRecords = []
         if self.createFileObjects and "path" in event["properties"]:
@@ -384,7 +383,7 @@ class CDMTranslator(object):
                 edge2 = self.create_edge(file_uuid, event["uuid"], event["timestampMicros"], "EDGE_FILE_AFFECTS_EVENT")
                 newRecords.append(edge2)
             
-        # TODO: NetFlows
+        # NetFlows
         if self.createNetflowObjects and "address" in event["properties"] and "port" in event["properties"]:
             destAddr = event["properties"]["address"]
             destPort = int(event["properties"]["port"])
