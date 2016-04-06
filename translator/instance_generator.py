@@ -5,6 +5,7 @@ Store a map of the instances we've created with their uuids, so we can tell if w
 '''
 
 import logging
+import random
 
 class InstanceGenerator():
 
@@ -41,7 +42,10 @@ class InstanceGenerator():
     def create_uuid(self, object_type, data):
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
                where the data value is the actual pid, tid, or userId value
-            For now, we use the data as the lower 32 bits
+
+            UUIDs are now 256 bits, and strings, so we pad with 0's and stringify
+
+            For now, we use the data as the lower 64 bits
             For "uid", we set the next byte to 0x0
             For "pid", we set the next byte to 0x1
             For "tid", we set the next byte to 0x2
@@ -49,28 +53,32 @@ class InstanceGenerator():
             for "file", 0x4, and we hash the file path using the simple hash() method and use the lower 32 bits
             for "netflow", 0x5 and we use the counter as data
             
-            0    16   32   48     (for a pid, where data is the pid value)
+            0    32   64       (for a pid, where data is the pid value)
             0000 0001 data data   
         '''
         uuid = 0
         if object_type == "uid":
             uuid = 0
         elif object_type == "pid":
-            uuid = (1 << 32)
+            uuid = (1 << 64)
         elif object_type == "tid":
-            uuid = (2 << 32)
+            uuid = (2 << 64)
         elif object_type == "event":
-            uuid = (3 << 32)
+            uuid = (3 << 64)
         elif object_type == "file":
-            uuid = (4 << 32)
+            uuid = (4 << 64)
             # may want to replace with a better hash method, this one isn't portable, but it's fine for this use
-            data = hash(data) & 0xFFFFFFFF
+            data = hash(data) & 0xFFFFFFFFFFFFFFFF
         elif object_type == "netflow":
-            uuid = (5 << 32)
+            uuid = (5 << 64)
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
             
-        uuid = uuid | data
+        uuid = str(uuid | data)
+        
+        # Pad the string with 0's so it's 32 bytes
+        uuid = "".join(chr(0x30) for _ in range(32 - len(uuid))) + uuid
+        
         return uuid
         
     def get_process_subject_id(self, pid):
@@ -202,6 +210,7 @@ class InstanceGenerator():
         fobject["baseObject"] = abstract_object
         fobject["properties"] = {}
         fobject["url"] = str(path)
+        fobject["isPipe"] = False 
         
         if version == None:
             # Look for an older version
