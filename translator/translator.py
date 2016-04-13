@@ -206,6 +206,7 @@ class CDMTranslator(object):
         ''' Translate a system or function call event '''
         
         record = {}
+        old_record = {}
         event = {}
         event["properties"] = {}
 
@@ -254,13 +255,24 @@ class CDMTranslator(object):
                 # Store the pid of the process that generated the event temporarily
                 record["tempPid"] = cadets_record["pid"] # Remove this when we finalize the event
                 
+                returnNone = True
+                if returnType in self.entryEvents: # this return type is already being waited for, so stop waiting for the previous one
+                    self.logger.debug("Found new entry probe instead of return we were waiting for: {provider}:{module}:{call}".format(provider=provider, module=module, call=call))
+                    entryEventRecord = self.entryEvents[returnType]
+                    entryEvent = entryEventRecord["datum"]
+                    old_record["datum"] = entryEvent
+                    returnNone = False
+
                 self.entryEvents[returnType] = record
                 # Give up looking after matchReturnLookahead more events
                 self.entryLookahead[returnType] = self.eventCounter + self.matchReturnLookahead
             
                 self.logger.debug("Waiting for return probe for entry event: {rt}, giving up in {ec} events"
                                   .format(rt=returnType, ec=self.matchReturnLookahead))
-                return None
+                if returnNone:
+                    return None
+                else:
+                    return old_record
             elif probe == "return":
                 # Are we waiting for this return?
                 try:
