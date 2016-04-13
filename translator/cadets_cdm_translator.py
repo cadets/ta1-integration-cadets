@@ -140,9 +140,9 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
         logger.debug("Adding {i} more records from entry events with no return".format(i=len(final_records)))
         cdmcount += len(final_records)
         if write_json:
-            write_cdm_json_records(cdm_records, serializer, json_out, incount)
+            write_cdm_json_records(final_records, serializer, json_out, incount)
         if write_binary:
-            write_cdm_binary_records(cdm_records, file_writer, bin_out)
+            write_cdm_binary_records(final_records, file_writer, bin_out)
     
     logger.info("Translated {i} records into {ic} CDM items".format(i=incount, ic=cdmcount))
    
