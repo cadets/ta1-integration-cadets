@@ -90,7 +90,9 @@ class CDMTranslator(object):
         proc_uuid = self.instance_generator.get_process_subject_id(pid)
         if proc_uuid == None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
-            process_record = self.instance_generator.create_process_subject(pid, ppid, time_micros, self.get_source())
+	    # We don't know the time when this process was created, so we'll leave it blank.
+	    # Could use time_micros as an upper bound, but we'd need to specify
+            process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source())
             process = process_record["datum"]
             proc_uuid = process["uuid"]
             
@@ -412,3 +414,4 @@ class CDMTranslator(object):
             newRecords.append(edge3)            
         
         return newRecords
+
