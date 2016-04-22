@@ -6,6 +6,9 @@ Store a map of the instances we've created with their uuids, so we can tell if w
 
 import logging
 import random
+import struct
+
+from tc.schema.records import record_generator
 
 class InstanceGenerator():
 
@@ -43,7 +46,7 @@ class InstanceGenerator():
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
                where the data value is the actual pid, tid, or userId value
 
-            UUIDs are now 256 bits, and strings, so we pad with 0's and stringify
+            UUIDs are now 256 bits
 
             For now, we use the data as the lower 64 bits
             For "uid", we set the next byte to 0x0
@@ -73,13 +76,19 @@ class InstanceGenerator():
             uuid = (5 << 64)
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
-            
-        uuid = str(uuid | data)
-        
-        # Pad the string with 0's so it's 32 bytes
-        uuid = "".join(chr(0x30) for _ in range(32 - len(uuid))) + uuid
-        
-        return uuid
+
+	uuid = uuid | data
+
+	# Eventually use this
+	#uuidb = record_generator.Util.get_uuid_from_value(uuid)
+	# But currently the python avro deserializer cant handle these bytes
+	# So we cheat and make it a string
+
+	uuid = str(uuid)
+	# Pad the string with 0's so it's 32 bytes
+	uuidb = "".join(chr(0x0) for _ in range(32 - len(uuid))) + uuid
+		    
+	return uuidb
         
     def get_process_subject_id(self, pid):
         ''' Given a pid, did we create a subject for the pid previously? 
@@ -99,7 +108,11 @@ class InstanceGenerator():
         
         subject["pid"] = pid
         subject["ppid"] = ppid
-        subject["startTimestampMicros"] = time_micros
+
+	# We don't really know the start time of the process, since this method is inferring the existance of a process by the fact that it performed an action.
+	# In CDM10 the startTimestampMicros is optional, so we'll let the caller set the value to None, meaning we don't know
+	if time_micros != None:
+	    subject["startTimestampMicros"] = time_micros
         subject["source"] = source
         subject["type"] = "SUBJECT_PROCESS"
         

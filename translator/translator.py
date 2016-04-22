@@ -90,7 +90,9 @@ class CDMTranslator(object):
         proc_uuid = self.instance_generator.get_process_subject_id(pid)
         if proc_uuid == None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
-            process_record = self.instance_generator.create_process_subject(pid, ppid, time_micros, self.get_source())
+	    # We don't know the time when this process was created, so we'll leave it blank.
+	    # Could use time_micros as an upper bound, but we'd need to specify
+            process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source())
             process = process_record["datum"]
             proc_uuid = process["uuid"]
             
@@ -206,6 +208,7 @@ class CDMTranslator(object):
         ''' Translate a system or function call event '''
         
         record = {}
+        old_record = {}
         event = {}
         event["properties"] = {}
 
@@ -254,13 +257,24 @@ class CDMTranslator(object):
                 # Store the pid of the process that generated the event temporarily
                 record["tempPid"] = cadets_record["pid"] # Remove this when we finalize the event
                 
+                returnNone = True
+                if returnType in self.entryEvents: # this return type is already being waited for, so stop waiting for the previous one
+                    self.logger.debug("Found new entry probe instead of return we were waiting for: {provider}:{module}:{call}".format(provider=provider, module=module, call=call))
+                    entryEventRecord = self.entryEvents[returnType]
+                    entryEvent = entryEventRecord["datum"]
+                    old_record["datum"] = entryEvent
+                    returnNone = False
+
                 self.entryEvents[returnType] = record
                 # Give up looking after matchReturnLookahead more events
                 self.entryLookahead[returnType] = self.eventCounter + self.matchReturnLookahead
             
                 self.logger.debug("Waiting for return probe for entry event: {rt}, giving up in {ec} events"
                                   .format(rt=returnType, ec=self.matchReturnLookahead))
-                return None
+                if returnNone:
+                    return None
+                else:
+                    return old_record
             elif probe == "return":
                 # Are we waiting for this return?
                 try:
@@ -400,3 +414,4 @@ class CDMTranslator(object):
             newRecords.append(edge3)            
         
         return newRecords
+
