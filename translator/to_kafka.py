@@ -26,9 +26,13 @@ import signal
 
 from tc.schema.serialization import Utils
 from tc.schema.serialization.kafka import KafkaAvroGenericSerializer
+from tc.schema.serialization.kafka import KafkaAvroGenericDeserializer
 
 from avro.io import DatumWriter
 from avro.datafile import DataFileWriter
+
+from pykafka import KafkaClient
+from pykafka.partitioners import HashingPartitioner
 
 from translator import CDMTranslator
 import cadets_cdm_translator
@@ -37,7 +41,7 @@ import cadets_cdm_translator
 DTRACE_SCRIPT_DIR = "/root/dtrace-scripts"
 EVENTS_SCRIPT = "events.d"
 CADETS_OUT = "output.json"
-CDM_OUT = "cdm.bin"
+CDM_OUT = "CDM.bin"
 SCHEMA = "/opt/starc/avro/TCCDMDatum.avsc"
 
 KAFKASTRING="10.0.5.35:9092,10.0.5.36:9092,10.0.5.37:9092,10.0.5.38:9092,10.0.5.39:9092,10.0.5.40:9092"
@@ -103,7 +107,7 @@ def tokafka():
         
         run_cdm_translator(translator, args.d, p_schema, args.so, args.co)
 
-        run_kafka_publish(args.d, args.co, p_schema, args.ks, args.topic)
+        run_kafka_publish(args.d, args.so+"."+args.co, p_schema, args.ks, args.topic)
 
         i=i+1
 
@@ -133,8 +137,9 @@ def run_cdm_translator(translator, events_dir, schema, output, cdm_output):
     logger.info("Running CDM Translator")
     cadets_cdm_translator.translate_file(translator, os.path.join(events_dir, output), events_dir, True, False)
 
-def run_kafka_publish(event_dir, cdm_output, schema, kafkastring, topic):
-    deserializer = KafkaAvroGenericDeserializer(p_schema)
+def run_kafka_publish(events_dir, cdm_output, schema, kafkastring, topic):
+    serializer = KafkaAvroGenericSerializer(schema)
+    deserializer = KafkaAvroGenericDeserializer(schema)
     client=KafkaClient(kafkastring)
     
     # Create the topic in kafka if it doesn't already exist
