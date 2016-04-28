@@ -176,5 +176,5 @@ def write_cdm_binary_records(cdm_records, file_writer, bin_out):
         if cdm_record != None:    
             file_writer.serialize_to_file(cdm_record)
         
-        
-main()
+if __name__ == '__main__':        
+    main()
