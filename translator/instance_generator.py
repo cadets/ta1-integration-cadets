@@ -80,13 +80,13 @@ class InstanceGenerator():
 	uuid = uuid | data
 
 	# Eventually use this
-	#uuidb = record_generator.Util.get_uuid_from_value(uuid)
-	# But currently the python avro deserializer cant handle these bytes
-	# So we cheat and make it a string
+	uuidb = record_generator.Util.get_uuid_from_value(uuid)
 
-	uuid = str(uuid)
+        # But currently the python avro deserializer cant handle these bytes
+	# So we cheat and make it a string
+	#uuid = str(uuid)
 	# Pad the string with 0's so it's 32 bytes
-	uuidb = "".join(chr(0x0) for _ in range(32 - len(uuid))) + uuid
+	# uuidb = "".join(chr(0x0) for _ in range(32 - len(uuid))) + uuid
 		    
 	return uuidb
         
@@ -122,6 +122,7 @@ class InstanceGenerator():
         subject["uuid"] = uniq
         
         record["datum"] = subject
+        record["CDMVersion"] = "11"
         return record
         
     def get_thread_subject_id(self, tid):
@@ -154,6 +155,7 @@ class InstanceGenerator():
         # subject["properties"]["tid"] = tid
         
         record["datum"] = subject
+        record["CDMVersion"] = "11"
         return record
     
     def get_user_id(self, uid):
@@ -181,6 +183,7 @@ class InstanceGenerator():
         principal["uuid"] = uniq
                 
         record["datum"] = principal
+        record["CDMVersion"] = "11"
         return record
     
     def get_file_object_id(self, path, version=None):
@@ -254,6 +257,7 @@ class InstanceGenerator():
         fobject["uuid"] = uniq
         
         record["datum"] = fobject
+        record["CDMVersion"] = "11"
         return record
     
     def create_netflow_object(self, destHost, destPort, source):
@@ -281,4 +285,5 @@ class InstanceGenerator():
         nobject["uuid"] = uniq
         
         record["datum"] = nobject
+        record["CDMVersion"] = "11"
         return record
