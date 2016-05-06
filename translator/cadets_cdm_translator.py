@@ -13,6 +13,7 @@ import os
 from os.path import isfile
 import json
 
+from tc.schema.serialization import AvroGenericSerializer, Utils
 from tc.schema.serialization import Utils
 from tc.schema.serialization.kafka import KafkaAvroGenericSerializer
 
@@ -107,9 +108,8 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
         bin_out_path = os.path.join(output_dir, base_out+".CDM.bin")
         bin_out = open(bin_out_path, 'w')
         # Create a file writer and serialize all provided records to it.
-        datum_writer = DatumWriter(p_schema)
-        file_writer = DataFileWriter(bin_out, datum_writer, p_schema)
-
+        file_writer = AvroGenericSerializer(p_schema, bin_out)
+      
     # Iterate through the records, translating each to a CDM record
     
     incount = 0
@@ -151,8 +151,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
         logger.info("Wrote JSON CDM records to {jo}".format(jo=json_out.name))
          
     if bin_out != None:
-        file_writer.flush()
-        file_writer.close()
+        file_writer.close_file_serializer()
         bin_out.close()
         logger.info("Wrote binary CDM records to {bo}".format(bo=bin_out.name))
         
@@ -169,7 +168,7 @@ def write_cdm_binary_records(cdm_records, file_writer, bin_out):
     ''' Write an array of CDM records to a binary output file via a datum writer '''
     for cdm_record in cdm_records:
         if cdm_record != None:    
-            file_writer.append(cdm_record)
+            file_writer.serialize_to_file(cdm_record)
         
         
 main()
