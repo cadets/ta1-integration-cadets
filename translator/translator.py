@@ -174,7 +174,7 @@ class CDMTranslator(object):
                     try:
                         entry_event_record = self.entryEvents[rt]
                         entry_event = entry_event_record["datum"]
-                        
+
                         self.logger.debug("Gave up waiting for return for entry event {e}, creating event".format
                                           (e=entry_event["type"]))
                                   
@@ -208,7 +208,9 @@ class CDMTranslator(object):
         ''' Translate a system or function call event '''
         
         record = {}
+        record["CDMVersion"] = "11"
         old_record = {}
+        old_record["CDMVersion"] = "11"
         event = {}
         event["properties"] = {}
 
@@ -247,6 +249,7 @@ class CDMTranslator(object):
             event["properties"]["path"] = cadets_record["path"]
         
         record["datum"] = event
+        record["CDMVersion"] = "11"
         
         if self.matchEntryReturn:
             returnType = "{provider}:{module}:{call}:return".format(provider=provider, module=module, call=call)
@@ -291,7 +294,7 @@ class CDMTranslator(object):
                         if "args" in event["properties"]:
                             entryEvent["properties"]["returnArgs"] = event["properties"]["args"]
                         record["datum"] = entryEvent
-                    
+
                         self.logger.debug("New record: "+str(record))
                         del self.entryEvents[returnType]
                         del self.entryLookahead[returnType]
@@ -351,6 +354,7 @@ class CDMTranslator(object):
 
         record = {}
         record["datum"] = edge
+        record["CDMVersion"] = "11"
         return record
     
     def create_subjects(self, event):
