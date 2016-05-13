@@ -90,13 +90,17 @@ class CDMTranslator(object):
         ppid = -1 # TODO: Default value
         if "ppid" in cadets_record:
             ppid = cadets_record["ppid"]
-            
-        proc_uuid = self.instance_generator.get_process_subject_id(pid)
+
+        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_record["exec"])
         if proc_uuid == None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
 	    # We don't know the time when this process was created, so we'll leave it blank.
 	    # Could use time_micros as an upper bound, but we'd need to specify
-            process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source())
+
+            if "exec" in cadets_record:
+                process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source(), cadets_record["exec"])
+            else:
+                process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source(), "")
             process = process_record["datum"]
             proc_uuid = process["uuid"]
             
@@ -154,7 +158,31 @@ class CDMTranslator(object):
             self.logger.debug("Creating edge from Event {e} to Subject {s}".format(s=pid, e=event_type))    
             edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
             datums.append(edge1)
-        
+
+        if "new_exec" in cadets_record: # handle execs
+            exec_path = cadets_record["new_exec"]
+            short_name = exec_path
+            if exec_path.rfind("/") != -1:
+                short_name = short_name[exec_path.rfind("/")+1:]
+            cproc_uuid = self.instance_generator.get_process_subject_id(pid, short_name)
+            if cproc_uuid == None :
+                proc_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source(), short_name)
+                proc_record["datum"]["properties"]["exec"] = short_name;
+                cproc_uuid = proc_record["datum"]["uuid"]
+                datums.append(proc_record)
+            self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
+            file_uuid = self.instance_generator.get_file_object_id(exec_path)
+            if file_uuid == None:
+                file_record = self.instance_generator.create_file_object(exec_path, self.get_source(), None)
+                datums.append(file_record)
+                file_uuid = file_record["datum"]["uuid"]
+            self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
+            exec_file_edge = self.create_edge(file_uuid, event["uuid"], time_micros, "EDGE_FILE_AFFECTS_EVENT")
+            self.logger.debug("AmZ:Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
+            exec_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
+            datums.append(exec_file_edge)
+            datums.append(exec_edge)
+
         return datums
     
     def handle_entry_match(self, fastForward=False):
@@ -181,12 +209,12 @@ class CDMTranslator(object):
 
                         self.logger.debug("Gave up waiting for return for entry event {e}, creating event".format
                                           (e=entry_event["type"]))
-                                  
+
                         creator_pid = entry_event_record["tempPid"]
                         del entry_event_record["tempPid"]
-                        entry_proc_uuid = self.instance_generator.get_process_subject_id(creator_pid)
+                        entry_proc_uuid = self.instance_generator.get_process_subject_id(creator_pid, entry_event_record["exec"])
                         datums.append(entry_event_record)
-                        
+
                         object_records = self.create_subjects(entry_event)
                         if object_records != None:
                             for objr in object_records:

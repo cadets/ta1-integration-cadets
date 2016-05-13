@@ -93,16 +93,17 @@ class InstanceGenerator():
 		    
 	return uuidb
         
-    def get_process_subject_id(self, pid):
-        ''' Given a pid, did we create a subject for the pid previously? 
+    def get_process_subject_id(self, pid, execname):
+        ''' Given a pid, did we create a subject for the pid previously?
             If so return the uid of the subject, if not return None
         '''
-        if self.created_processes.has_key(pid):
-            return self.created_processes[pid]
-        
+        pid_exec = str(pid) +"_"+ execname
+        if self.created_processes.has_key(hash(pid_exec)):
+            return self.created_processes[hash(pid_exec)]
+
         return None
-    
-    def create_process_subject(self, pid, ppid, time_micros, source):
+
+    def create_process_subject(self, pid, ppid, time_micros, source, execname):
         ''' Infer the existence of a process subject, add it to the created list, and return the subject (dictionary) '''
         
         record = {}
@@ -120,8 +121,9 @@ class InstanceGenerator():
         subject["type"] = "SUBJECT_PROCESS"
         
         # Generate a uuid for this subject
-        uniq = self.create_uuid("pid", pid)
-        self.created_processes[pid] = uniq
+        pid_exec = str(pid) +"_"+ execname
+        uniq = self.create_uuid("pid", hash(pid_exec))
+        self.created_processes[hash(pid_exec)] = uniq
         subject["uuid"] = uniq
         
         record["datum"] = subject
