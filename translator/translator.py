@@ -159,6 +159,18 @@ class CDMTranslator(object):
             edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
             datums.append(edge1)
 
+        if "new_pid" in cadets_record: # handle forks
+            new_pid = cadets_record["new_pid"]
+            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, cadets_record["exec"])
+            if cproc_uuid == None :
+                proc_record = self.instance_generator.create_process_subject(new_pid, ppid, None, self.get_source(), cadets_record["exec"])
+                proc_record["datum"]["properties"]["exec"] = cadets_record["exec"]
+                cproc_uuid = proc_record["datum"]["uuid"]
+                datums.append(proc_record)
+            self.logger.debug("AmZ:Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
+            fork_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
+            datums.append(fork_edge)
+
         if "new_exec" in cadets_record: # handle execs
             exec_path = cadets_record["new_exec"]
             short_name = exec_path
