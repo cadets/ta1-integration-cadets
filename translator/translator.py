@@ -37,11 +37,15 @@ class CDMTranslator(object):
     # If true, create NetflowObject objects for each event with an address:port
     # Since we don't have the source host and source port, use defaults of localhost:-1
     createNetflowObjects = True
+
+    CDMVersion = None
     
-    instance_generator = InstanceGenerator()
+    instance_generator = None
     
-    def __init__(self, schema):
+    def __init__(self, schema, version):
         self.schema = schema
+	self.CDMVersion = version
+	self.instance_generator = InstanceGenerator(version)
         self.logger = logging.getLogger("tc")
         
     def reset(self):
@@ -208,9 +212,9 @@ class CDMTranslator(object):
         ''' Translate a system or function call event '''
         
         record = {}
-        record["CDMVersion"] = "11"
+        record["CDMVersion"] = self.CDMVersion
         old_record = {}
-        old_record["CDMVersion"] = "11"
+        old_record["CDMVersion"] = self.CDMVersion
         event = {}
         event["properties"] = {}
 
@@ -249,7 +253,7 @@ class CDMTranslator(object):
             event["properties"]["path"] = cadets_record["path"]
         
         record["datum"] = event
-        record["CDMVersion"] = "11"
+        record["CDMVersion"] = self.CDMVersion
         
         if self.matchEntryReturn:
             returnType = "{provider}:{module}:{call}:return".format(provider=provider, module=module, call=call)
@@ -354,7 +358,7 @@ class CDMTranslator(object):
 
         record = {}
         record["datum"] = edge
-        record["CDMVersion"] = "11"
+        record["CDMVersion"] = self.CDMVersion
         return record
     
     def create_subjects(self, event):

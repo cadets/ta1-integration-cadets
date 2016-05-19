@@ -31,8 +31,11 @@ class InstanceGenerator():
     # Instead we just use a counter for the netflow uuid, since the host:port may not be unique 
     #   (multiple connections to the same dest host:port)
     netflow_counter = 0
+
+    CDMVersion = None
                             
-    def __init__(self):
+    def __init__(self, version):
+	self.CDMVersion = version
         self.logger = logging.getLogger("tc")
         
     def reset(self):
@@ -122,7 +125,7 @@ class InstanceGenerator():
         subject["uuid"] = uniq
         
         record["datum"] = subject
-        record["CDMVersion"] = "11"
+        record["CDMVersion"] = self.CDMVersion
         return record
         
     def get_thread_subject_id(self, tid):
@@ -155,7 +158,7 @@ class InstanceGenerator():
         # subject["properties"]["tid"] = tid
         
         record["datum"] = subject
-        record["CDMVersion"] = "11"
+        record["CDMVersion"] = self.CDMVersion
         return record
     
     def get_user_id(self, uid):
@@ -183,7 +186,7 @@ class InstanceGenerator():
         principal["uuid"] = uniq
                 
         record["datum"] = principal
-        record["CDMVersion"] = "11"
+        record["CDMVersion"] = self.CDMVersion
         return record
     
     def get_file_object_id(self, path, version=None):
@@ -257,7 +260,7 @@ class InstanceGenerator():
         fobject["uuid"] = uniq
         
         record["datum"] = fobject
-        record["CDMVersion"] = "11"
+        record["CDMVersion"] = self.CDMVersion
         return record
     
     def create_netflow_object(self, destHost, destPort, source):
@@ -285,5 +288,5 @@ class InstanceGenerator():
         nobject["uuid"] = uniq
         
         record["datum"] = nobject
-        record["CDMVersion"] = "11"
+        record["CDMVersion"] = self.CDMVersion
         return record
