@@ -28,6 +28,7 @@ IN_FILE = None
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "output"
 LOGGING_CONF = "logging.conf"
+CDMVERSION = "12"
 
 logger = logging.getLogger("tc")
 
@@ -49,6 +50,8 @@ def get_arg_parser():
                         help="Logging configuration file")
     parser.add_argument("-wj", action="store_true", default=True, help="Write JSON output file")
     parser.add_argument("-wb", action="store_true", default=True, help="Write binary output file")
+    parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
+			help="CDM Version number, make sure this matches the schema file you set with psf")
         
     return parser
 
@@ -67,7 +70,7 @@ def main():
     p_schema = Utils.load_schema(args.psf)
     
     # Initialize a CDM Translator
-    translator = CDMTranslator(p_schema)
+    translator = CDMTranslator(p_schema, args.cdmv)
     
     # Load the input file
     
