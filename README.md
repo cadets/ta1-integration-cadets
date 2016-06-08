@@ -1,3 +1,6 @@
+# Building CADETS
+Instructions for building CADETS from scratch are [here](https://git.tc.bbn.com/bbn/ta1-integration-cadets/wikis/buildcadets)
+
 # CADETS example trace data 
 Available at https://github.com/cadets/trace-data
 The trace data is in a CADETS specific JSON format, not TC CDM.
