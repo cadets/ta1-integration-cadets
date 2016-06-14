@@ -195,6 +195,12 @@ class CDMTranslator(object):
             datums.append(exec_file_edge)
             datums.append(exec_edge)
 
+            # Add a HASLOCALPRINCIPAL edge from the process to the user
+            if user_uuid != None:
+                self.logger.debug("Creating edge from Subject {s} to Principal {u}".format(s=pid, u=uid))
+                edge2 = self.create_edge(proc_uuid, user_uuid, time_micros, "EDGE_SUBJECT_HASLOCALPRINCIPAL")
+                datums.append(edge2)
+
         return datums
     
     def handle_entry_match(self, fastForward=False):
