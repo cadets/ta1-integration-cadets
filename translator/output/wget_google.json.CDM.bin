@@ -1,530 +1,514 @@
-Objavro.schemažÆ{"doc": "* A record representing either a vertex or an edge. This is the top level record that allows\n     * us to easily mix the vertices and edges defined above on the wire.", "namespace": "com.bbn.tc.schema.avro", "name": "TCCDMDatum", "fields": [{"type": [{"doc": "* A provenance tag defines source dependence on specific data sources (inputs).\n     * A tag identifier is typically bound to a source and used by the tracking system to\n     * capture dependence on this source input.\n     * A provenance tag is represented as a tree. Each node in the tree has a value and\n     * a set of children nodes.", "namespace": "com.bbn.tc.schema.avro", "name": "ProvenanceTagNode", "fields": [{"doc": "*  the value of the node: can have the following types\n         *   int                 references another node by tagId\n         *   UUID                object uuid (source or sink for example)\n         *   TaOpCode            the opcode applied to the children nodes, see TaOpCode\n         *   IntegrityTag        an integrity tag\n         *   ConfidentialityTag  a confidentiality tag", "type": ["int", {"namespace": "com.bbn.tc.schema.avro", "type": "fixed", "name": "UUID", "size": 32}, {"symbols": ["TAG_OP_SEQUENCE", "TAG_OP_UNION", "TAG_OP_ENCODE", "TAG_OP_STRONG", "TAG_OP_MEDIUM", "TAG_OP_WEAK"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "TagOpCode", "doc": "* The tag opcode describes the provenance relation i.e., how multiple sources are combined to\n     * produce the output. We identify the following provenance relations\n     *\n     *   TAG_OP_SEQUENCE       the output is derived from the specified inputs in order, sequentially\n     *   TAG_OP_UNION,         the output is the union of its inputs\n     *   TAG_OP_ENCODE         the output is some encoding of the input\n     *   TAG_OP_STRONG         this is more qualitative (coarse) saying there is strong dependence\n     *   TAG_OP_MEDIUM         this is more qualitative (coarse) saying there is medium dependence\n     *   TAG_OP_WEAK           this is more qualitative (coarse) saying there is weak   dependence"}, {"symbols": ["INTEGRITY_UNTRUSTED", "INTEGRITY_BENIGN", "INTEGRITY_INVULNERABLE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "IntegrityTag", "doc": "* The integrity tag may be used to specify the initial integrity of an entity,\n     * or to endorse its content after performing appropriate checking/sanitization."}, {"symbols": ["CONFIDENTIALITY_SECRET", "CONFIDENTIALITY_SENSITIVE", "CONFIDENTIALITY_PRIVATE", "CONFIDENTIALITY_PUBLIC"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ConfidentialityTag", "doc": "* The confidentiality tag may be used to specify the initial confidentiality of an entity,\n     * or to declassify its content after performing appropriate checking/sanitization."}], "name": "value"}, {"default": null, "doc": "the child nodes", "type": ["null", {"items": "com.bbn.tc.schema.avro.ProvenanceTagNode", "type": "array"}], "name": "children"}, {"default": null, "doc": "* the id to be assigned to this tag node\n         * typically set once when the node is first created, and used in value afterwards", "type": ["null", "int"], "name": "tagId"}, {"default": null, "doc": "Arbitrary key, value pairs associated with a tag node", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Subjects represent execution contexts and include mainly threads and processes. They can be more granular and\n     * can represent other execution boundaries such as functions and blocks if needed.", "namespace": "com.bbn.tc.schema.avro", "name": "Subject", "fields": [{"doc": "universally unique identifier for the subject", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "the subject type", "type": {"symbols": ["SUBJECT_PROCESS", "SUBJECT_THREAD", "SUBJECT_UNIT", "SUBJECT_BASIC_BLOCK"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "SubjectType", "doc": "* SUBJECT_PROCESS,    process\n     * SUBJECT_THREAD,     thread within a process\n     * SUBJECT_UNIT        so far we only know of TRACE BEEP using this"}, "name": "type"}, {"doc": "OS process id for type process and unit id for a unit (Optional)", "type": "int", "name": "pid"}, {"doc": "OS parent process id for type process and pid for type unit (Optional)", "type": "int", "name": "ppid"}, {"doc": "Where it came from, see InstrumentationSource", "type": {"symbols": ["SOURCE_LINUX_AUDIT_TRACE", "SOURCE_LINUX_PROC_TRACE", "SOURCE_LINUX_BEEP_TRACE", "SOURCE_FREEBSD_OPENBSM_TRACE", "SOURCE_ANDROID_JAVA_CLEARSCOPE", "SOURCE_ANDROID_NATIVE_CLEARSCOPE", "SOURCE_FREEBSD_DTRACE_CADETS", "SOURCE_FREEBSD_TESLA_CADETS", "SOURCE_FREEBSD_LOOM_CADETS", "SOURCE_FREEBSD_MACIF_CADETS", "SOURCE_WINDOWS_DIFT_FAROS", "SOURCE_LINUX_THEIA"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "InstrumentationSource", "doc": "* SOURCE_LINUX_AUDIT_TRACE,          from Linux /dev/audit\n     * SOURCE_LINUX_PROC_TRACE,           from Linux's /proc\n     * SOURCE_LINUX_BEEP_TRACE,           from BEEP instrumentation\n     * SOURCE_FREEBSD_OPENBSM_TRACE,      from FreeBSD openBSM\n     * SOURCE_ANDROID_JAVA_CLEARSCOPE,    from android java instrumentation\n     * SOURCE_ANDROID_NATIVE_CLEARSCOPE,  from android's native instrumentation\n     * SOURCE_FREEBSD_DTRACE_CADETS, SOURCE_FREEBSD_TESLA_CADETS  for CADETS freebsd instrumentation\n     * SOURCE_FREEBSD_LOOM_CADETS, SOURCE_FREEBSD_MACIF_CADETS    for CADETS freebsd instrumentation\n     * SOURCE_LINUX_THEIA                 from the GATech THEIA instrumentation source\n     *"}, "name": "source"}, {"default": null, "doc": "* The start time of the subject\n         * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.\n         * (Optional)", "type": ["null", "long"], "name": "startTimestampMicros"}, {"default": null, "doc": "unit id for unit based instrumentation (Optional)", "type": ["null", "int"], "name": "unitId"}, {"default": null, "doc": "The end time of the subject (Optional)", "type": ["null", "long"], "name": "endTimestampMicros"}, {"default": null, "doc": "Process command line arguments including process name (Optional)", "type": ["null", "string"], "name": "cmdLine"}, {"default": null, "doc": "imported libraries (static or dynamic), (Optional)", "type": ["null", {"items": "string", "type": "array"}], "name": "importedLibraries"}, {"default": null, "doc": "exported libraries (static or dynamic), (Optional)", "type": ["null", {"items": "string", "type": "array"}], "name": "exportedLibraries"}, {"default": null, "doc": "additional process information, such portable execution (PE) info in windows (Optional)", "type": ["null", "string"], "name": "pInfo"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Events represent actions executed on behalf of subjects. Events could include system calls,\n     * function calls, instruction executions, or even more abstract notions representing a blind execution\n     * such as black boxes that are not instrumented (more shortly). Events are the core entity in the model\n     * and they are the main abstraction for representing information flow between data objects, and subjects.\n     * Events are atomic and immutable.", "namespace": "com.bbn.tc.schema.avro", "name": "Event", "fields": [{"doc": "A universally unique identifier for the event", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"default": 0, "doc": "A logical sequence number for ordering events relative to each other within a subject's execution context", "type": "long", "name": "sequence"}, {"doc": "The type of the event", "type": {"symbols": ["EVENT_ACCEPT", "EVENT_BIND", "EVENT_CHANGE_PRINCIPAL", "EVENT_CHECK_FILE_ATTRIBUTES", "EVENT_CLONE", "EVENT_CLOSE", "EVENT_CONNECT", "EVENT_CREATE_OBJECT", "EVENT_CREATE_THREAD", "EVENT_EXECUTE", "EVENT_FORK", "EVENT_LINK", "EVENT_UNLINK", "EVENT_MMAP", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_MPROTECT", "EVENT_OPEN", "EVENT_READ", "EVENT_RECVFROM", "EVENT_RECVMSG", "EVENT_RENAME", "EVENT_WRITE", "EVENT_SIGNAL", "EVENT_TRUNCATE", "EVENT_WAIT", "EVENT_OS_UNKNOWN", "EVENT_KERNEL_UNKNOWN", "EVENT_APP_UNKNOWN", "EVENT_UI_UNKNOWN", "EVENT_UNKNOWN", "EVENT_BLIND", "EVENT_UNIT", "EVENT_UPDATE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "EventType", "doc": "* These event types correspond to the common system calls. Note that we added blind, unit, and update events\n     *   EVENT_ACCEPT                     accept a connection on an object\n     *   EVENT_BIND                       bind to a network endpoint object\n     *   EVENT_CHANGE_PRINCIPAL           change the principal associated with the process\n     *   EVENT_CHECK_FILE_ATTRIBUTES      check the file attributes such as permissions\n     *   EVENT_CLONE                      clone a subject\n     *   EVENT_CLOSE                      close an object\n     *   EVENT_CONNECT                    connect to an object\n     *   EVENT_CREATE_OBJECT              create an object\n     *   EVENT_CREATE_THREAD              create a thread subject\n     *   EVENT_EXECUTE                    execute an object\n     *   EVENT_FORK                       fork a process subject\n     *   EVENT_LINK                       link an object to a new name\n     *   EVENT_UNLINK                     unlink a name from an object\n     *   EVENT_MMAP                       memory map an object\n     *   EVENT_MODIFY_FILE_ATTRIBUTES     modify the attributes of a file object\n     *   EVENT_MPROTECT                   change permissions of a memory object\n     *   EVENT_OPEN                       open an object\n     *   EVENT_READ                       read from an object (file or socket)\n     *   EVENT_RECVFROM                   receive message from a socket\n     *   EVENT_RECVMSG                    receive message from a socket\n     *   EVENT_RENAME                     rename an object\n     *   EVENT_WRITE                      write to an object (file or socket)\n     *   EVENT_SIGNAL                     signal another subject\n     *   EVENT_TRUNCATE                   truncate an object\n     *   EVENT_WAIT                       wait on another subject\n     *   EVENT_KERNEL_UNKNOWN             some kernel event\n     *   EVENT_OS_UNKNOWN                 some OS layer event\n     *   EVENT_APP_UNKNOWN                some application layer event\n     *   EVENT_UI_UNKNOWN                 some UI layer event\n     *   EVENT_UNKNOWN                    some event (we don't know what layer)\n     *   EVENT_BLIND                      blind event for a black boxes that are not instrumented\n     *   EVENT_UNIT                       create a BEEP unit\n     *   EVENT_UPDATE                     update an object"}, "name": "type"}, {"doc": "The thread id to which this event belongs", "type": "int", "name": "threadId"}, {"doc": "What source system generated this event, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "* The time at which the event occurred. Timestamps allow reasoning about order of events\n         *  on a host when the same clock is used.\n         * TODO When different clocks are used on a host or across hosts, we need to also define a clock source\n         * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "timestampMicros"}, {"default": null, "doc": "Event name (Optional)", "type": ["null", "string"], "name": "name"}, {"default": null, "doc": "Event parameters represented as values, see Value (Optional)", "type": ["null", {"items": {"doc": "* Values represent transient data, mainly parameters to events. Values are created and used once within an\n     * event's execution and are relevant mainly during fine-grained tracking (such as with tag/taint propagation).\n     * Values have tags describing their provenance. Sometimes the actual value's value is reported in addition to\n     * the value's metadata\n     *\n     * The size of the value is the number of elements of type valueDataType. This should be 0 for primitive or\n     * complex types or the size of the array for arrays i.e., if size>0, then this value is an array.\n     * A complex value (such as an object) can contain other values (primitives of other complex values) within it, as\n     * components.\n     *\n     * isNull indicates whether a complex value is null. runtimeDataType indicates the runtime datatype. E.g., <br>\n     *  e.g., an integer will have size=0 and valueDataType=INT, and valueBytes.length=4 bytes <br>\n     *  e.g., an int[4] will have  size=4 and valueDataType=INT, and valueBytes.length=16 bytes (4*4) <br>\n     *  e.g., a string s=\"abc\" has size=3 and valueDataType=CHAR, and valueBytes.length=6 bytes (treated as char[]) <br>\n     *  e.g., an MyClass obj has size=0, valueDataType=COMPLEX, runtimeDataType=\"MyClass\", valueBytes=<pointer> <br>", "namespace": "com.bbn.tc.schema.avro", "name": "Value", "fields": [{"default": 0, "doc": "The size of the value: the number of elements of type valueDataType; 0 for primitives", "type": "int", "name": "size"}, {"doc": "The type of the value whether input or return", "type": {"symbols": ["VALUE_TYPE_IN", "VALUE_TYPE_OUT", "VALUE_TYPE_INOUT"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ValueType", "doc": "* A value type is either in, out, or in/out\n     * This is for event parameters to distinguish inputs vs return values\n     *\n     *   VALUE_TYPE_IN       An input value to the event\n     *   VALUE_TYPE_OUT      An output value from the event (return value)\n     *   VALUE_TYPE_INOUT    Adding this for completeness"}, "name": "type"}, {"doc": "The actual datatype of the value elements, e.g., int, double, byte, etc. (Optional)\n         *  Strings are treated as char[] so type=CHAR\n         *  String[] is a COMPLEX value whose components are the string values (each modeled as a char[])\n         *  Complex composite objects comprising of primitive values use the COMPLEX type", "type": {"symbols": ["VALUE_DATA_TYPE_BYTE", "VALUE_DATA_TYPE_BOOL", "VALUE_DATA_TYPE_CHAR", "VALUE_DATA_TYPE_SHORT", "VALUE_DATA_TYPE_INT", "VALUE_DATA_TYPE_FLOAT", "VALUE_DATA_TYPE_LONG", "VALUE_DATA_TYPE_DOUBLE", "VALUE_DATA_TYPE_COMPLEX"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ValueDataType", "doc": "* A value data type is one of the primitive data types. A string is treated as a char array"}, "name": "valueDataType"}, {"default": false, "doc": "Whether this value is null, needed to indicate null objects (default: false)", "type": "boolean", "name": "isNull"}, {"default": null, "doc": "The runtime data type of the value (Optional); For example, an object of dataType=COMPLEX, can have\n         *  a runtime data type of say \"MyClass\"", "type": ["null", "string"], "name": "runtimeDataType"}, {"default": null, "doc": "The actual bytes of the value in Big Endian format, e.g., an int is converted to a 4 byte buffer (Optional)", "type": ["null", "bytes"], "name": "valueBytes"}, {"default": null, "doc": "* The value's tag expression describing its provenance (Optional)\n         * Since value could be an array, the tag can use run length encoding if needed. The format of the array is:\n         *   {<numElements:int>, <tagId:int>}*\n         * For example, to assign a tag 0 (unknown) to elements 0-3, 1 to elements 4-7 and 2 to elements 8-15 of\n         * an int[16] value, this would be represented using the following tag array\n         *  {4, 0, 4, 1, 8, 2} meaning the first 4 elements have tag 0, next 4 have tag 1, next 8 have tag 2\n         * Note that 4 elements of the array correspond to 16 bytes in the valueBytes buffer\n         * Note that tagId had to be defined/emitted earlier (see ProvenanceTagNode)\n         * before it can be assigned to a value", "type": ["null", {"items": "int", "type": "array"}], "name": "tag"}, {"default": null, "doc": "A complex value might comprise other component values if needed (Optional)", "type": ["null", {"items": "com.bbn.tc.schema.avro.Value", "type": "array"}], "name": "components"}], "type": "record"}, "type": "array"}], "name": "parameters"}, {"default": null, "doc": "Location refers to the location of the data affecting the event\n         *  (e.g., the read offset in the file for the read system call event (Optional)", "type": ["null", "long"], "name": "location"}, {"default": null, "doc": "Size refers to the size of the data affecting the event\n         *  (e.g., the number of bytes read from the file for the read system call event (Optional)", "type": ["null", "long"], "name": "size"}, {"default": null, "doc": "The program point where the event was triggered (e.g., executable and line number), (Optional)", "type": ["null", "string"], "name": "programPoint"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Represents a network flow object. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "NetFlowObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": {"doc": "*  Objects, in general, represent data sources and sinks which could include sockets, files,\n     *  memory, and any data in general that can be an input and/or output to an event.\n     *  This record is intended to be abstract i.e., one should not instantiate an Object\n     *  but rather instantiate one of its sub types File, NetFlow, of Memory", "namespace": "com.bbn.tc.schema.avro", "name": "AbstractObject", "fields": [{"doc": "The source that emitted the object, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Permission bits defined over the object (Optional)", "type": ["null", {"namespace": "com.bbn.tc.schema.avro", "type": "fixed", "name": "SHORT", "size": 2}], "name": "permission"}, {"default": null, "doc": "* The timestamp when the object was last modified (Optional).\n        * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "lastTimestampMicros"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, "name": "baseObject"}, {"doc": "The ip address of the source host for this flow", "type": "string", "name": "srcAddress"}, {"doc": "The network port on the source host for this flow", "type": "int", "name": "srcPort"}, {"doc": "The ip address of the destination host for this flow", "type": "string", "name": "destAddress"}, {"doc": "The network port on the destination host for this flow", "type": "int", "name": "destPort"}], "type": "record"}, {"doc": "* Represents a file on the file system. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "FileObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The location of the file absolute path or remote url", "type": "string", "name": "url"}, {"default": false, "doc": "Whether the file is a Unix pipe", "type": "boolean", "name": "isPipe"}, {"default": 1, "doc": "The file version incremented every time the file changes", "type": "int", "name": "version"}, {"default": null, "doc": "The file size in bytes (Optional)", "type": ["null", "long"], "name": "size"}], "type": "record"}, {"doc": "* Represents a generic source or sink on the host device that is can be a file, memory, or netflow.\n     * This is the most basic representation of a source or sink, basically specifying its type only.", "namespace": "com.bbn.tc.schema.avro", "name": "SrcSinkObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The type of the object", "type": {"symbols": ["SOURCE_ACCELEROMETER", "SOURCE_TEMPERATURE", "SOURCE_GYROSCOPE", "SOURCE_MAGNETIC_FIELD", "SOURCE_HEART_RATE", "SOURCE_LIGHT", "SOURCE_PROXIMITY", "SOURCE_PRESSURE", "SOURCE_RELATIVE_HUMIDITY", "SOURCE_LINEAR_ACCELERATION", "SOURCE_MOTION", "SOURCE_STEP_DETECTOR", "SOURCE_STEP_COUNTER", "SOURCE_TILT_DETECTOR", "SOURCE_ROTATION_VECTOR", "SOURCE_GRAVITY", "SOURCE_GEOMAGNETIC_ROTATION_VECTOR", "SOURCE_CAMERA", "SOURCE_GPS", "SOURCE_AUDIO", "SOURCE_SYSTEM_PROPERTY", "SOURCE_ENV_VARIABLE", "SOURCE_SINK_IPC", "SOURCE_UNKNOWN"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "SrcSinkType", "doc": "* There are many types of sources such as sensors\n     * The type of a sensor could be base (close to hardware) or composite\n     * See https://source.android.com/devices/sensors/index.html for details\n     * TODO: camera and GPS ideally should be modeled separately to match the Android model. These are rich subsystems"}, "name": "type"}], "type": "record"}, {"doc": "* Represents a page in memory. Instantiates an AbstractObject.\n     * TODO: is memory really an object (with permissions and so on) or is it a transient data?", "namespace": "com.bbn.tc.schema.avro", "name": "MemoryObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The location in memory", "type": "long", "name": "memoryAddress"}, {"default": null, "doc": "The memory page number", "type": ["null", "long"], "name": "pageNumber"}], "type": "record"}, {"doc": "* A principal is a local user\n    * TODO: extend for second evaluation to include remote principals\n    * TODO: what happens when the user information changes (are we tracking versions?)\n    * TODO: Authentication mechanisms: are TA1s providing that information and how?", "namespace": "com.bbn.tc.schema.avro", "name": "Principal", "fields": [{"doc": "A unique id for the principal", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"default": "PRINCIPAL_LOCAL", "doc": "The type of the principal, local by default", "type": {"symbols": ["PRINCIPAL_LOCAL", "PRINCIPAL_REMOTE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "PrincipalType", "doc": "* The type of principal may be local to the host, or remote users/systems."}, "name": "type"}, {"doc": "The operating system id associated with the user", "type": "int", "name": "userId"}, {"doc": "The ids of the groups which this user is part of", "type": {"items": "int", "type": "array"}, "name": "groupIds"}, {"doc": "The source that emitted the Principal record, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* The purpose of a TagEntity is to be able to assign one or more tags to the objects/subjects/events\n     * at a later point in time after the objects/subjects/events have been emitted.\n     * As the name indicates, TagEntity wraps a tag (ProvenanceTagNode) with an entity i.e. assign a uuid\n     * to the tag to allow adding an edge from the object/subject/event to the TagEntity.", "namespace": "com.bbn.tc.schema.avro", "name": "TagEntity", "fields": [{"doc": "A unique ID for the entity", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The provenance tag", "type": "com.bbn.tc.schema.avro.ProvenanceTagNode", "name": "tag"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Edges in the CDM only connect the entities and do not have attributes of their own.\n     *  In order to make the streaming efficient, the edge specification does not require\n     *  the objects on both ends every time it is streamed/serialized. Instead, we defined\n     *  the edge to be simple, it has a type and it connects two entities each identified by\n     *  a uid each.\n     * Since the different edge types in the current model do not have different properties\n     *  (actually no properties at all), we do not define the different edges as separate\n     *  records at this time.\n     * For example, when streaming a large number of edges having the same from node, the\n     *  from node in all these edges will be represented using the node id instead of having\n     *  to replicate the full node object on the wire.", "namespace": "com.bbn.tc.schema.avro", "name": "SimpleEdge", "fields": [{"doc": "A unique id of the From entity on the edge", "type": "com.bbn.tc.schema.avro.UUID", "name": "fromUuid"}, {"doc": "The id of the To entity on the edge", "type": "com.bbn.tc.schema.avro.UUID", "name": "toUuid"}, {"doc": "The type of the edge, see EdgeType", "type": {"symbols": ["EDGE_EVENT_AFFECTS_MEMORY", "EDGE_EVENT_AFFECTS_FILE", "EDGE_EVENT_AFFECTS_NETFLOW", "EDGE_EVENT_AFFECTS_SUBJECT", "EDGE_EVENT_AFFECTS_SRCSINK", "EDGE_EVENT_HASPARENT_EVENT", "EDGE_EVENT_CAUSES_EVENT", "EDGE_EVENT_ISGENERATEDBY_SUBJECT", "EDGE_SUBJECT_AFFECTS_EVENT", "EDGE_SUBJECT_HASPARENT_SUBJECT", "EDGE_SUBJECT_HASLOCALPRINCIPAL", "EDGE_SUBJECT_RUNSON", "EDGE_FILE_AFFECTS_EVENT", "EDGE_NETFLOW_AFFECTS_EVENT", "EDGE_MEMORY_AFFECTS_EVENT", "EDGE_SRCSINK_AFFECTS_EVENT", "EDGE_OBJECT_PREV_VERSION", "EDGE_FILE_HAS_TAG", "EDGE_NETFLOW_HAS_TAG", "EDGE_MEMORY_HAS_TAG", "EDGE_SRCSINK_HAS_TAG", "EDGE_SUBJECT_HAS_TAG", "EDGE_EVENT_HAS_TAG"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "EdgeType", "doc": "* The different types of simple edges in the CDM\n     *   EDGE_EVENT_AFFECTS_MEMORY          an event affects a memory object (such as updating a memory location)\n     *   EDGE_EVENT_AFFECTS_FILE            an event affects a file object (such as writing to a file)\n     *   EDGE_EVENT_AFFECTS_NETFLOW         an event affects a netflow object (such as writing to socket)\n     *   EDGE_EVENT_AFFECTS_SUBJECT         an event affects a subject (such as forking a process)\n     *   EDGE_EVENT_AFFECTS_SRCSINK         an event affects a generic src/sink object\n     *   EDGE_EVENT_HASPARENT_EVENT         a metaevent that represents a set of child atomic events\n     *   EDGE_EVENT_CAUSES_EVENT            an event caused/triggered another event\n     *   EDGE_EVENT_ISGENERATEDBY_SUBJECT   an event is generated by a subject (every event is)\n     *   EDGE_SUBJECT_AFFECTS_EVENT         a subject affects an event (such as when killing a process)\n     *   EDGE_SUBJECT_HASPARENT_SUBJECT     a subject has a parent subject (such as thread has parent process)\n     *   EDGE_SUBJECT_HASPRINCIPAL          a subject has a principal (such as a process owned by a user)\n     *   EDGE_SUBJECT_RUNSON                a subject runs on a host (TODO: host not yet modeled)\n     *   EDGE_FILE_AFFECTS_EVENT            an event reads from a file\n     *   EDGE_NETFLOW_AFFECTS_EVENT         an event reads from a network flow\n     *   EDGE_MEMORY_AFFECTS_EVENT          an event reads from a memory object\n     *   EDGE_SRCSINK_AFFECTS_EVENT         a generic source/sink object affects an event\n     *   EDGE_OBJECT_PREV_VERSION           the previous version of an object, typically used for file versioning\n     *   EDGE_FILE_HAS_TAG                  attach a tag to a file object\n     *   EDGE_NETFLOW_HAS_TAG               attach a tag to a netflow object\n     *   EDGE_MEMORY_HAS_TAG                attach a tag to a memory object\n     *   EDGE_SRCSINK_HAS_TAG               attach a tag to a srcsink object\n     *   EDGE_SUBJECT_HAS_TAG               attach a tag to a subject\n     *   EDGE_EVENT_HAS_TAG                 attach a tag to an event\n     *"}, "name": "type"}, {"doc": "* When the edge was created.\n        * Timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": "long", "name": "timestamp"}, {"default": null, "doc": "Arbitrary key, value pairs describing the edge", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}], "name": "datum"}, {"default": "12", "type": "string", "name": "CDMVersion"}], "type": "record"}avro.codecnull çölü‘º)º—}ØñB®èü                              é Ò  12                             ¤ ÈÆ
-       exec&/usr/local/bin/wget 12                             ¤                              é˜‚ˆ³Øý• 12                               ü£øÕ½÷ÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath /etc/libmap.conf 12                       ¤ÚÖÃ|í}    /etc/libmap.conf  12                       ¤ÚÖÃ|í}                              øÕ½÷ÎúÝ³( 12                                                           ¤øÕ½÷ÎúÝ³( 12                               ü£øÕ½÷ÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath6/usr/local/lib/libintl.so.8 12                       ¼ŸÎ‚xª£   6/usr/local/lib/libintl.so.8  12                       ¼ŸÎ‚xª£                              øÕ½÷ÎúÝ³( 12                                                           ¤øÕ½÷ÎúÝ³( 12                                ü£þÑöÎúÝ³(     
-probe
-entrycallexecvemodulefreebsdprovidersyscall 12                                                            ¤þÑöÎúÝ³( 12                              
+Objavro.schema¾ã{"doc": "* A record representing either a vertex or an edge. This is the top level record that allows\n     * us to easily mix the vertices and edges defined above on the wire.", "namespace": "com.bbn.tc.schema.avro", "name": "TCCDMDatum", "fields": [{"type": [{"doc": "* A provenance tag defines source dependence on specific data sources (inputs).\n     * A tag identifier is typically bound to a source and used by the tracking system to\n     * capture dependence on this source input.\n     * A provenance tag is represented as a tree. Each node in the tree has a value and\n     * a set of children nodes.", "namespace": "com.bbn.tc.schema.avro", "name": "ProvenanceTagNode", "fields": [{"doc": "*  the value of the node: can have the following types\n         *   int                 references another node by tagId\n         *   UUID                object uuid (source or sink for example)\n         *   TaOpCode            the opcode applied to the children nodes, see TaOpCode\n         *   IntegrityTag        an integrity tag\n         *   ConfidentialityTag  a confidentiality tag", "type": ["int", {"namespace": "com.bbn.tc.schema.avro", "type": "fixed", "name": "UUID", "size": 16}, {"symbols": ["TAG_OP_SEQUENCE", "TAG_OP_UNION", "TAG_OP_ENCODE", "TAG_OP_STRONG", "TAG_OP_MEDIUM", "TAG_OP_WEAK"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "TagOpCode", "doc": "* The tag opcode describes the provenance relation i.e., how multiple sources are combined to\n     * produce the output. We identify the following provenance relations\n     *\n     *   TAG_OP_SEQUENCE       the output is derived from the specified inputs in order, sequentially\n     *   TAG_OP_UNION,         the output is the union of its inputs\n     *   TAG_OP_ENCODE         the output is some encoding of the input\n     *   TAG_OP_STRONG         this is more qualitative (coarse) saying there is strong dependence\n     *   TAG_OP_MEDIUM         this is more qualitative (coarse) saying there is medium dependence\n     *   TAG_OP_WEAK           this is more qualitative (coarse) saying there is weak   dependence"}, {"symbols": ["INTEGRITY_UNTRUSTED", "INTEGRITY_BENIGN", "INTEGRITY_INVULNERABLE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "IntegrityTag", "doc": "* The integrity tag may be used to specify the initial integrity of an entity,\n     * or to endorse its content after performing appropriate checking/sanitization."}, {"symbols": ["CONFIDENTIALITY_SECRET", "CONFIDENTIALITY_SENSITIVE", "CONFIDENTIALITY_PRIVATE", "CONFIDENTIALITY_PUBLIC"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ConfidentialityTag", "doc": "* The confidentiality tag may be used to specify the initial confidentiality of an entity,\n     * or to declassify its content after performing appropriate checking/sanitization."}], "name": "value"}, {"default": null, "doc": "the child nodes", "type": ["null", {"items": "com.bbn.tc.schema.avro.ProvenanceTagNode", "type": "array"}], "name": "children"}, {"default": null, "doc": "* the id to be assigned to this tag node\n         * typically set once when the node is first created, and used in value afterwards", "type": ["null", "int"], "name": "tagId"}, {"default": null, "doc": "Arbitrary key, value pairs associated with a tag node", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Subjects represent execution contexts and include mainly threads and processes. They can be more granular and\n     * can represent other execution boundaries such as functions and blocks if needed.", "namespace": "com.bbn.tc.schema.avro", "name": "Subject", "fields": [{"doc": "universally unique identifier for the subject", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "the subject type", "type": {"symbols": ["SUBJECT_PROCESS", "SUBJECT_THREAD", "SUBJECT_UNIT", "SUBJECT_BASIC_BLOCK"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "SubjectType", "doc": "* SUBJECT_PROCESS,    process\n     * SUBJECT_THREAD,     thread within a process\n     * SUBJECT_UNIT        so far we only know of TRACE BEEP using this"}, "name": "type"}, {"doc": "OS process id for type process and unit id for a unit (Optional)", "type": "int", "name": "pid"}, {"doc": "OS parent process id for type process and pid for type unit (Optional)", "type": "int", "name": "ppid"}, {"doc": "Where it came from, see InstrumentationSource", "type": {"symbols": ["SOURCE_LINUX_AUDIT_TRACE", "SOURCE_LINUX_PROC_TRACE", "SOURCE_LINUX_BEEP_TRACE", "SOURCE_FREEBSD_OPENBSM_TRACE", "SOURCE_ANDROID_JAVA_CLEARSCOPE", "SOURCE_ANDROID_NATIVE_CLEARSCOPE", "SOURCE_FREEBSD_DTRACE_CADETS", "SOURCE_FREEBSD_TESLA_CADETS", "SOURCE_FREEBSD_LOOM_CADETS", "SOURCE_FREEBSD_MACIF_CADETS", "SOURCE_WINDOWS_DIFT_FAROS", "SOURCE_LINUX_THEIA"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "InstrumentationSource", "doc": "* SOURCE_LINUX_AUDIT_TRACE,          from Linux /dev/audit\n     * SOURCE_LINUX_PROC_TRACE,           from Linux's /proc\n     * SOURCE_LINUX_BEEP_TRACE,           from BEEP instrumentation\n     * SOURCE_FREEBSD_OPENBSM_TRACE,      from FreeBSD openBSM\n     * SOURCE_ANDROID_JAVA_CLEARSCOPE,    from android java instrumentation\n     * SOURCE_ANDROID_NATIVE_CLEARSCOPE,  from android's native instrumentation\n     * SOURCE_FREEBSD_DTRACE_CADETS, SOURCE_FREEBSD_TESLA_CADETS  for CADETS freebsd instrumentation\n     * SOURCE_FREEBSD_LOOM_CADETS, SOURCE_FREEBSD_MACIF_CADETS    for CADETS freebsd instrumentation\n     * SOURCE_LINUX_THEIA                 from the GATech THEIA instrumentation source\n     *"}, "name": "source"}, {"default": null, "doc": "* The start time of the subject\n         * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.\n         * (Optional)", "type": ["null", "long"], "name": "startTimestampMicros"}, {"default": null, "doc": "unit id for unit based instrumentation (Optional)", "type": ["null", "int"], "name": "unitId"}, {"default": null, "doc": "The end time of the subject (Optional)", "type": ["null", "long"], "name": "endTimestampMicros"}, {"default": null, "doc": "Process command line arguments including process name (Optional)", "type": ["null", "string"], "name": "cmdLine"}, {"default": null, "doc": "imported libraries (static or dynamic), (Optional)", "type": ["null", {"items": "string", "type": "array"}], "name": "importedLibraries"}, {"default": null, "doc": "exported libraries (static or dynamic), (Optional)", "type": ["null", {"items": "string", "type": "array"}], "name": "exportedLibraries"}, {"default": null, "doc": "additional process information, such portable execution (PE) info in windows (Optional)", "type": ["null", "string"], "name": "pInfo"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Events represent actions executed on behalf of subjects. Events could include system calls,\n     * function calls, instruction executions, or even more abstract notions representing a blind execution\n     * such as black boxes that are not instrumented (more shortly). Events are the core entity in the model\n     * and they are the main abstraction for representing information flow between data objects, and subjects.\n     * Events are atomic and immutable.", "namespace": "com.bbn.tc.schema.avro", "name": "Event", "fields": [{"doc": "A universally unique identifier for the event", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"default": 0, "doc": "A logical sequence number for ordering events relative to each other within a subject's execution context", "type": "long", "name": "sequence"}, {"doc": "The type of the event", "type": {"symbols": ["EVENT_ACCEPT", "EVENT_BIND", "EVENT_CHANGE_PRINCIPAL", "EVENT_CHECK_FILE_ATTRIBUTES", "EVENT_CLONE", "EVENT_CLOSE", "EVENT_CONNECT", "EVENT_CREATE_OBJECT", "EVENT_CREATE_THREAD", "EVENT_EXECUTE", "EVENT_FORK", "EVENT_LINK", "EVENT_UNLINK", "EVENT_MMAP", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_MPROTECT", "EVENT_OPEN", "EVENT_READ", "EVENT_RECVFROM", "EVENT_RECVMSG", "EVENT_RENAME", "EVENT_WRITE", "EVENT_SIGNAL", "EVENT_TRUNCATE", "EVENT_WAIT", "EVENT_OS_UNKNOWN", "EVENT_KERNEL_UNKNOWN", "EVENT_APP_UNKNOWN", "EVENT_UI_UNKNOWN", "EVENT_UNKNOWN", "EVENT_BLIND", "EVENT_UNIT", "EVENT_UPDATE", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_SHM", "EVENT_EXIT"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "EventType", "doc": "* These event types correspond to the common system calls. Note that we added blind, unit, and update events\n     *   EVENT_ACCEPT                     accept a connection on an object\n     *   EVENT_BIND                       bind to a network endpoint object\n     *   EVENT_CHANGE_PRINCIPAL           change the principal associated with the process\n     *   EVENT_CHECK_FILE_ATTRIBUTES      check the file attributes such as permissions\n     *   EVENT_CLONE                      clone a subject\n     *   EVENT_CLOSE                      close an object\n     *   EVENT_CONNECT                    connect to an object\n     *   EVENT_CREATE_OBJECT              create an object\n     *   EVENT_CREATE_THREAD              create a thread subject\n     *   EVENT_EXECUTE                    execute an object\n     *   EVENT_FORK                       fork a process subject\n     *   EVENT_LINK                       link an object to a new name\n     *   EVENT_UNLINK                     unlink a name from an object\n     *   EVENT_MMAP                       memory map an object\n     *   EVENT_MODIFY_FILE_ATTRIBUTES     modify the attributes of a file object\n     *   EVENT_MPROTECT                   change permissions of a memory object\n     *   EVENT_OPEN                       open an object\n     *   EVENT_READ                       read from an object (file or socket)\n     *   EVENT_RECVFROM                   receive message from a socket\n     *   EVENT_RECVMSG                    receive message from a socket\n     *   EVENT_RENAME                     rename an object\n     *   EVENT_WRITE                      write to an object (file or socket)\n     *   EVENT_SIGNAL                     signal another subject\n     *   EVENT_TRUNCATE                   truncate an object\n     *   EVENT_WAIT                       wait on another subject\n     *   EVENT_KERNEL_UNKNOWN             some kernel event\n     *   EVENT_OS_UNKNOWN                 some OS layer event\n     *   EVENT_APP_UNKNOWN                some application layer event\n     *   EVENT_UI_UNKNOWN                 some UI layer event\n     *   EVENT_UNKNOWN                    some event (we don't know what layer)\n     *   EVENT_BLIND                      blind event for a black boxes that are not instrumented\n     *   EVENT_UNIT                       create a BEEP unit\n     *   EVENT_UPDATE                     update an object\n     *   EVENT_SENDTO                     send through socket\n     *   EVENT_SENDMSG                    send message through socket\n     *   EVENT_SHM                        share memory between processes\n     *   EVENT_EXIT                       process exit"}, "name": "type"}, {"doc": "The thread id to which this event belongs", "type": "int", "name": "threadId"}, {"doc": "What source system generated this event, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "* The time at which the event occurred. Timestamps allow reasoning about order of events\n         *  on a host when the same clock is used.\n         * TODO When different clocks are used on a host or across hosts, we need to also define a clock source\n         * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "timestampMicros"}, {"default": null, "doc": "Event name (Optional)", "type": ["null", "string"], "name": "name"}, {"default": null, "doc": "Event parameters represented as values, see Value (Optional)", "type": ["null", {"items": {"doc": "* Values represent transient data, mainly parameters to events. Values are created and used once within an\n     * event's execution and are relevant mainly during fine-grained tracking (such as with tag/taint propagation).\n     * Values have tags describing their provenance. Sometimes the actual value's value is reported in addition to\n     * the value's metadata\n     *\n     * The size of the value is the number of elements of type valueDataType. This should be 0 for primitive or\n     * complex types or the size of the array for arrays i.e., if size>0, then this value is an array.\n     * A complex value (such as an object) can contain other values (primitives of other complex values) within it, as\n     * components.\n     *\n     * isNull indicates whether a complex value is null. runtimeDataType indicates the runtime datatype. E.g., <br>\n     *  e.g., an integer will have size=0 and valueDataType=INT, and valueBytes.length=4 bytes <br>\n     *  e.g., an int[4] will have  size=4 and valueDataType=INT, and valueBytes.length=16 bytes (4*4) <br>\n     *  e.g., a string s=\"abc\" has size=3 and valueDataType=CHAR, and valueBytes.length=6 bytes (treated as char[]) <br>\n     *  e.g., an MyClass obj has size=0, valueDataType=COMPLEX, runtimeDataType=\"MyClass\", valueBytes=<pointer> <br>", "namespace": "com.bbn.tc.schema.avro", "name": "Value", "fields": [{"default": 0, "doc": "The size of the value: the number of elements of type valueDataType; 0 for primitives", "type": "int", "name": "size"}, {"doc": "The type of the value whether input or return", "type": {"symbols": ["VALUE_TYPE_IN", "VALUE_TYPE_OUT", "VALUE_TYPE_INOUT"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ValueType", "doc": "* A value type is either in, out, or in/out\n     * This is for event parameters to distinguish inputs vs return values\n     *\n     *   VALUE_TYPE_IN       An input value to the event\n     *   VALUE_TYPE_OUT      An output value from the event (return value)\n     *   VALUE_TYPE_INOUT    Adding this for completeness"}, "name": "type"}, {"doc": "The actual datatype of the value elements, e.g., int, double, byte, etc. (Optional)\n         *  Strings are treated as char[] so type=CHAR\n         *  String[] is a COMPLEX value whose components are the string values (each modeled as a char[])\n         *  Complex composite objects comprising of primitive values use the COMPLEX type", "type": {"symbols": ["VALUE_DATA_TYPE_BYTE", "VALUE_DATA_TYPE_BOOL", "VALUE_DATA_TYPE_CHAR", "VALUE_DATA_TYPE_SHORT", "VALUE_DATA_TYPE_INT", "VALUE_DATA_TYPE_FLOAT", "VALUE_DATA_TYPE_LONG", "VALUE_DATA_TYPE_DOUBLE", "VALUE_DATA_TYPE_COMPLEX"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ValueDataType", "doc": "* A value data type is one of the primitive data types. A string is treated as a char array"}, "name": "valueDataType"}, {"default": false, "doc": "Whether this value is null, needed to indicate null objects (default: false)", "type": "boolean", "name": "isNull"}, {"default": null, "doc": "the name of the Value, string. (Optional)", "type": ["null", "string"], "name": "name"}, {"default": null, "doc": "The runtime data type of the value (Optional); For example, an object of dataType=COMPLEX, can have\n         *  a runtime data type of say \"MyClass\"", "type": ["null", "string"], "name": "runtimeDataType"}, {"default": null, "doc": "The actual bytes of the value in Big Endian format, e.g., an int is converted to a 4 byte buffer (Optional)", "type": ["null", "bytes"], "name": "valueBytes"}, {"default": null, "doc": "* The value's tag expression describing its provenance (Optional)\n         * Since value could be an array, the tag can use run length encoding if needed. The format of the array is:\n         *   {<numElements:int>, <tagId:int>}*\n         * For example, to assign a tag 0 (unknown) to elements 0-3, 1 to elements 4-7 and 2 to elements 8-15 of\n         * an int[16] value, this would be represented using the following tag array\n         *  {4, 0, 4, 1, 8, 2} meaning the first 4 elements have tag 0, next 4 have tag 1, next 8 have tag 2\n         * Note that 4 elements of the array correspond to 16 bytes in the valueBytes buffer\n         * Note that tagId had to be defined/emitted earlier (see ProvenanceTagNode)\n         * before it can be assigned to a value", "type": ["null", {"items": "int", "type": "array"}], "name": "tag"}, {"default": null, "doc": "A complex value might comprise other component values if needed (Optional)", "type": ["null", {"items": "com.bbn.tc.schema.avro.Value", "type": "array"}], "name": "components"}], "type": "record"}, "type": "array"}], "name": "parameters"}, {"default": null, "doc": "Location refers to the location of the data affecting the event\n         *  (e.g., the read offset in the file for the read system call event (Optional)", "type": ["null", "long"], "name": "location"}, {"default": null, "doc": "Size refers to the size of the data affecting the event\n         *  (e.g., the number of bytes read from the file for the read system call event (Optional)", "type": ["null", "long"], "name": "size"}, {"default": null, "doc": "The program point where the event was triggered (e.g., executable and line number), (Optional)", "type": ["null", "string"], "name": "programPoint"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Represents a network flow object. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "NetFlowObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": {"doc": "*  Objects, in general, represent data sources and sinks which could include sockets, files,\n     *  memory, and any data in general that can be an input and/or output to an event.\n     *  This record is intended to be abstract i.e., one should not instantiate an Object\n     *  but rather instantiate one of its sub types File, NetFlow, of Memory", "namespace": "com.bbn.tc.schema.avro", "name": "AbstractObject", "fields": [{"doc": "The source that emitted the object, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Permission bits defined over the object (Optional)", "type": ["null", {"namespace": "com.bbn.tc.schema.avro", "type": "fixed", "name": "SHORT", "size": 2}], "name": "permission"}, {"default": null, "doc": "* The timestamp when the object was last modified (Optional).\n        * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "lastTimestampMicros"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, "name": "baseObject"}, {"doc": "The ip address of the source host for this flow", "type": "string", "name": "srcAddress"}, {"doc": "The network port on the source host for this flow", "type": "int", "name": "srcPort"}, {"doc": "The ip address of the destination host for this flow", "type": "string", "name": "destAddress"}, {"doc": "The network port on the destination host for this flow", "type": "int", "name": "destPort"}, {"default": null, "doc": "The IP protocol number e.g., TCP=6", "type": ["null", "int"], "name": "ipProtocol"}], "type": "record"}, {"doc": "* Represents a file on the file system. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "FileObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The location of the file absolute path or remote url", "type": "string", "name": "url"}, {"default": false, "doc": "Whether the file is a Unix pipe", "type": "boolean", "name": "isPipe"}, {"default": 1, "doc": "The file version incremented every time the file changes", "type": "int", "name": "version"}, {"default": null, "doc": "The file size in bytes (Optional)", "type": ["null", "long"], "name": "size"}], "type": "record"}, {"doc": "* Represents a generic source or sink on the host device that is can be a file, memory, or netflow.\n     * This is the most basic representation of a source or sink, basically specifying its type only.", "namespace": "com.bbn.tc.schema.avro", "name": "SrcSinkObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The type of the object", "type": {"symbols": ["SOURCE_ACCELEROMETER", "SOURCE_TEMPERATURE", "SOURCE_GYROSCOPE", "SOURCE_MAGNETIC_FIELD", "SOURCE_HEART_RATE", "SOURCE_LIGHT", "SOURCE_PROXIMITY", "SOURCE_PRESSURE", "SOURCE_RELATIVE_HUMIDITY", "SOURCE_LINEAR_ACCELERATION", "SOURCE_MOTION", "SOURCE_STEP_DETECTOR", "SOURCE_STEP_COUNTER", "SOURCE_TILT_DETECTOR", "SOURCE_ROTATION_VECTOR", "SOURCE_GRAVITY", "SOURCE_GEOMAGNETIC_ROTATION_VECTOR", "SOURCE_CAMERA", "SOURCE_GPS", "SOURCE_AUDIO", "SOURCE_SYSTEM_PROPERTY", "SOURCE_ENV_VARIABLE", "SOURCE_SINK_IPC", "SOURCE_UNKNOWN"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "SrcSinkType", "doc": "* There are many types of sources such as sensors\n     * The type of a sensor could be base (close to hardware) or composite\n     * See https://source.android.com/devices/sensors/index.html for details\n     * TODO: camera and GPS ideally should be modeled separately to match the Android model. These are rich subsystems"}, "name": "type"}], "type": "record"}, {"doc": "* Represents a page in memory. Instantiates an AbstractObject.\n     * TODO: is memory really an object (with permissions and so on) or is it a transient data?", "namespace": "com.bbn.tc.schema.avro", "name": "MemoryObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The location in memory", "type": "long", "name": "memoryAddress"}, {"default": null, "doc": "The memory page number", "type": ["null", "long"], "name": "pageNumber"}], "type": "record"}, {"doc": "* A principal is a local user\n    * TODO: extend for second evaluation to include remote principals\n    * TODO: what happens when the user information changes (are we tracking versions?)\n    * TODO: Authentication mechanisms: are TA1s providing that information and how?", "namespace": "com.bbn.tc.schema.avro", "name": "Principal", "fields": [{"doc": "A unique id for the principal", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"default": "PRINCIPAL_LOCAL", "doc": "The type of the principal, local by default", "type": {"symbols": ["PRINCIPAL_LOCAL", "PRINCIPAL_REMOTE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "PrincipalType", "doc": "* The type of principal may be local to the host, or remote users/systems."}, "name": "type"}, {"doc": "The operating system identifier associated with the user", "type": "string", "name": "userId"}, {"doc": "The ids of the groups which this user is part of", "type": {"items": "string", "type": "array"}, "name": "groupIds"}, {"doc": "The source that emitted the Principal record, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* The purpose of a TagEntity is to be able to assign one or more tags to the objects/subjects/events\n     * at a later point in time after the objects/subjects/events have been emitted.\n     * As the name indicates, TagEntity wraps a tag (ProvenanceTagNode) with an entity i.e. assign a uuid\n     * to the tag to allow adding an edge from the object/subject/event to the TagEntity.", "namespace": "com.bbn.tc.schema.avro", "name": "TagEntity", "fields": [{"doc": "A unique ID for the entity", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The provenance tag", "type": "com.bbn.tc.schema.avro.ProvenanceTagNode", "name": "tag"}, {"default": null, "doc": "* The timestamp when the tag was created (Optional).\n        * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "timestampMicros"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Edges in the CDM only connect the entities and do not have attributes of their own.\n     *  In order to make the streaming efficient, the edge specification does not require\n     *  the objects on both ends every time it is streamed/serialized. Instead, we defined\n     *  the edge to be simple, it has a type and it connects two entities each identified by\n     *  a uid each.\n     * Since the different edge types in the current model do not have different properties\n     *  (actually no properties at all), we do not define the different edges as separate\n     *  records at this time.\n     * For example, when streaming a large number of edges having the same from node, the\n     *  from node in all these edges will be represented using the node id instead of having\n     *  to replicate the full node object on the wire.", "namespace": "com.bbn.tc.schema.avro", "name": "SimpleEdge", "fields": [{"doc": "A unique id of the From entity on the edge", "type": "com.bbn.tc.schema.avro.UUID", "name": "fromUuid"}, {"doc": "The id of the To entity on the edge", "type": "com.bbn.tc.schema.avro.UUID", "name": "toUuid"}, {"doc": "The type of the edge, see EdgeType", "type": {"symbols": ["EDGE_EVENT_AFFECTS_MEMORY", "EDGE_EVENT_AFFECTS_FILE", "EDGE_EVENT_AFFECTS_NETFLOW", "EDGE_EVENT_AFFECTS_SUBJECT", "EDGE_EVENT_AFFECTS_SRCSINK", "EDGE_EVENT_HASPARENT_EVENT", "EDGE_EVENT_CAUSES_EVENT", "EDGE_EVENT_ISGENERATEDBY_SUBJECT", "EDGE_SUBJECT_AFFECTS_EVENT", "EDGE_SUBJECT_HASPARENT_SUBJECT", "EDGE_SUBJECT_HASLOCALPRINCIPAL", "EDGE_SUBJECT_RUNSON", "EDGE_FILE_AFFECTS_EVENT", "EDGE_NETFLOW_AFFECTS_EVENT", "EDGE_MEMORY_AFFECTS_EVENT", "EDGE_SRCSINK_AFFECTS_EVENT", "EDGE_OBJECT_PREV_VERSION", "EDGE_FILE_HAS_TAG", "EDGE_NETFLOW_HAS_TAG", "EDGE_MEMORY_HAS_TAG", "EDGE_SRCSINK_HAS_TAG", "EDGE_SUBJECT_HAS_TAG", "EDGE_EVENT_HAS_TAG", "EDGE_EVENT_AFFECTS_REGISTRYKEY", "EDGE_REGISTRYKEY_AFFECTS_EVENT", "EDGE_REGISTRYKEY_HAS_TAG"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "EdgeType", "doc": "* The different types of simple edges in the CDM\n     *   EDGE_EVENT_AFFECTS_MEMORY          an event affects a memory object (such as updating a memory location)\n     *   EDGE_EVENT_AFFECTS_FILE            an event affects a file object (such as writing to a file)\n     *   EDGE_EVENT_AFFECTS_REGISTRYKEY     an event affects a registry value (such as writing to a registry key)\n     *   EDGE_EVENT_AFFECTS_NETFLOW         an event affects a netflow object (such as writing to socket)\n     *   EDGE_EVENT_AFFECTS_SUBJECT         an event affects a subject (such as forking a process)\n     *   EDGE_EVENT_AFFECTS_SRCSINK         an event affects a generic src/sink object\n     *   EDGE_EVENT_HASPARENT_EVENT         a metaevent that represents a set of child atomic events\n     *   EDGE_EVENT_CAUSES_EVENT            an event caused/triggered another event\n     *   EDGE_EVENT_ISGENERATEDBY_SUBJECT   an event is generated by a subject (every event is)\n     *   EDGE_SUBJECT_AFFECTS_EVENT         a subject affects an event (such as when killing a process)\n     *   EDGE_SUBJECT_HASPARENT_SUBJECT     a subject has a parent subject (such as thread has parent process)\n     *   EDGE_SUBJECT_HASPRINCIPAL          a subject has a principal (such as a process owned by a user)\n     *   EDGE_SUBJECT_RUNSON                a subject runs on a host (TODO: host not yet modeled)\n     *   EDGE_FILE_AFFECTS_EVENT            an event reads from a file\n     *   EDGE_REGISTRYKEY_AFFECTS_EVENT     an event reads values from a registry key\n     *   EDGE_NETFLOW_AFFECTS_EVENT         an event reads from a network flow\n     *   EDGE_MEMORY_AFFECTS_EVENT          an event reads from a memory object\n     *   EDGE_SRCSINK_AFFECTS_EVENT         a generic source/sink object affects an event\n     *   EDGE_OBJECT_PREV_VERSION           the previous version of an object, typically used for file versioning\n     *   EDGE_FILE_HAS_TAG                  attach a tag to a file object\n     *   EDGE_REGISTRYKEY_HAS_TAG           attach a tag to a registrykey object\n     *   EDGE_NETFLOW_HAS_TAG               attach a tag to a netflow object\n     *   EDGE_MEMORY_HAS_TAG                attach a tag to a memory object\n     *   EDGE_SRCSINK_HAS_TAG               attach a tag to a srcsink object\n     *   EDGE_SUBJECT_HAS_TAG               attach a tag to a subject\n     *   EDGE_EVENT_HAS_TAG                 attach a tag to an event\n     *"}, "name": "type"}, {"doc": "* When the edge was created.\n        * Timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": "long", "name": "timestamp"}, {"default": null, "doc": "Arbitrary key, value pairs describing the edge", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Represents a registry key. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "RegistryKeyObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The registry key/path", "type": "string", "name": "key"}, {"default": 1, "doc": "The version incremented every time the entry changes", "type": "int", "name": "version"}, {"default": null, "doc": "The entry size in bytes (Optional)", "type": ["null", "long"], "name": "size"}], "type": "record"}], "name": "datum"}, {"default": "13", "type": "string", "name": "CDMVersion"}], "type": "record"}avro.codecnull ìyIk=£-NêS#¯ö–µžÊ¿              é 1001  13       zöN›9Ë’r ÈÆ
+       exec&/usr/local/bin/wget 13       zöN›9Ë’r              é˜‚ˆ³Øý• 13       ¼›ùo	 È       execwget 13       ¼›ùo	              éŠˆ³Øý• 13               ü£øÕ½÷ÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath /etc/libmap.conf 13       ¤ÚÖÃ|í}    /etc/libmap.conf  13       ¤ÚÖÃ|í}              øÕ½÷ÎúÝ³( 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13               ü£øÕ½÷ÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath6/usr/local/lib/libintl.so.8 13       ¼ŸÎ‚xª£   6/usr/local/lib/libintl.so.8  13       ¼ŸÎ‚xª£              øÕ½÷ÎúÝ³( 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13              
 ü£øÕ½÷ÎúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤øÕ½÷ÎúÝ³( 12                               ü£øÕ½÷ÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath0/var/run/ld-elf.so.hints 12                       ŠÎnëM¦Y   0/var/run/ld-elf.so.hints  12                       ŠÎnëM¦Y                              øÕ½÷ÎúÝ³( 12                                                           ¤øÕ½÷ÎúÝ³( 12                              	"ü£øÕ½÷ÎúÝ³(     
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13               ü£øÕ½÷ÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath0/var/run/ld-elf.so.hints 13       ŠÎnëM¦Y   0/var/run/ld-elf.so.hints  13       ŠÎnëM¦Y              øÕ½÷ÎúÝ³( 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13              	"ü£øÕ½÷ÎúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              	                             ¤øÕ½÷ÎúÝ³( 12                              
+entrycallreadmodulefreebsdprovidersyscall 13              	       ¼›ùo	øÕ½÷ÎúÝ³( 13              
 ü£øÕ½÷ÎúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤øÕ½÷ÎúÝ³( 12                               ü£øÕ½÷ÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath(/usr/lib/libssl.so.8 12                       ÕÁ>:àô   (/usr/lib/libssl.so.8  12                       ÕÁ>:àô                              øÕ½÷ÎúÝ³( 12                                                           ¤øÕ½÷ÎúÝ³( 12                              
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13               ü£øÕ½÷ÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath(/usr/lib/libssl.so.8 13       ÕÁ>:àô   (/usr/lib/libssl.so.8  13       ÕÁ>:àô              øÕ½÷ÎúÝ³( 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13              
 ü£øÕ½÷ÎúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤øÕ½÷ÎúÝ³( 12                              
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13               ü£øÕ½÷ÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath&/lib/libcrypto.so.8 13        ^5’¡W    &/lib/libcrypto.so.8  13        ^5’¡W               øÕ½÷ÎúÝ³( 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13              
+ü£øÕ½÷ÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13              $ ü£øÕ½÷ÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath/lib/libz.so.6 13       ‚èÆÔMNôä   /lib/libz.so.6  13       ‚èÆÔMNôä              øÕ½÷ÎúÝ³( 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13              "
+ü£øÕ½÷ÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	øÕ½÷ÎúÝ³( 13              * ü£°Î·øÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720272876440modulefreebsdcallopenatprovidersyscallpath6/usr/local/lib/libidn.so.11 13       9Àè×õHM   6/usr/local/lib/libidn.so.11  13       9Àè×õHM              °Î·øÎúÝ³( 13                     ¼›ùo	°Î·øÎúÝ³( 13              (
+ü£°Î·øÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	°Î·øÎúÝ³( 13              0 ü£°Î·øÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720272876440modulefreebsdcallopenatprovidersyscallpath/lib/libc.so.7 13       ei´w¥)j   /lib/libc.so.7  13       ei´w¥)j              °Î·øÎúÝ³( 13                     ¼›ùo	°Î·øÎúÝ³( 13              .
+ü£°Î·øÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	°Î·øÎúÝ³( 13              6 ü£¨À”þÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720278880276modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 13       ,ýQŒÍ9qƒ   /usr/lib/i18n  13       ,ýQŒÍ9qƒ              ¨À”þÎúÝ³( 13                     ¼›ùo	¨À”þÎúÝ³( 13              4
+ü£°Î·øÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	°Î·øÎúÝ³( 13              < ü£¨À”þÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720278880276modulefreebsdcallopenatprovidersyscallpath>/usr/lib/i18n/libiconv_std.so.4 13       µb6PfÐI    >/usr/lib/i18n/libiconv_std.so.4  13       µb6PfÐI               ¨À”þÎúÝ³( 13                     ¼›ùo	¨À”þÎúÝ³( 13              :
+ü£¨À”þÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	¨À”þÎúÝ³( 13              !B ü£¨À”þÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720278880276modulefreebsdcallopenprovidersyscallpathD/usr/share/i18n/esdb/esdb.alias.db 13       fÅ<L…d   D/usr/share/i18n/esdb/esdb.alias.db  13       fÅ<L…d              !¨À”þÎúÝ³( 13              !       ¼›ùo	¨À”þÎúÝ³( 13               @
+ü£¨À”þÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13                      ¼›ùo	¨À”þÎúÝ³( 13              $H ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpath@/usr/share/i18n/esdb/esdb.dir.db 13       caìNÇ$2I   @/usr/share/i18n/esdb/esdb.dir.db  13       caìNÇ$2I              $ŒŽÿÎúÝ³( 13              $       ¼›ùo	ŒŽÿÎúÝ³( 13              #F
+ü£¨À”þÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              #       ¼›ùo	¨À”þÎúÝ³( 13              'N ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathT/usr/share/i18n/esdb/ISO646/ISO646-US.esdb 13       ñîÍD±r   T/usr/share/i18n/esdb/ISO646/ISO646-US.esdb  13       ñîÍD±r              'ŒŽÿÎúÝ³( 13              '       ¼›ùo	ŒŽÿÎúÝ³( 13              &L
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              &       ¼›ùo	ŒŽÿÎúÝ³( 13              *T ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathD/usr/share/i18n/esdb/esdb.alias.db 13       fÅ<L…d              *ŒŽÿÎúÝ³( 13              *       ¼›ùo	ŒŽÿÎúÝ³( 13              )R
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              )       ¼›ùo	ŒŽÿÎúÝ³( 13              -Z ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpath@/usr/share/i18n/esdb/esdb.dir.db 13       caìNÇ$2I              -ŒŽÿÎúÝ³( 13              -       ¼›ùo	ŒŽÿÎúÝ³( 13              ,X
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              ,       ¼›ùo	ŒŽÿÎúÝ³( 13              0` ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathF/usr/share/i18n/esdb/UTF/UTF-8.esdb 13       ÷g´°Ä€[   F/usr/share/i18n/esdb/UTF/UTF-8.esdb  13       ÷g´°Ä€[              0ŒŽÿÎúÝ³( 13              0       ¼›ùo	ŒŽÿÎúÝ³( 13              /^
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              /       ¼›ùo	ŒŽÿÎúÝ³( 13              3f ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 13       ,ýQŒÍ9qƒ              3ŒŽÿÎúÝ³( 13              3       ¼›ùo	ŒŽÿÎúÝ³( 13              2d
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              2       ¼›ùo	ŒŽÿÎúÝ³( 13              6l ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenatprovidersyscallpath4/usr/lib/i18n/libUTF8.so.4 13       úì`¿„{@   4/usr/lib/i18n/libUTF8.so.4  13       úì`¿„{@              6ŒŽÿÎúÝ³( 13              6       ¼›ùo	ŒŽÿÎúÝ³( 13              5j
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              5       ¼›ùo	ŒŽÿÎúÝ³( 13              9r ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathR/usr/share/i18n/csmapper/charset.alias.db 13       ô3ƒo^IH   R/usr/share/i18n/csmapper/charset.alias.db  13       ô3ƒo^IH              9ŒŽÿÎúÝ³( 13              9       ¼›ùo	ŒŽÿÎúÝ³( 13              ;v ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathL/usr/share/i18n/csmapper/charset.alias 13       KÖ’ýÌ   L/usr/share/i18n/csmapper/charset.alias  13       KÖ’ýÌ              ;ŒŽÿÎúÝ³( 13              ;       ¼›ùo	ŒŽÿÎúÝ³( 13              =z ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathR/usr/share/i18n/csmapper/charset.alias.db 13       ô3ƒo^IH              =ŒŽÿÎúÝ³( 13              =       ¼›ùo	ŒŽÿÎúÝ³( 13              ?~ ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathL/usr/share/i18n/csmapper/charset.alias 13       KÖ’ýÌ              ?ŒŽÿÎúÝ³( 13              ?       ¼›ùo	ŒŽÿÎúÝ³( 13              A‚ ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathF/usr/share/i18n/csmapper/mapper.dir 13       9e§Ý|zH   F/usr/share/i18n/csmapper/mapper.dir  13       9e§Ý|zH              AŒŽÿÎúÝ³( 13              A       ¼›ùo	ŒŽÿÎúÝ³( 13              8p
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              8       ¼›ùo	ŒŽÿÎúÝ³( 13              Dˆ ü£ŒŽÿÎúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 13       ,ýQŒÍ9qƒ              DŒŽÿÎúÝ³( 13              D       ¼›ùo	ŒŽÿÎúÝ³( 13              C†
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              C       ¼›ùo	ŒŽÿÎúÝ³( 13              GŽ ü£þŠ€ÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720280893311modulefreebsdcallopenatprovidersyscallpath@/usr/lib/i18n/libmapper_646.so.4 13       as(ì„`¶   @/usr/lib/i18n/libmapper_646.so.4  13       as(ì„`¶              GþŠ€ÏúÝ³( 13              G       ¼›ùo	þŠ€ÏúÝ³( 13              FŒ
+ü£ŒŽÿÎúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              F       ¼›ùo	ŒŽÿÎúÝ³( 13              J” ü£þŠ€ÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720280893311modulefreebsdcallopenprovidersyscallpathb/usr/share/i18n/csmapper/ISO646/ISO646-US%UCS.646 13       Íß"4Óìlâ   b/usr/share/i18n/csmapper/ISO646/ISO646-US%UCS.646  13       Íß"4Óìlâ              JþŠ€ÏúÝ³( 13              J       ¼›ùo	þŠ€ÏúÝ³( 13              I’
+ü£þŠ€ÏúÝ³(     
+fd3
+probe
+entrycall
+closemodulefreebsdprovidersyscall 13              I       ¼›ùo	þŠ€ÏúÝ³( 13              Mš ü£þŠ€ÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720280893311modulefreebsdcallopenprovidersyscallpath/etc/localtime 13       ]ˆŒ#Oö"   /etc/localtime  13       ]ˆŒ#Oö"              MþŠ€ÏúÝ³( 13              M       ¼›ùo	þŠ€ÏúÝ³( 13              
 "ü£øÕ½÷ÎúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              
-                             ¤øÕ½÷ÎúÝ³( 12                               ü£øÕ½÷ÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath&/lib/libcrypto.so.8 12                        ^5’¡W    &/lib/libcrypto.so.8  12                        ^5’¡W                               øÕ½÷ÎúÝ³( 12                                                           ¤øÕ½÷ÎúÝ³( 12                              
-ü£øÕ½÷ÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤øÕ½÷ÎúÝ³( 12                              $ ü£øÕ½÷ÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720271877500modulefreebsdcallopenatprovidersyscallpath/lib/libz.so.6 12                       ‚èÆÔMNôä   /lib/libz.so.6  12                       ‚èÆÔMNôä                              øÕ½÷ÎúÝ³( 12                                                           ¤øÕ½÷ÎúÝ³( 12                              "
-ü£øÕ½÷ÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤øÕ½÷ÎúÝ³( 12                              * ü£°Î·øÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720272876440modulefreebsdcallopenatprovidersyscallpath6/usr/local/lib/libidn.so.11 12                       9Àè×õHM   6/usr/local/lib/libidn.so.11  12                       9Àè×õHM                              °Î·øÎúÝ³( 12                                                           ¤°Î·øÎúÝ³( 12                              (
-ü£°Î·øÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤°Î·øÎúÝ³( 12                              0 ü£°Î·øÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720272876440modulefreebsdcallopenatprovidersyscallpath/lib/libc.so.7 12                       ei´w¥)j   /lib/libc.so.7  12                       ei´w¥)j                              °Î·øÎúÝ³( 12                                                           ¤°Î·øÎúÝ³( 12                              .
-ü£°Î·øÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤°Î·øÎúÝ³( 12                              6 ü£¨À”þÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720278880276modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 12                       ,ýQŒÍ9qƒ   /usr/lib/i18n  12                       ,ýQŒÍ9qƒ                              ¨À”þÎúÝ³( 12                                                           ¤¨À”þÎúÝ³( 12                              4
-ü£°Î·øÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤°Î·øÎúÝ³( 12                              < ü£¨À”þÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720278880276modulefreebsdcallopenatprovidersyscallpath>/usr/lib/i18n/libiconv_std.so.4 12                       µb6PfÐI    >/usr/lib/i18n/libiconv_std.so.4  12                       µb6PfÐI                               ¨À”þÎúÝ³( 12                                                           ¤¨À”þÎúÝ³( 12                              :
-ü£¨À”þÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤¨À”þÎúÝ³( 12                              !B ü£¨À”þÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720278880276modulefreebsdcallopenprovidersyscallpathD/usr/share/i18n/esdb/esdb.alias.db 12                       fÅ<L…d   D/usr/share/i18n/esdb/esdb.alias.db  12                       fÅ<L…d                              !¨À”þÎúÝ³( 12                              !                             ¤¨À”þÎúÝ³( 12                               @
-ü£¨À”þÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                                                            ¤¨À”þÎúÝ³( 12                              $H ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpath@/usr/share/i18n/esdb/esdb.dir.db 12                       caìNÇ$2I   @/usr/share/i18n/esdb/esdb.dir.db  12                       caìNÇ$2I                              $ŒŽÿÎúÝ³( 12                              $                             ¤ŒŽÿÎúÝ³( 12                              #F
-ü£¨À”þÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              #                             ¤¨À”þÎúÝ³( 12                              'N ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathT/usr/share/i18n/esdb/ISO646/ISO646-US.esdb 12                       ñîÍD±r   T/usr/share/i18n/esdb/ISO646/ISO646-US.esdb  12                       ñîÍD±r                              'ŒŽÿÎúÝ³( 12                              '                             ¤ŒŽÿÎúÝ³( 12                              &L
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              &                             ¤ŒŽÿÎúÝ³( 12                              *T ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathD/usr/share/i18n/esdb/esdb.alias.db 12                       fÅ<L…d                              *ŒŽÿÎúÝ³( 12                              *                             ¤ŒŽÿÎúÝ³( 12                              )R
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              )                             ¤ŒŽÿÎúÝ³( 12                              -Z ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpath@/usr/share/i18n/esdb/esdb.dir.db 12                       caìNÇ$2I                              -ŒŽÿÎúÝ³( 12                              -                             ¤ŒŽÿÎúÝ³( 12                              ,X
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              ,                             ¤ŒŽÿÎúÝ³( 12                              0` ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathF/usr/share/i18n/esdb/UTF/UTF-8.esdb 12                       ÷g´°Ä€[   F/usr/share/i18n/esdb/UTF/UTF-8.esdb  12                       ÷g´°Ä€[                              0ŒŽÿÎúÝ³( 12                              0                             ¤ŒŽÿÎúÝ³( 12                              /^
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              /                             ¤ŒŽÿÎúÝ³( 12                              3f ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 12                       ,ýQŒÍ9qƒ                              3ŒŽÿÎúÝ³( 12                              3                             ¤ŒŽÿÎúÝ³( 12                              2d
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              2                             ¤ŒŽÿÎúÝ³( 12                              6l ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenatprovidersyscallpath4/usr/lib/i18n/libUTF8.so.4 12                       úì`¿„{@   4/usr/lib/i18n/libUTF8.so.4  12                       úì`¿„{@                              6ŒŽÿÎúÝ³( 12                              6                             ¤ŒŽÿÎúÝ³( 12                              5j
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              5                             ¤ŒŽÿÎúÝ³( 12                              9r ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathR/usr/share/i18n/csmapper/charset.alias.db 12                       ô3ƒo^IH   R/usr/share/i18n/csmapper/charset.alias.db  12                       ô3ƒo^IH                              9ŒŽÿÎúÝ³( 12                              9                             ¤ŒŽÿÎúÝ³( 12                              ;v ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathL/usr/share/i18n/csmapper/charset.alias 12                       KÖ’ýÌ   L/usr/share/i18n/csmapper/charset.alias  12                       KÖ’ýÌ                              ;ŒŽÿÎúÝ³( 12                              ;                             ¤ŒŽÿÎúÝ³( 12                              8p
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              8                             ¤ŒŽÿÎúÝ³( 12                              =z ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathR/usr/share/i18n/csmapper/charset.alias.db 12                       ô3ƒo^IH                              =ŒŽÿÎúÝ³( 12                              =                             ¤ŒŽÿÎúÝ³( 12                              ?~ ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathL/usr/share/i18n/csmapper/charset.alias 12                       KÖ’ýÌ                              ?ŒŽÿÎúÝ³( 12                              ?                             ¤ŒŽÿÎúÝ³( 12                              A‚ ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpathF/usr/share/i18n/csmapper/mapper.dir 12                       9e§Ý|zH   F/usr/share/i18n/csmapper/mapper.dir  12                       9e§Ý|zH                              AŒŽÿÎúÝ³( 12                              A                             ¤ŒŽÿÎúÝ³( 12                              Dˆ ü£ŒŽÿÎúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720279875654modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 12                       ,ýQŒÍ9qƒ                              DŒŽÿÎúÝ³( 12                              D                             ¤ŒŽÿÎúÝ³( 12                              C†
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              C                             ¤ŒŽÿÎúÝ³( 12                              GŽ ü£þŠ€ÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720280893311modulefreebsdcallopenatprovidersyscallpath@/usr/lib/i18n/libmapper_646.so.4 12                       as(ì„`¶   @/usr/lib/i18n/libmapper_646.so.4  12                       as(ì„`¶                              GþŠ€ÏúÝ³( 12                              G                             ¤þŠ€ÏúÝ³( 12                              FŒ
-ü£ŒŽÿÎúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              F                             ¤ŒŽÿÎúÝ³( 12                              J” ü£þŠ€ÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720280893311modulefreebsdcallopenprovidersyscallpathb/usr/share/i18n/csmapper/ISO646/ISO646-US%UCS.646 12                       Íß"4Óìlâ   b/usr/share/i18n/csmapper/ISO646/ISO646-US%UCS.646  12                       Íß"4Óìlâ                              JþŠ€ÏúÝ³( 12                              J                             ¤þŠ€ÏúÝ³( 12                              I’
+entrycallreadmodulefreebsdprovidersyscall 13              
+       ¼›ùo	øÕ½÷ÎúÝ³( 13              L˜
 ü£þŠ€ÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              I                             ¤þŠ€ÏúÝ³( 12                              Mš ü£þŠ€ÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720280893311modulefreebsdcallopenprovidersyscallpath/etc/localtime 12                       ]ˆŒ#Oö"   /etc/localtime  12                       ]ˆŒ#Oö"                              MþŠ€ÏúÝ³( 12                              M                             ¤þŠ€ÏúÝ³( 12                              L˜
+closemodulefreebsdprovidersyscall 13              L       ¼›ùo	þŠ€ÏúÝ³( 13              Q¢ ü£þŠ€ÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720280893311modulefreebsdcallopenprovidersyscallpath</usr/share/zoneinfo/posixrules 13       ß
+œ4c³Ó   </usr/share/zoneinfo/posixrules  13       ß
+œ4c³Ó              QþŠ€ÏúÝ³( 13              Q       ¼›ùo	þŠ€ÏúÝ³( 13              Ož"ü£þŠ€ÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              O       ¼›ùo	þŠ€ÏúÝ³( 13              P 
 ü£þŠ€ÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              L                             ¤þŠ€ÏúÝ³( 12                              Q¢ ü£þŠ€ÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720280893311modulefreebsdcallopenprovidersyscallpath</usr/share/zoneinfo/posixrules 12                       ß
-œ4c³Ó   </usr/share/zoneinfo/posixrules  12                       ß
-œ4c³Ó                              QþŠ€ÏúÝ³( 12                              Q                             ¤þŠ€ÏúÝ³( 12                              Ož"ü£þŠ€ÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              O                             ¤þŠ€ÏúÝ³( 12                              P 
+closemodulefreebsdprovidersyscall 13              P       ¼›ùo	þŠ€ÏúÝ³( 13              Uª ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 13       ,ýQŒÍ9qƒ              UÌùÏúÝ³( 13              U       ¼›ùo	ÌùÏúÝ³( 13              T¨
 ü£þŠ€ÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              P                             ¤þŠ€ÏúÝ³( 12                              Uª ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 12                       ,ýQŒÍ9qƒ                              UÌùÏúÝ³( 12                              U                             ¤ÌùÏúÝ³( 12                              T¨
-ü£þŠ€ÏúÝ³(     
-fd3
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              T                             ¤þŠ€ÏúÝ³( 12                              S¦"ü£þŠ€ÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              S                             ¤þŠ€ÏúÝ³( 12                              X° ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathD/usr/share/i18n/esdb/esdb.alias.db 12                       fÅ<L…d                              XÌùÏúÝ³( 12                              X                             ¤ÌùÏúÝ³( 12                              W®
+closemodulefreebsdprovidersyscall 13              T       ¼›ùo	þŠ€ÏúÝ³( 13              X° ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathD/usr/share/i18n/esdb/esdb.alias.db 13       fÅ<L…d              XÌùÏúÝ³( 13              X       ¼›ùo	ÌùÏúÝ³( 13              W®
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              W                             ¤ÌùÏúÝ³( 12                              [¶ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath@/usr/share/i18n/esdb/esdb.dir.db 12                       caìNÇ$2I                              [ÌùÏúÝ³( 12                              [                             ¤ÌùÏúÝ³( 12                              Z´
+closemodulefreebsdprovidersyscall 13              W       ¼›ùo	ÌùÏúÝ³( 13              [¶ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath@/usr/share/i18n/esdb/esdb.dir.db 13       caìNÇ$2I              [ÌùÏúÝ³( 13              [       ¼›ùo	ÌùÏúÝ³( 13              Z´
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              Z                             ¤ÌùÏúÝ³( 12                              ^¼ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathF/usr/share/i18n/esdb/UTF/UTF-8.esdb 12                       ÷g´°Ä€[                              ^ÌùÏúÝ³( 12                              ^                             ¤ÌùÏúÝ³( 12                              ]º
+closemodulefreebsdprovidersyscall 13              Z       ¼›ùo	ÌùÏúÝ³( 13              ^¼ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathF/usr/share/i18n/esdb/UTF/UTF-8.esdb 13       ÷g´°Ä€[              ^ÌùÏúÝ³( 13              ^       ¼›ùo	ÌùÏúÝ³( 13              ]º
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ]                             ¤ÌùÏúÝ³( 12                              aÂ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathD/usr/share/i18n/esdb/esdb.alias.db 12                       fÅ<L…d                              aÌùÏúÝ³( 12                              a                             ¤ÌùÏúÝ³( 12                              `À
+closemodulefreebsdprovidersyscall 13              ]       ¼›ùo	ÌùÏúÝ³( 13              aÂ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathD/usr/share/i18n/esdb/esdb.alias.db 13       fÅ<L…d              aÌùÏúÝ³( 13              a       ¼›ùo	ÌùÏúÝ³( 13              `À
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              `                             ¤ÌùÏúÝ³( 12                              dÈ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath@/usr/share/i18n/esdb/esdb.dir.db 12                       caìNÇ$2I                              dÌùÏúÝ³( 12                              d                             ¤ÌùÏúÝ³( 12                              cÆ
+closemodulefreebsdprovidersyscall 13              `       ¼›ùo	ÌùÏúÝ³( 13              dÈ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath@/usr/share/i18n/esdb/esdb.dir.db 13       caìNÇ$2I              dÌùÏúÝ³( 13              d       ¼›ùo	ÌùÏúÝ³( 13              cÆ
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              c                             ¤ÌùÏúÝ³( 12                              gÎ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathT/usr/share/i18n/esdb/ISO646/ISO646-US.esdb 12                       ñîÍD±r                              gÌùÏúÝ³( 12                              g                             ¤ÌùÏúÝ³( 12                              fÌ
+closemodulefreebsdprovidersyscall 13              c       ¼›ùo	ÌùÏúÝ³( 13              gÎ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathT/usr/share/i18n/esdb/ISO646/ISO646-US.esdb 13       ñîÍD±r              gÌùÏúÝ³( 13              g       ¼›ùo	ÌùÏúÝ³( 13              fÌ
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              f                             ¤ÌùÏúÝ³( 12                              jÔ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 12                       ,ýQŒÍ9qƒ                              jÌùÏúÝ³( 12                              j                             ¤ÌùÏúÝ³( 12                              iÒ
+closemodulefreebsdprovidersyscall 13              f       ¼›ùo	ÌùÏúÝ³( 13              jÔ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 13       ,ýQŒÍ9qƒ              jÌùÏúÝ³( 13              j       ¼›ùo	ÌùÏúÝ³( 13              iÒ
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              i                             ¤ÌùÏúÝ³( 12                              mÚ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathR/usr/share/i18n/csmapper/charset.alias.db 12                       ô3ƒo^IH                              mÌùÏúÝ³( 12                              m                             ¤ÌùÏúÝ³( 12                              oÞ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathL/usr/share/i18n/csmapper/charset.alias 12                       KÖ’ýÌ                              oÌùÏúÝ³( 12                              o                             ¤ÌùÏúÝ³( 12                              lØ
+closemodulefreebsdprovidersyscall 13              i       ¼›ùo	ÌùÏúÝ³( 13              mÚ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathR/usr/share/i18n/csmapper/charset.alias.db 13       ô3ƒo^IH              mÌùÏúÝ³( 13              m       ¼›ùo	ÌùÏúÝ³( 13              oÞ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathL/usr/share/i18n/csmapper/charset.alias 13       KÖ’ýÌ              oÌùÏúÝ³( 13              o       ¼›ùo	ÌùÏúÝ³( 13              qâ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathR/usr/share/i18n/csmapper/charset.alias.db 13       ô3ƒo^IH              qÌùÏúÝ³( 13              q       ¼›ùo	ÌùÏúÝ³( 13              sæ ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathL/usr/share/i18n/csmapper/charset.alias 13       KÖ’ýÌ              sÌùÏúÝ³( 13              s       ¼›ùo	ÌùÏúÝ³( 13              uê ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathF/usr/share/i18n/csmapper/mapper.dir 13       9e§Ý|zH              uÌùÏúÝ³( 13              u       ¼›ùo	ÌùÏúÝ³( 13              lØ
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              l                             ¤ÌùÏúÝ³( 12                              qâ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathR/usr/share/i18n/csmapper/charset.alias.db 12                       ô3ƒo^IH                              qÌùÏúÝ³( 12                              q                             ¤ÌùÏúÝ³( 12                              sæ ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathL/usr/share/i18n/csmapper/charset.alias 12                       KÖ’ýÌ                              sÌùÏúÝ³( 12                              s                             ¤ÌùÏúÝ³( 12                              uê ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathF/usr/share/i18n/csmapper/mapper.dir 12                       9e§Ý|zH                              uÌùÏúÝ³( 12                              u                             ¤ÌùÏúÝ³( 12                              xð ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 12                       ,ýQŒÍ9qƒ                              xÌùÏúÝ³( 12                              x                             ¤ÌùÏúÝ³( 12                              wî
+closemodulefreebsdprovidersyscall 13              l       ¼›ùo	ÌùÏúÝ³( 13              xð ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath/usr/lib/i18n 13       ,ýQŒÍ9qƒ              xÌùÏúÝ³( 13              x       ¼›ùo	ÌùÏúÝ³( 13              wî
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              w                             ¤ÌùÏúÝ³( 12                              {ö ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathb/usr/share/i18n/csmapper/ISO646/ISO646-US%UCS.646 12                       Íß"4Óìlâ                              {ÌùÏúÝ³( 12                              {                             ¤ÌùÏúÝ³( 12                              zô
+closemodulefreebsdprovidersyscall 13              w       ¼›ùo	ÌùÏúÝ³( 13              {ö ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpathb/usr/share/i18n/csmapper/ISO646/ISO646-US%UCS.646 13       Íß"4Óìlâ              {ÌùÏúÝ³( 13              {       ¼›ùo	ÌùÏúÝ³( 13              zô
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              z                             ¤ÌùÏúÝ³( 12                              ~ü ü£ÌùÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath$/etc/nsswitch.conf 12                       ÎŽ±òÂê{   $/etc/nsswitch.conf  12                       ÎŽ±òÂê{                              ~ÌùÏúÝ³( 12                              ~                             ¤ÌùÏúÝ³( 12                              €€"ü£ÌùÏúÝ³(     
+closemodulefreebsdprovidersyscall 13              z       ¼›ùo	ÌùÏúÝ³( 13              ~ü ü£ÌùÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720281874022modulefreebsdcallopenprovidersyscallpath$/etc/nsswitch.conf 13       ÎŽ±òÂê{   $/etc/nsswitch.conf  13       ÎŽ±òÂê{              ~ÌùÏúÝ³( 13              ~       ¼›ùo	ÌùÏúÝ³( 13              S¦"ü£þŠ€ÏúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              €                             ¤ÌùÏúÝ³( 12                              }ú
+entrycallreadmodulefreebsdprovidersyscall 13              S       ¼›ùo	þŠ€ÏúÝ³( 13              €€"ü£ÌùÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              €       ¼›ùo	ÌùÏúÝ³( 13              }ú
 ü£ÌùÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              }                             ¤ÌùÏúÝ³( 12                              ƒ† ü£¨üÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720282873940modulefreebsdcallopenprovidersyscallpath/etc/hosts 12                       ²)¬‡N„‘   /etc/hosts  12                       ²)¬‡N„‘                              ƒ¨üÏúÝ³( 12                              ƒ                             ¤¨üÏúÝ³( 12                              ‚"ü£ÌùÏúÝ³(     
+closemodulefreebsdprovidersyscall 13              }       ¼›ùo	ÌùÏúÝ³( 13              ƒ† ü£¨üÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720282873940modulefreebsdcallopenprovidersyscallpath/etc/hosts 13       ²)¬‡N„‘   /etc/hosts  13       ²)¬‡N„‘              ƒ¨üÏúÝ³( 13              ƒ       ¼›ùo	¨üÏúÝ³( 13              ‚"ü£ÌùÏúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                                                           ¤ÌùÏúÝ³( 12                              …Š"ü£¨üÏúÝ³(     
+entrycallreadmodulefreebsdprovidersyscall 13                     ¼›ùo	ÌùÏúÝ³( 13              …Š"ü£¨üÏúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              …                             ¤¨üÏúÝ³( 12                              ‚„
+entrycallreadmodulefreebsdprovidersyscall 13              …       ¼›ùo	¨üÏúÝ³( 13              ‚„
 ü£¨üÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ‚                             ¤¨üÏúÝ³( 12                              ˆ ü£‚‰ö‚ÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720283873857modulefreebsdcallopenprovidersyscallpath /etc/resolv.conf 12                       õî!éï’NO    /etc/resolv.conf  12                       õî!éï’NO                              ˆ‚‰ö‚ÏúÝ³( 12                              ˆ                             ¤‚‰ö‚ÏúÝ³( 12                              †Œ"ü£¨üÏúÝ³(     
+closemodulefreebsdprovidersyscall 13              ‚       ¼›ùo	¨üÏúÝ³( 13              ˆ ü£‚‰ö‚ÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720283873857modulefreebsdcallopenprovidersyscallpath /etc/resolv.conf 13       õî!éï’NO    /etc/resolv.conf  13       õî!éï’NO              ˆ‚‰ö‚ÏúÝ³( 13              ˆ       ¼›ùo	‚‰ö‚ÏúÝ³( 13              †Œ"ü£¨üÏúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              †                             ¤¨üÏúÝ³( 12                              Š”"ü£‚‰ö‚ÏúÝ³(     
+entrycallreadmodulefreebsdprovidersyscall 13              †       ¼›ùo	¨üÏúÝ³( 13              Š”"ü£‚‰ö‚ÏúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Š                             ¤‚‰ö‚ÏúÝ³( 12                              ‡Ž
+entrycallreadmodulefreebsdprovidersyscall 13              Š       ¼›ùo	‚‰ö‚ÏúÝ³( 13              ‡Ž
 ü£¨üÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ‡                             ¤¨üÏúÝ³( 12                              šü£‚‰ö‚ÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport53address172.16.57.2 12                                  localhost172.16.57.2j12                                                             ‚‰ö‚ÏúÝ³( 12                                                           ¤‚‰ö‚ÏúÝ³( 12                              Œ˜
+closemodulefreebsdprovidersyscall 13              ‡       ¼›ùo	¨üÏúÝ³( 13              šü£‚‰ö‚ÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport53address172.16.57.2 13                  localhost172.16.57.2j 13                             ‚‰ö‚ÏúÝ³( 13                     ¼›ùo	‚‰ö‚ÏúÝ³( 13              Œ˜
 ü£‚‰ö‚ÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              Œ                             ¤‚‰ö‚ÏúÝ³( 12                              žü£°î¨ÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport53address172.16.57.2 12                                 localhost172.16.57.2j12                                                            °î¨ÏúÝ³( 12                                                           ¤°î¨ÏúÝ³( 12                              Žœ
+closemodulefreebsdprovidersyscall 13              Œ       ¼›ùo	‚‰ö‚ÏúÝ³( 13              žü£°î¨ÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport53address172.16.57.2 13                 localhost172.16.57.2j 13                            °î¨ÏúÝ³( 13                     ¼›ùo	°î¨ÏúÝ³( 13              Žœ
 ü£°î¨ÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              Ž                             ¤°î¨ÏúÝ³( 12                              ‹–"ü£‚‰ö‚ÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              ‹                             ¤‚‰ö‚ÏúÝ³( 12                              ‘¢ü£âùç™ÏúÝ³(     err65family28
-probereturnmodulefreebsdcallconnectprovidersyscallport1address02607:f8b0:4006:80f::2004 12                                 localhost02607:f8b0:4006:80f::200412                              ‘                              âùç™ÏúÝ³( 12                              ‘                             ¤âùç™ÏúÝ³( 12                               
+closemodulefreebsdprovidersyscall 13              Ž       ¼›ùo	°î¨ÏúÝ³( 13              ‘¢ü£âùç™ÏúÝ³(     err65family28
+probereturnmodulefreebsdcallconnectprovidersyscallport1address02607:f8b0:4006:80f::2004 13                 localhost02607:f8b0:4006:80f::2004 13              ‘              âùç™ÏúÝ³( 13              ‘       ¼›ùo	âùç™ÏúÝ³( 13               
 ü£âùç™ÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                                                           ¤âùç™ÏúÝ³( 12                              “¦ü£âùç™ÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.98 12                                 localhost146.115.8.9812                              “                              âùç™ÏúÝ³( 12                              “                             ¤âùç™ÏúÝ³( 12                              ’¤
+closemodulefreebsdprovidersyscall 13                     ¼›ùo	âùç™ÏúÝ³( 13              “¦ü£âùç™ÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.98 13                 localhost146.115.8.98 13              “              âùç™ÏúÝ³( 13              “       ¼›ùo	âùç™ÏúÝ³( 13              ’¤
 ü£âùç™ÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ’                             ¤âùç™ÏúÝ³( 12                              •ªü£âùç™ÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.87 12                                 localhost146.115.8.8712                              •                              âùç™ÏúÝ³( 12                              •                             ¤âùç™ÏúÝ³( 12                              ”¨
+closemodulefreebsdprovidersyscall 13              ’       ¼›ùo	âùç™ÏúÝ³( 13              •ªü£âùç™ÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.87 13                 localhost146.115.8.87 13              •              âùç™ÏúÝ³( 13              •       ¼›ùo	âùç™ÏúÝ³( 13              ”¨
 ü£âùç™ÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ”                             ¤âùç™ÏúÝ³( 12                              —®ü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.83 12                                 localhost146.115.8.8312                              —                              ÈÞášÏúÝ³( 12                              —                             ¤ÈÞášÏúÝ³( 12                              –¬
+closemodulefreebsdprovidersyscall 13              ”       ¼›ùo	âùç™ÏúÝ³( 13              —®ü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.83 13                 localhost146.115.8.83 13              —              ÈÞášÏúÝ³( 13              —       ¼›ùo	ÈÞášÏúÝ³( 13              –¬
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              –                             ¤ÈÞášÏúÝ³( 12                              ™²ü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.106 12                                 localhost146.115.8.10612                              ™                              ÈÞášÏúÝ³( 12                              ™                             ¤ÈÞášÏúÝ³( 12                              ˜°
+closemodulefreebsdprovidersyscall 13              –       ¼›ùo	ÈÞášÏúÝ³( 13              ™²ü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.106 13                 localhost146.115.8.106 13              ™              ÈÞášÏúÝ³( 13              ™       ¼›ùo	ÈÞášÏúÝ³( 13              ˜°
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ˜                             ¤ÈÞášÏúÝ³( 12                              ›¶ü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.117 12                                 localhost146.115.8.11712                              ›                              ÈÞášÏúÝ³( 12                              ›                             ¤ÈÞášÏúÝ³( 12                              š´
+closemodulefreebsdprovidersyscall 13              ˜       ¼›ùo	ÈÞášÏúÝ³( 13              ›¶ü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.117 13                 localhost146.115.8.117 13              ›              ÈÞášÏúÝ³( 13              ›       ¼›ùo	ÈÞášÏúÝ³( 13              š´
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              š                             ¤ÈÞášÏúÝ³( 12                              ºü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.91 12                                 localhost146.115.8.9112                                                            ÈÞášÏúÝ³( 12                                                           ¤ÈÞášÏúÝ³( 12                              œ¸
+closemodulefreebsdprovidersyscall 13              š       ¼›ùo	ÈÞášÏúÝ³( 13              ºü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.91 13                 localhost146.115.8.91 13                            ÈÞášÏúÝ³( 13                     ¼›ùo	ÈÞášÏúÝ³( 13              œ¸
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              œ                             ¤ÈÞášÏúÝ³( 12                              Ÿ¾ü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.109 12                              	   localhost146.115.8.10912                              Ÿ                              	ÈÞášÏúÝ³( 12                              Ÿ                             ¤ÈÞášÏúÝ³( 12                              ž¼
+closemodulefreebsdprovidersyscall 13              œ       ¼›ùo	ÈÞášÏúÝ³( 13              Ÿ¾ü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.109 13              	   localhost146.115.8.109 13              Ÿ              	ÈÞášÏúÝ³( 13              Ÿ       ¼›ùo	ÈÞášÏúÝ³( 13              ž¼
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ž                             ¤ÈÞášÏúÝ³( 12                              ¡Âü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.121 12                              
-   localhost146.115.8.12112                              ¡                              
-ÈÞášÏúÝ³( 12                              ¡                             ¤ÈÞášÏúÝ³( 12                               À
+closemodulefreebsdprovidersyscall 13              ž       ¼›ùo	ÈÞášÏúÝ³( 13              ¡Âü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.121 13              
+   localhost146.115.8.121 13              ¡              
+ÈÞášÏúÝ³( 13              ¡       ¼›ùo	ÈÞášÏúÝ³( 13               À
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                                                            ¤ÈÞášÏúÝ³( 12                              £Æü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.93 12                                 localhost146.115.8.9312                              £                              ÈÞášÏúÝ³( 12                              £                             ¤ÈÞášÏúÝ³( 12                              ¢Ä
+closemodulefreebsdprovidersyscall 13                      ¼›ùo	ÈÞášÏúÝ³( 13              £Æü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.93 13                 localhost146.115.8.93 13              £              ÈÞášÏúÝ³( 13              £       ¼›ùo	ÈÞášÏúÝ³( 13              ¢Ä
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ¢                             ¤ÈÞášÏúÝ³( 12                              ¥Êü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.113 12                                 localhost146.115.8.11312                              ¥                              ÈÞášÏúÝ³( 12                              ¥                             ¤ÈÞášÏúÝ³( 12                              ¤È
+closemodulefreebsdprovidersyscall 13              ¢       ¼›ùo	ÈÞášÏúÝ³( 13              ¥Êü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.113 13                 localhost146.115.8.113 13              ¥              ÈÞášÏúÝ³( 13              ¥       ¼›ùo	ÈÞášÏúÝ³( 13              ¤È
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ¤                             ¤ÈÞášÏúÝ³( 12                              §Îü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.102 12                                 localhost146.115.8.10212                              §                              ÈÞášÏúÝ³( 12                              §                             ¤ÈÞášÏúÝ³( 12                              ¦Ì
+closemodulefreebsdprovidersyscall 13              ¤       ¼›ùo	ÈÞášÏúÝ³( 13              §Îü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.102 13                 localhost146.115.8.102 13              §              ÈÞášÏúÝ³( 13              §       ¼›ùo	ÈÞášÏúÝ³( 13              ¦Ì
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ¦                             ¤ÈÞášÏúÝ³( 12                              ©Òü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.123 12                                 localhost146.115.8.12312                              ©                              ÈÞášÏúÝ³( 12                              ©                             ¤ÈÞášÏúÝ³( 12                              ¨Ð
+closemodulefreebsdprovidersyscall 13              ¦       ¼›ùo	ÈÞášÏúÝ³( 13              ©Òü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.123 13                 localhost146.115.8.123 13              ©              ÈÞášÏúÝ³( 13              ©       ¼›ùo	ÈÞášÏúÝ³( 13              ¨Ð
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ¨                             ¤ÈÞášÏúÝ³( 12                              «Öü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.94 12                                 localhost146.115.8.9412                              «                              ÈÞášÏúÝ³( 12                              «                             ¤ÈÞášÏúÝ³( 12                              ªÔ
+closemodulefreebsdprovidersyscall 13              ¨       ¼›ùo	ÈÞášÏúÝ³( 13              «Öü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.94 13                 localhost146.115.8.94 13              «              ÈÞášÏúÝ³( 13              «       ¼›ùo	ÈÞášÏúÝ³( 13              ªÔ
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ª                             ¤ÈÞášÏúÝ³( 12                              ­Úü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.79 12                                 localhost146.115.8.7912                              ­                              ÈÞášÏúÝ³( 12                              ­                             ¤ÈÞášÏúÝ³( 12                              ¬Ø
+closemodulefreebsdprovidersyscall 13              ª       ¼›ùo	ÈÞášÏúÝ³( 13              ­Úü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.79 13                 localhost146.115.8.79 13              ­              ÈÞášÏúÝ³( 13              ­       ¼›ùo	ÈÞášÏúÝ³( 13              ¬Ø
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ¬                             ¤ÈÞášÏúÝ³( 12                              ¯Þü£ÈÞášÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.108 12                                 localhost146.115.8.10812                              ¯                              ÈÞášÏúÝ³( 12                              ¯                             ¤ÈÞášÏúÝ³( 12                              ®Ü
+closemodulefreebsdprovidersyscall 13              ¬       ¼›ùo	ÈÞášÏúÝ³( 13              ¯Þü£ÈÞášÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport1address146.115.8.108 13                 localhost146.115.8.108 13              ¯              ÈÞášÏúÝ³( 13              ¯       ¼›ùo	ÈÞášÏúÝ³( 13              ®Ü
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ®                             ¤ÈÞášÏúÝ³( 12                              ±âü£ÈÀš¦ÏúÝ³(     err0family2
-probereturnmodulefreebsdcallconnectprovidersyscallport80address146.115.8.108 12                                 localhost146.115.8.108 12                              ±                              ÈÀš¦ÏúÝ³( 12                              ±                             ¤ÈÀš¦ÏúÝ³( 12                              ³æ"ü£Œô°áÏúÝ³(     
+closemodulefreebsdprovidersyscall 13              ®       ¼›ùo	ÈÞášÏúÝ³( 13              ±âü£ÈÀš¦ÏúÝ³(     err0family2
+probereturnmodulefreebsdcallconnectprovidersyscallport80address146.115.8.108 13                 localhost146.115.8.108  13              ±              ÈÀš¦ÏúÝ³( 13              ±       ¼›ùo	ÈÀš¦ÏúÝ³( 13              ‹–"ü£‚‰ö‚ÏúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              ³                             ¤Œô°áÏúÝ³( 12                              °à
+entrycallreadmodulefreebsdprovidersyscall 13              ‹       ¼›ùo	‚‰ö‚ÏúÝ³( 13              ³æ"ü£Œô°áÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              ³       ¼›ùo	Œô°áÏúÝ³( 13              µê ü£Œô°áÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720382921990modulefreebsdcallopenprovidersyscallpath./usr/share/zoneinfo/UTC 13       0Ûhÿ²   ./usr/share/zoneinfo/UTC  13       0Ûhÿ²              µŒô°áÏúÝ³( 13              µ       ¼›ùo	Œô°áÏúÝ³( 13              ´è"ü£Œô°áÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              ´       ¼›ùo	Œô°áÏúÝ³( 13              °à
 ü£ÈÞášÏúÝ³(     
 fd3
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              °                             ¤ÈÞášÏúÝ³( 12                              µê ü£Œô°áÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720382921990modulefreebsdcallopenprovidersyscallpath./usr/share/zoneinfo/UTC 12                       0Ûhÿ²   ./usr/share/zoneinfo/UTC  12                       0Ûhÿ²                              µŒô°áÏúÝ³( 12                              µ                             ¤Œô°áÏúÝ³( 12                              ´è"ü£Œô°áÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              ´                             ¤Œô°áÏúÝ³( 12                              ²ä*ü£ÈÀš¦ÏúÝ³(     
-fd3
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              ²                             ¤ÈÀš¦ÏúÝ³( 12                              ¹ò ü£Œô°áÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720382921990modulefreebsdcallopenprovidersyscallpath</usr/share/zoneinfo/posixrules 12                       ß
-œ4c³Ó                              ¹Œô°áÏúÝ³( 12                              ¹                             ¤Œô°áÏúÝ³( 12                              ·î"ü£Œô°áÏúÝ³(     
+closemodulefreebsdprovidersyscall 13              °       ¼›ùo	ÈÞášÏúÝ³( 13              ¹ò ü£Œô°áÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720382921990modulefreebsdcallopenprovidersyscallpath</usr/share/zoneinfo/posixrules 13       ß
+œ4c³Ó              ¹Œô°áÏúÝ³( 13              ¹       ¼›ùo	Œô°áÏúÝ³( 13              ·î"ü£Œô°áÏúÝ³(     
 fd4
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              ·                             ¤Œô°áÏúÝ³( 12                              ¸ð
+entrycallreadmodulefreebsdprovidersyscall 13              ·       ¼›ùo	Œô°áÏúÝ³( 13              ¸ð
 ü£Œô°áÏúÝ³(     
 fd4
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ¸                             ¤Œô°áÏúÝ³( 12                              ½ú ü£Œô°áÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720382921990modulefreebsdcallopenprovidersyscallpathindex.html 12                       êþü’ûc   index.html  12                       êþü’ûc                              ½Œô°áÏúÝ³( 12                              ½                             ¤Œô°áÏúÝ³( 12                              ¿þ ü£Œô°áÏúÝ³(     
-probeentry:return*returnTimestampMicros&1455713720382921990modulefreebsdcallopenatprovidersyscallpath8/usr/local/lib/charset.alias 12                       \Œš1’   8/usr/local/lib/charset.alias  12                       \Œš1’                              ¿Œô°áÏúÝ³( 12                              ¿                             ¤Œô°áÏúÝ³( 12                              »ö"ü£Œô°áÏúÝ³(     
+closemodulefreebsdprovidersyscall 13              ¸       ¼›ùo	Œô°áÏúÝ³( 13              ½ú ü£Œô°áÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720382921990modulefreebsdcallopenprovidersyscallpathindex.html 13       êþü’ûc   index.html  13       êþü’ûc              ½Œô°áÏúÝ³( 13              ½       ¼›ùo	Œô°áÏúÝ³( 13              ¿þ ü£Œô°áÏúÝ³(     
+probeentry:return*returnTimestampMicros&1455713720382921990modulefreebsdcallopenatprovidersyscallpath8/usr/local/lib/charset.alias 13       \Œš1’   8/usr/local/lib/charset.alias  13       \Œš1’              ¿Œô°áÏúÝ³( 13              ¿       ¼›ùo	Œô°áÏúÝ³( 13              »ö"ü£Œô°áÏúÝ³(     
 fd4
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              »                             ¤Œô°áÏúÝ³( 12                              ¼ø
+entrycallreadmodulefreebsdprovidersyscall 13              »       ¼›ùo	Œô°áÏúÝ³( 13              Á‚"ü£Œô°áÏúÝ³(     
+fd5
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Á       ¼›ùo	Œô°áÏúÝ³( 13              ¼ø
 ü£Œô°áÏúÝ³(     
 fd4
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              ¼                             ¤Œô°áÏúÝ³( 12                              Á‚"ü£Œô°áÏúÝ³(     
+closemodulefreebsdprovidersyscall 13              ¼       ¼›ùo	Œô°áÏúÝ³( 13              Â„"ü£Œô°áÏúÝ³(     
 fd5
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Á                             ¤Œô°áÏúÝ³( 12                              Â„"ü£Œô°áÏúÝ³(     
-fd5
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Â                             ¤Œô°áÏúÝ³( 12                              Äˆ"ü£Œô°áÏúÝ³(     
+entrycallreadmodulefreebsdprovidersyscall 13              Â       ¼›ùo	Œô°áÏúÝ³( 13              Äˆ"ü£Œô°áÏúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Ä                             ¤Œô°áÏúÝ³( 12                              ÅŠ"ü£Œô°áÏúÝ³(     
+entrycallreadmodulefreebsdprovidersyscall 13              Ä       ¼›ùo	Œô°áÏúÝ³( 13              ²ä*ü£ÈÀš¦ÏúÝ³(     
 fd3
 probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Å                             ¤Œô°áÏúÝ³( 12                              ÆŒ*ü£¾ª¥âÏúÝ³(     
+entrycall
+writemodulefreebsdprovidersyscall 13              ²       ¼›ùo	ÈÀš¦ÏúÝ³( 13              ÅŠ"ü£Œô°áÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Å       ¼›ùo	Œô°áÏúÝ³( 13              ÆŒ*ü£¾ª¥âÏúÝ³(     
 fd4
 probe
 entrycall
-writemodulefreebsdprovidersyscall 12                              Æ                             ¤¾ª¥âÏúÝ³( 12                              Ã†
+writemodulefreebsdprovidersyscall 13              Æ       ¼›ùo	¾ª¥âÏúÝ³( 13              ÇŽ"ü£¾ª¥âÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Ç       ¼›ùo	¾ª¥âÏúÝ³( 13              È*ü£¾ª¥âÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              È       ¼›ùo	¾ª¥âÏúÝ³( 13              É’"ü£ê‰ŸãÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              É       ¼›ùo	ê‰ŸãÏúÝ³( 13              Ê”*ü£ê‰ŸãÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Ê       ¼›ùo	ê‰ŸãÏúÝ³( 13              Ë–"ü£ò¬“åÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Ë       ¼›ùo	ò¬“åÏúÝ³( 13              Ì˜*ü£ò¬“åÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Ì       ¼›ùo	ò¬“åÏúÝ³( 13              Íš"ü£ÆÔõéÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Í       ¼›ùo	ÆÔõéÏúÝ³( 13              Îœ*ü£ÆÔõéÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Î       ¼›ùo	ÆÔõéÏúÝ³( 13              Ïž"ü£ÆÔõéÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Ï       ¼›ùo	ÆÔõéÏúÝ³( 13              Ð *ü£ÆÔõéÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Ð       ¼›ùo	ÆÔõéÏúÝ³( 13              Ñ¢"ü£ÌÓéëÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Ñ       ¼›ùo	ÌÓéëÏúÝ³( 13              Ò¤*ü£ÌÓéëÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Ò       ¼›ùo	ÌÓéëÏúÝ³( 13              Ó¦"ü£ØƒäìÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Ó       ¼›ùo	ØƒäìÏúÝ³( 13              Ô¨*ü£ØƒäìÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Ô       ¼›ùo	ØƒäìÏúÝ³( 13              Õª"ü£ŠúÑïÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Õ       ¼›ùo	ŠúÑïÏúÝ³( 13              Ö¬*ü£ŠúÑïÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Ö       ¼›ùo	ŠúÑïÏúÝ³( 13              ×®"ü£†öÑðÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              ×       ¼›ùo	†öÑðÏúÝ³( 13              Ø°*ü£†öÑðÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Ø       ¼›ùo	†öÑðÏúÝ³( 13              Ù²"ü£†öÑðÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Ù       ¼›ùo	†öÑðÏúÝ³( 13              Ú´*ü£†öÑðÏúÝ³(     
+fd4
+probe
+entrycall
+writemodulefreebsdprovidersyscall 13              Ú       ¼›ùo	†öÑðÏúÝ³( 13              Û¶"ü£Ú¯ÆñÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Û       ¼›ùo	Ú¯ÆñÏúÝ³( 13              Ýº"ü£Ú¯ÆñÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Ý       ¼›ùo	Ú¯ÆñÏúÝ³( 13              Þ¼"ü£Ú¯ÆñÏúÝ³(     
+fd3
+probe
+entrycallreadmodulefreebsdprovidersyscall 13              Þ       ¼›ùo	Ú¯ÆñÏúÝ³( 13              Ã†
 ü£Œô°áÏúÝ³(     
 fd5
 probe
 entrycall
-closemodulefreebsdprovidersyscall 12                              Ã                             ¤Œô°áÏúÝ³( 12                              ÇŽ"ü£¾ª¥âÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Ç                             ¤¾ª¥âÏúÝ³( 12                              È*ü£¾ª¥âÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              È                             ¤¾ª¥âÏúÝ³( 12                              É’"ü£ê‰ŸãÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              É                             ¤ê‰ŸãÏúÝ³( 12                              Ê”*ü£ê‰ŸãÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ê                             ¤ê‰ŸãÏúÝ³( 12                              Ë–"ü£ò¬“åÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Ë                             ¤ò¬“åÏúÝ³( 12                              Ì˜*ü£ò¬“åÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ì                             ¤ò¬“åÏúÝ³( 12                              Íš"ü£ÆÔõéÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Í                             ¤ÆÔõéÏúÝ³( 12                              Îœ*ü£ÆÔõéÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Î                             ¤ÆÔõéÏúÝ³( 12                              Ïž"ü£ÆÔõéÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Ï                             ¤ÆÔõéÏúÝ³( 12                              Ð *ü£ÆÔõéÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ð                             ¤ÆÔõéÏúÝ³( 12                              Ñ¢"ü£ÌÓéëÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Ñ                             ¤ÌÓéëÏúÝ³( 12                              Ò¤*ü£ÌÓéëÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ò                             ¤ÌÓéëÏúÝ³( 12                              Ó¦"ü£ØƒäìÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Ó                             ¤ØƒäìÏúÝ³( 12                              Ô¨*ü£ØƒäìÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ô                             ¤ØƒäìÏúÝ³( 12                              Õª"ü£ŠúÑïÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Õ                             ¤ŠúÑïÏúÝ³( 12                              Ö¬*ü£ŠúÑïÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ö                             ¤ŠúÑïÏúÝ³( 12                              ×®"ü£†öÑðÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              ×                             ¤†öÑðÏúÝ³( 12                              Ø°*ü£†öÑðÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ø                             ¤†öÑðÏúÝ³( 12                              Ù²"ü£†öÑðÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Ù                             ¤†öÑðÏúÝ³( 12                              Ú´*ü£†öÑðÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ú                             ¤†öÑðÏúÝ³( 12                              Û¶"ü£Ú¯ÆñÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Û                             ¤Ú¯ÆñÏúÝ³( 12                              Ýº"ü£Ú¯ÆñÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Ý                             ¤Ú¯ÆñÏúÝ³( 12                              Þ¼"ü£Ú¯ÆñÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              Þ                             ¤Ú¯ÆñÏúÝ³( 12                              Ü¸*ü£Ú¯ÆñÏúÝ³(     
-fd4
-probe
-entrycall
-writemodulefreebsdprovidersyscall 12                              Ü                             ¤Ú¯ÆñÏúÝ³( 12                              áÂ2ü£†Ì¯õÏúÝ³(     
-probe
-entrycallexitmodulefreebsdprovidersyscall 12                              á                             ¤†Ì¯õÏúÝ³( 12                              ß¾"ü£Ú¯ÆñÏúÝ³(     
-fd3
-probe
-entrycallreadmodulefreebsdprovidersyscall 12                              ß                             ¤Ú¯ÆñÏúÝ³( 12                              àÀ
-ü£Ú¯ÆñÏúÝ³(     
-fd4
-probe
-entrycall
-closemodulefreebsdprovidersyscall 12                              à                             ¤Ú¯ÆñÏúÝ³( 12çölü‘º)º—}ØñB
+closemodulefreebsdprovidersyscall 13              Ã       ¼›ùo	Œô°áÏúÝ³( 13ìyIk=£-NêS#¯ö–µ

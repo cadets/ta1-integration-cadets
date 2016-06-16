@@ -49,7 +49,7 @@ class InstanceGenerator():
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
                where the data value is the actual pid, tid, or userId value
 
-            UUIDs are now 256 bits
+            UUIDs are now 128 bits
 
             For now, we use the data as the lower 64 bits
             For "uid", we set the next byte to 0x0
@@ -84,12 +84,6 @@ class InstanceGenerator():
 
 	# Eventually use this
 	uuidb = record_generator.Util.get_uuid_from_value(uuid)
-
-        # But currently the python avro deserializer cant handle these bytes
-	# So we cheat and make it a string
-	#uuid = str(uuid)
-	# Pad the string with 0's so it's 32 bytes
-	# uuidb = "".join(chr(0x0) for _ in range(32 - len(uuid))) + uuid
 		    
 	return uuidb
         
@@ -177,7 +171,7 @@ class InstanceGenerator():
         record = {}
         principal = {}
         principal["properties"] = {}
-        principal["userId"] = uid
+        principal["userId"] = str(uid)
         principal["source"] = source
         principal["groupIds"] = []
         principal["type"] = "PRINCIPAL_LOCAL"
