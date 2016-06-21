@@ -49,7 +49,7 @@ class InstanceGenerator():
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
                where the data value is the actual pid, tid, or userId value
 
-            UUIDs are now 256 bits
+            UUIDs are now 128 bits
 
             For now, we use the data as the lower 64 bits
             For "uid", we set the next byte to 0x0
@@ -84,25 +84,20 @@ class InstanceGenerator():
 
 	# Eventually use this
 	uuidb = record_generator.Util.get_uuid_from_value(uuid)
-
-        # But currently the python avro deserializer cant handle these bytes
-	# So we cheat and make it a string
-	#uuid = str(uuid)
-	# Pad the string with 0's so it's 32 bytes
-	# uuidb = "".join(chr(0x0) for _ in range(32 - len(uuid))) + uuid
 		    
 	return uuidb
         
-    def get_process_subject_id(self, pid):
-        ''' Given a pid, did we create a subject for the pid previously? 
+    def get_process_subject_id(self, pid, execname):
+        ''' Given a pid, did we create a subject for the pid previously?
             If so return the uid of the subject, if not return None
         '''
-        if self.created_processes.has_key(pid):
-            return self.created_processes[pid]
-        
+        pid_exec = str(pid) +"_"+ execname
+        if self.created_processes.has_key(hash(pid_exec)):
+            return self.created_processes[hash(pid_exec)]
+
         return None
-    
-    def create_process_subject(self, pid, ppid, time_micros, source):
+
+    def create_process_subject(self, pid, ppid, time_micros, source, execname):
         ''' Infer the existence of a process subject, add it to the created list, and return the subject (dictionary) '''
         
         record = {}
@@ -120,8 +115,9 @@ class InstanceGenerator():
         subject["type"] = "SUBJECT_PROCESS"
         
         # Generate a uuid for this subject
-        uniq = self.create_uuid("pid", pid)
-        self.created_processes[pid] = uniq
+        pid_exec = str(pid) +"_"+ execname
+        uniq = self.create_uuid("pid", hash(pid_exec))
+        self.created_processes[hash(pid_exec)] = uniq
         subject["uuid"] = uniq
         
         record["datum"] = subject
@@ -175,7 +171,7 @@ class InstanceGenerator():
         record = {}
         principal = {}
         principal["properties"] = {}
-        principal["userId"] = uid
+        principal["userId"] = str(uid)
         principal["source"] = source
         principal["groupIds"] = []
         principal["type"] = "PRINCIPAL_LOCAL"

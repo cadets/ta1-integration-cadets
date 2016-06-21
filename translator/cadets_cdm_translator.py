@@ -13,6 +13,9 @@ import os
 from os.path import isfile
 import json
 
+#import sys
+#sys.path.insert(0, '../../ta3-api-bindings-python')
+
 from tc.schema.serialization import AvroGenericSerializer, Utils
 from tc.schema.serialization import Utils
 from tc.schema.serialization.kafka import KafkaAvroGenericSerializer
@@ -28,7 +31,7 @@ IN_FILE = None
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "output"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = "12"
+CDMVERSION = "13"
 
 logger = logging.getLogger("tc")
 
