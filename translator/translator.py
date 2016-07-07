@@ -162,6 +162,8 @@ class CDMTranslator(object):
         event["uuid"] = uuid
         if provider == "syscall":
             event["type"] = self.convert_syscall_event_type(call)
+        elif provider == "audit":
+            event["type"] = self.convert_audit_event_type(call)
         else:
             event["type"] = "EVENT_APP_UNKNOWN"
             
@@ -231,6 +233,43 @@ class CDMTranslator(object):
                 'wait3' : 'EVENT_WAIT',
                 'wait4' : 'EVENT_WAIT',
                 'wait6' : 'EVENT_WAIT'
+        }.get(call, 'EVENT_OS_UNKNOWN')
+
+    def convert_audit_event_type(self, call):
+        ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
+            Fallthrough default is EVENT_OS_UNKNOWN
+        '''
+        return {'aue_execve' : 'EVENT_EXECUTE',
+                'aue_accept' : 'EVENT_ACCEPT',
+                'aue_accept4' : 'EVENT_ACCEPT',
+                'aue_bind' : 'EVENT_BIND',
+                'aue_close' : 'EVENT_CLOSE',
+                'aue_connect' : 'EVENT_CONNECT',
+                'aue_fork' : 'EVENT_FORK',
+                'aue_link' : 'EVENT_LINK',
+                'aue_linkat' : 'EVENT_LINK',
+                'aue_unlink' : 'EVENT_UNLINK',
+                'aue_unlinkat' : 'EVENT_UNLINKAT',
+                'aue_mmap' : 'EVENT_MMAP',
+                'aue_mprotect' : 'EVENT_MPROTECT',
+                'aue_open' : 'EVENT_OPEN',
+                'aue_openat' : 'EVENT_OPEN',
+                'aue_read' : 'EVENT_READ',
+                'aue_readv' : 'EVENT_READ',
+                'aue_pread' : 'EVENT_READ',
+                'aue_preadv' : 'EVENT_READ',
+                'aue_write' : 'EVENT_WRITE',
+                'aue_pwrite' : 'EVENT_WRITE',
+                'aue_writev' : 'EVENT_WRITE',
+                'aue_kill' : 'EVENT_SIGNAL',
+                'aue_truncate' : 'EVENT_TRUNCATE',
+                'aue_ftruncate' : 'EVENT_TRUNCATE',
+                'aue_wait' : 'EVENT_WAIT',
+                'aue_waitid' : 'EVENT_WAIT',
+                'aue_waitpid' : 'EVENT_WAIT',
+                'aue_wait3' : 'EVENT_WAIT',
+                'aue_wait4' : 'EVENT_WAIT',
+                'aue_wait6' : 'EVENT_WAIT'
         }.get(call, 'EVENT_OS_UNKNOWN')
                 
                     
