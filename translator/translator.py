@@ -209,6 +209,7 @@ class CDMTranslator(object):
                 'close' : 'EVENT_CLOSE',
                 'connect' : 'EVENT_CONNECT',
                 'fork' : 'EVENT_FORK',
+                'vfork' : 'EVENT_FORK',
                 'link' : 'EVENT_LINK',
                 'linkat' : 'EVENT_LINK',
                 'unlink' : 'EVENT_UNLINK',
@@ -239,13 +240,14 @@ class CDMTranslator(object):
         ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
             Fallthrough default is EVENT_OS_UNKNOWN
         '''
-        return {'aue_execve' : 'EVENT_EXECUTE',
+        prefix_dict = {'aue_execve' : 'EVENT_EXECUTE',
                 'aue_accept' : 'EVENT_ACCEPT',
                 'aue_accept4' : 'EVENT_ACCEPT',
                 'aue_bind' : 'EVENT_BIND',
                 'aue_close' : 'EVENT_CLOSE',
                 'aue_connect' : 'EVENT_CONNECT',
                 'aue_fork' : 'EVENT_FORK',
+                'aue_vfork' : 'EVENT_FORK',
                 'aue_link' : 'EVENT_LINK',
                 'aue_linkat' : 'EVENT_LINK',
                 'aue_unlink' : 'EVENT_UNLINK',
@@ -270,7 +272,11 @@ class CDMTranslator(object):
                 'aue_wait3' : 'EVENT_WAIT',
                 'aue_wait4' : 'EVENT_WAIT',
                 'aue_wait6' : 'EVENT_WAIT'
-        }.get(call, 'EVENT_OS_UNKNOWN')
+        }
+        for key in prefix_dict:
+            if(call.startswith(key)):
+                return prefix_dict.get(key)
+        return 'EVENT_OS_UNKNOWN'
                 
                     
     def create_edge(self, fromUuid, toUuid, timestamp, edge_type):
