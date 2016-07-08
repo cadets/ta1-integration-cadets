@@ -273,7 +273,7 @@ class CDMTranslator(object):
             event["type"] = "EVENT_APP_UNKNOWN"
             
         event["threadId"] = cadets_record["tid"]
-        event["timestampMicros"] = cadets_record["time"]
+        event["timestampMicros"] = cadets_record["time"] / 1000; # ns to micro
         
         # Use the event counter as the seq number
         # This assumes we're processing events in order
