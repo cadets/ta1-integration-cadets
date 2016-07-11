@@ -77,16 +77,16 @@ class CDMTranslator(object):
         if "ppid" in cadets_record:
             ppid = cadets_record["ppid"]
 
-        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_record["exec"])
+        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_record["puuid"], cadets_record["exec"])
         if proc_uuid == None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
 	    # We don't know the time when this process was created, so we'll leave it blank.
 	    # Could use time_micros as an upper bound, but we'd need to specify
 
             if "exec" in cadets_record:
-                process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source(), cadets_record["exec"])
+                process_record = self.instance_generator.create_process_subject(pid, cadets_record["puuid"], ppid, None, self.get_source(), cadets_record["exec"])
             else:
-                process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source(), "")
+                process_record = self.instance_generator.create_process_subject(pid, cadets_record["puuid"], ppid, None, self.get_source(), "")
             process = process_record["datum"]
             proc_uuid = process["uuid"]
             
@@ -144,7 +144,49 @@ class CDMTranslator(object):
             self.logger.debug("Creating edge from Event {e} to Subject {s}".format(s=pid, e=event_type))    
             edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
             datums.append(edge1)
-        
+
+        if "new_pid" in cadets_record: # handle forks
+            new_pid = cadets_record["new_pid"]
+            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, cadets_record["new_puuid"], cadets_record["exec"])
+            if cproc_uuid == None :
+                proc_record = self.instance_generator.create_process_subject(new_pid, cadets_record["new_puuid"], cadets_record["pid"], None, self.get_source(), cadets_record["exec"])
+                proc_record["datum"]["properties"]["exec"] = cadets_record["exec"]
+                cproc_uuid = proc_record["datum"]["uuid"]
+                datums.append(proc_record)
+            self.logger.debug("AmZ:Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
+            fork_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
+            datums.append(fork_edge)
+
+        if "new_exec" in cadets_record: # handle execs
+            exec_path = cadets_record["new_exec"]
+            short_name = exec_path
+            if exec_path.rfind("/") != -1:
+                short_name = short_name[exec_path.rfind("/")+1:]
+            cproc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_record["puuid"], short_name)
+            if cproc_uuid == None :
+                proc_record = self.instance_generator.create_process_subject(pid, cadets_record["puuid"], ppid, None, self.get_source(), short_name)
+                proc_record["datum"]["properties"]["exec"] = short_name;
+                cproc_uuid = proc_record["datum"]["uuid"]
+                datums.append(proc_record)
+            self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
+            file_uuid = self.instance_generator.get_file_object_id(exec_path)
+            if file_uuid == None:
+                file_record = self.instance_generator.create_file_object(exec_path, self.get_source(), None)
+                datums.append(file_record)
+                file_uuid = file_record["datum"]["uuid"]
+            self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
+            exec_file_edge = self.create_edge(file_uuid, event["uuid"], time_micros, "EDGE_FILE_AFFECTS_EVENT")
+            self.logger.debug("AmZ:Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
+            exec_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
+            datums.append(exec_file_edge)
+            datums.append(exec_edge)
+
+            # Add a HASLOCALPRINCIPAL edge from the process to the user
+            if user_uuid != None:
+                self.logger.debug("Creating edge from Subject {s} to Principal {u}".format(s=pid, u=uid))
+                edge2 = self.create_edge(proc_uuid, user_uuid, time_micros, "EDGE_SUBJECT_HASLOCALPRINCIPAL")
+                datums.append(edge2)
+
         return datums
     
     def translate_call(self, provider, module, call, probe, cadets_record):
