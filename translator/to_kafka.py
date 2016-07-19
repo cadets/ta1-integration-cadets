@@ -39,12 +39,12 @@ import cadets_cdm_translator
 
 # Default values, replace or use command line arguments
 DTRACE_SCRIPT_DIR = "/root/dtrace-scripts"
-EVENTS_SCRIPT = "events.d"
+EVENTS_SCRIPT = "events_script_nofds.d $$ 0"
 CADETS_OUT = "output.json"
 CDM_OUT = "CDM.bin"
-SCHEMA = "/opt/starc/avro/TCCDMDatum.avsc"
-
-KAFKASTRING="10.0.5.35:9092,10.0.5.36:9092,10.0.5.37:9092,10.0.5.38:9092,10.0.5.39:9092,10.0.5.40:9092"
+SCHEMA = "/home/bbn/ta3-serialization-schema/avro/TCCDMDatum.avsc"
+VERSION = "13"
+KAFKASTRING="ta3-starc-1b:9092,ta3-starc-2b:9092,ta3-starc-3b:9092"
 TOPIC="CADETS"
 
 EVENTS_RUN_TIME_SECS=60
@@ -80,6 +80,8 @@ def tokafka_arg_parser():
                         help="Time to run the events.d script for")
     parser.add_argument("-n", action="store", type=int, default=ITERATIONS,
                         help="Number of event capture and publish loop iterations")
+    parser.add_argument("-ver", action="store", type=str, default=VERSION,
+                        help="CDM Version number (13)")
 
     return parser
 
@@ -98,7 +100,7 @@ def tokafka():
     p_schema = Utils.load_schema(args.psf)
     
     # Initialize a CDM Translator
-    translator = CDMTranslator(p_schema)
+    translator = CDMTranslator(p_schema, args.ver)
     
     # Load the input file
     i=0
@@ -139,7 +141,6 @@ def run_cdm_translator(translator, events_dir, schema, output, cdm_output):
 
 def run_kafka_publish(events_dir, cdm_output, schema, kafkastring, topic):
     serializer = KafkaAvroGenericSerializer(schema)
-    deserializer = KafkaAvroGenericDeserializer(schema)
     client=KafkaClient(kafkastring)
     
     # Create the topic in kafka if it doesn't already exist
@@ -152,7 +153,8 @@ def run_kafka_publish(events_dir, cdm_output, schema, kafkastring, topic):
     logger.info("Starting producer.")
 
     rfile = open(os.path.join(events_dir, cdm_output), 'r')
-    records = deserializer.deserialize_from_file(rfile)
+    deserializer = KafkaAvroGenericDeserializer(schema, input_file=rfile)
+    records = deserializer.deserialize_from_file()
 
     i = 0
     for edge in records:
