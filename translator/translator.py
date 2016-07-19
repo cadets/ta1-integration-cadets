@@ -77,16 +77,22 @@ class CDMTranslator(object):
         if "ppid" in cadets_record:
             ppid = cadets_record["ppid"]
 
-        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_record["puuid"], cadets_record["exec"])
+        if "puuid" in cadets_record:
+            cadets_proc_uuid = cadets_record["puuid"]
+        elif "subjuuid" in cadets_record:
+            cadets_proc_uuid = cadets_record["subjuuid"]
+        else:
+            cadets_proc_uuid = cadets_record["pid"]
+        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, cadets_record["exec"])
         if proc_uuid == None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
 	    # We don't know the time when this process was created, so we'll leave it blank.
 	    # Could use time_micros as an upper bound, but we'd need to specify
 
             if "exec" in cadets_record:
-                process_record = self.instance_generator.create_process_subject(pid, cadets_record["puuid"], ppid, None, self.get_source(), cadets_record["exec"])
+                process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), cadets_record["exec"])
             else:
-                process_record = self.instance_generator.create_process_subject(pid, cadets_record["puuid"], ppid, None, self.get_source(), "")
+                process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), "")
             process = process_record["datum"]
             proc_uuid = process["uuid"]
             
@@ -145,11 +151,21 @@ class CDMTranslator(object):
             edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
             datums.append(edge1)
 
-        if "new_pid" in cadets_record: # handle forks
-            new_pid = cadets_record["new_pid"]
-            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, cadets_record["new_puuid"], cadets_record["exec"])
+        if "fork" in call:
+            if "new_pid" in cadets_record: # handle forks
+                new_pid = cadets_record["new_pid"]
+            else:
+                new_pid = cadets_record["retval"]
+            if "new_puuid" in cadets_record:
+                new_proc_uuid = cadets_record["new_puuid"]
+            elif "procuuid" in cadets_record:
+                new_proc_uuid = cadets_record["procuuid"]
+            else:
+                new_proc_uuid = new_pid
+
+            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid, cadets_record["exec"])
             if cproc_uuid == None :
-                proc_record = self.instance_generator.create_process_subject(new_pid, cadets_record["new_puuid"], cadets_record["pid"], None, self.get_source(), cadets_record["exec"])
+                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], None, self.get_source(), cadets_record["exec"])
                 proc_record["datum"]["properties"]["exec"] = cadets_record["exec"]
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
@@ -157,14 +173,23 @@ class CDMTranslator(object):
             fork_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
             datums.append(fork_edge)
 
-        if "new_exec" in cadets_record: # handle execs
-            exec_path = cadets_record["new_exec"]
+        if "exec" in call:
+            if "new_exec" in cadets_record: # handle execs
+                exec_path = cadets_record["new_exec"]
+            else:
+                exec_path = cadets_record["upath1"]
+            if "puuid" in cadets_record:
+                cadets_proc_uuid = cadets_record["puuid"]
+            elif "subjuuid" in cadets_record:
+                cadets_proc_uuid = cadets_record["subjuuid"]
+            else:
+                cadets_proc_uuid = cadets_record["pid"]
             short_name = exec_path
             if exec_path.rfind("/") != -1:
                 short_name = short_name[exec_path.rfind("/")+1:]
-            cproc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_record["puuid"], short_name)
+            cproc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, short_name)
             if cproc_uuid == None :
-                proc_record = self.instance_generator.create_process_subject(pid, cadets_record["puuid"], ppid, None, self.get_source(), short_name)
+                proc_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), short_name)
                 proc_record["datum"]["properties"]["exec"] = short_name;
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
@@ -234,6 +259,8 @@ class CDMTranslator(object):
             
         if "path" in cadets_record:
             event["properties"]["path"] = cadets_record["path"]
+        elif "upath1" in cadets_record:
+            event["properties"]["path"] = cadets_record["upath1"]
         
         record["datum"] = event
         record["CDMVersion"] = self.CDMVersion
