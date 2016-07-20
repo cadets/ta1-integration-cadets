@@ -58,6 +58,7 @@ class InstanceGenerator():
             For events, 0x3
             for "file", 0x4, and we hash the file path using the simple hash() method and use the lower 32 bits
             for "netflow", 0x5 and we use the counter as data
+            for "uuid", 0x6 and we use original uuid as data
             
             0    32   64       (for a pid, where data is the pid value)
             0000 0001 data data   
@@ -77,6 +78,9 @@ class InstanceGenerator():
             data = hash(data) & 0xFFFFFFFFFFFFFFFF
         elif object_type == "netflow":
             uuid = (5 << 64)
+        elif object_type == "uuid":
+            uuid = (6 << 64)
+            data = hash(data) & 0xFFFFFFFFFFFFFFFF
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
 
@@ -185,12 +189,22 @@ class InstanceGenerator():
         record["CDMVersion"] = self.CDMVersion
         return record
     
-    def get_file_object_id(self, path, version=None):
+    def get_file_object_id(self, uuid, path, version=None):
         ''' Given a file path, did we create an object for the path previously?
             If version = None, return the latest version, else look for that specific version
             If found return the uuid of the object, if not return None
         '''
-        if self.created_files.has_key(path):
+        if uuid != None and self.created_files.has_key(uuid):
+            versions = self.created_files[uuid]
+            if version != None:
+                if versions.has_key(version):
+                    return versions[version]
+            else:
+                # In practice, there will only be one version here, since for now we only need to store the latest version
+                mversion = max(versions)
+                return versions[mversion]
+
+        if uuid == None and self.created_files.has_key(path):
             versions = self.created_files[path]
             if version != None:
                 if versions.has_key(version):
@@ -202,16 +216,19 @@ class InstanceGenerator():
         
         return None
     
-    def get_latest_file_version(self, path):
+    def get_latest_file_version(self, uuid, path):
         ''' Get the latest version of a file that we created an Object for.
             Currently, we only store the latest version
         '''
-        if self.created_files.has_key(path):
+        if uuid != None and self.created_files.has_key(uuid):
+            versions = self.created_files[uuid]
+            return max(versions)
+        if uuid == None and self.created_files.has_key(path):
             versions = self.created_files[path]
             return max(versions)
         return None
     
-    def create_file_object(self, path, source, version=None):
+    def create_file_object(self, uuid, path, source, version=None):
         ''' Infer the existence of a file object, add it to the created list, and return the object (dictionary) 
             If version = None, look for an older version, and if found, add one and create a new Object 
         '''
@@ -229,7 +246,7 @@ class InstanceGenerator():
         
         if version == None:
             # Look for an older version
-            old_version = self.get_latest_file_version(path)
+            old_version = self.get_latest_file_version(uuid, path)
             
             if old_version == None:
                 # Version is 1 then
@@ -240,14 +257,25 @@ class InstanceGenerator():
         fobject["version"] = version
         
         # Generate a uuid for this subject
-        uniq = self.create_uuid("file", path)
-        if self.created_files.has_key(path):
+        if uuid == None:
+            uniq = self.create_uuid("file", path)
+        else:
+            uniq = self.create_uuid("uuid", uuid);
+
+        if uuid != None and self.created_files.has_key(uuid):
+            versions = self.created_files[uuid]
+            # we really only need to store the latest version for the moment
+            # if we ever need to refer to older versions, remove this
+            versions[version] = uniq
+        elif uuid == None and self.created_files.has_key(path):
             versions = self.created_files[path]
             # we really only need to store the latest version for the moment
             # if we ever need to refer to older versions, remove this
-            versions.clear()
-            
             versions[version] = uniq
+        elif uuid != None:
+            versions = {}
+            versions[version] = uniq
+            self.created_files[uuid] = versions
         else:
             versions = {}
             versions[version] = uniq

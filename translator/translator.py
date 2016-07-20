@@ -141,7 +141,7 @@ class CDMTranslator(object):
         if event_record != None:
             event = event_record["datum"]
             datums.append(event_record)
-            object_records = self.create_subjects(event)
+            object_records = self.create_subjects(event, cadets_record)
             if object_records != None:
                 for objr in object_records:
                     datums.append(objr)
@@ -194,9 +194,15 @@ class CDMTranslator(object):
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
             self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
-            file_uuid = self.instance_generator.get_file_object_id(exec_path)
+            if "arg_objuuid1" in cadets_record:
+                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"], exec_path)
+            else:
+                file_uuid = self.instance_generator.get_file_object_id(None, exec_path)
             if file_uuid == None:
-                file_record = self.instance_generator.create_file_object(exec_path, self.get_source(), None)
+                if "arg_objuuid1" in cadets_record:
+                    file_record = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], exec_path, self.get_source(), None)
+                else:
+                    file_record = self.instance_generator.create_file_object(None, exec_path, self.get_source(), None)
                 datums.append(file_record)
                 file_uuid = file_record["datum"]["uuid"]
             self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
@@ -367,7 +373,7 @@ class CDMTranslator(object):
         record["CDMVersion"] = self.CDMVersion
         return record
     
-    def create_subjects(self, event):
+    def create_subjects(self, event, cadets_record):
         ''' Given a CDM event that we just created, generate Subject instances and the corresponding edges
             Currently, we create:
               a subject for any file that we discover via a "path" property
@@ -375,17 +381,39 @@ class CDMTranslator(object):
 
         '''
         newRecords = []
-        if self.createFileObjects and "path" in event["properties"]:
-            path = event["properties"]["path"]
+        if self.createFileObjects and ("path" in event["properties"] or "arg_objuuid1" in cadets_record):
+            if "path" in event["properties"]:
+                path = event["properties"]["path"]
+            else:
+                path = ""
             etype = event["type"]
             
-            file_uuid = self.instance_generator.get_file_object_id(path) 
+            if "arg_objuuid1" in cadets_record:
+                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"], path) 
+            else:
+                file_uuid = self.instance_generator.get_file_object_id(None, path) 
             if file_uuid != None:
+                if self.createFileVersions and etype == "EVENT_OPEN":
+                    self.logger.debug("Creating version of file {f}".format(f=path))
+                    # Write event, create a new version of the file
+                    if "arg_objuuid1" in cadets_record:
+                        old_version = self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"], path)
+                        if old_version == None:
+                            fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
+                            newRecords.append(fileobj)
+                        else:
+                            fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), -1)
+                            newRecords.append(fileobj)
+
                 if self.createFileVersions and etype == "EVENT_WRITE":
                     self.logger.debug("Creating new version of file {f}".format(f=path))
                     # Write event, create a new version of the file
-                    old_version = self.instance_generator.get_latest_file_version(path)
-                    fileobj = self.instance_generator.create_file_object(path, self.get_source(), None)
+                    if "arg_objuuid1" in cadets_record:
+                        old_version = self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"], path)
+                        fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
+                    else:
+                        old_version = self.instance_generator.get_latest_file_version(None, path)
+                        fileobj = self.instance_generator.create_file_object(None, path, self.get_source(), None)
                     self.logger.debug("File version from {ov} to {nv}".format(ov=old_version, nv=fileobj["datum"]["version"]))
                     newRecords.append(fileobj)
                     
@@ -396,7 +424,10 @@ class CDMTranslator(object):
                         newRecords.append(edge1)
             else:
                 self.logger.debug("Creating first version of the file")
-                fileobj = self.instance_generator.create_file_object(path, self.get_source(), 1) # first version of this file
+                if "arg_objuuid1" in cadets_record:
+                    fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
+                else:
+                    fileobj = self.instance_generator.create_file_object(None, path, self.get_source(), None)
                 file_uuid = fileobj["datum"]["uuid"]
                 newRecords.append(fileobj)
             
