@@ -158,8 +158,8 @@ class CDMTranslator(object):
                 new_pid = cadets_record["retval"]
             if "new_puuid" in cadets_record:
                 new_proc_uuid = cadets_record["new_puuid"]
-            elif "procuuid" in cadets_record:
-                new_proc_uuid = cadets_record["procuuid"]
+            elif "ret_objuuid1" in cadets_record:
+                new_proc_uuid = cadets_record["ret_objuuid1"]
             else:
                 new_proc_uuid = new_pid
 
