@@ -54,7 +54,7 @@ def get_arg_parser():
     parser.add_argument("-wj", action="store_true", default=True, help="Write JSON output file")
     parser.add_argument("-wb", action="store_true", default=True, help="Write binary output file")
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
-			help="CDM Version number, make sure this matches the schema file you set with psf")
+                        help="CDM Version number, make sure this matches the schema file you set with psf")
         
     return parser
 

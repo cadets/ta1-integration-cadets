@@ -35,7 +35,7 @@ class InstanceGenerator():
     CDMVersion = None
                             
     def __init__(self, version):
-	self.CDMVersion = version
+        self.CDMVersion = version
         self.logger = logging.getLogger("tc")
         
     def reset(self):
@@ -84,12 +84,12 @@ class InstanceGenerator():
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
 
-	uuid = uuid | data
+        uuid = uuid | data
 
-	# Eventually use this
-	uuidb = record_generator.Util.get_uuid_from_value(uuid)
-		    
-	return uuidb
+        # Eventually use this
+        uuidb = record_generator.Util.get_uuid_from_value(uuid)
+                    
+        return uuidb
         
     def get_process_subject_id(self, pid, puuid, execname):
         ''' Given a pid, did we create a subject for the pid previously?
@@ -111,10 +111,10 @@ class InstanceGenerator():
         subject["pid"] = pid
         subject["ppid"] = ppid
 
-	# We don't really know the start time of the process, since this method is inferring the existance of a process by the fact that it performed an action.
-	# In CDM10 the startTimestampMicros is optional, so we'll let the caller set the value to None, meaning we don't know
-	if time_micros != None:
-	    subject["startTimestampMicros"] = time_micros
+        # We don't really know the start time of the process, since this method is inferring the existance of a process by the fact that it performed an action.
+        # In CDM10 the startTimestampMicros is optional, so we'll let the caller set the value to None, meaning we don't know
+        if time_micros != None:
+            subject["startTimestampMicros"] = time_micros
         subject["source"] = source
         subject["type"] = "SUBJECT_PROCESS"
         
@@ -189,13 +189,13 @@ class InstanceGenerator():
         record["CDMVersion"] = self.CDMVersion
         return record
     
-    def get_file_object_id(self, uuid, path, version=None):
-        ''' Given a file path, did we create an object for the path previously?
+    def get_file_object_id(self, file_key, version=None):
+        ''' Given a file path or uuid, did we create an object for the path previously?
             If version = None, return the latest version, else look for that specific version
             If found return the uuid of the object, if not return None
         '''
-        if uuid != None and self.created_files.has_key(uuid):
-            versions = self.created_files[uuid]
+        if self.created_files.has_key(file_key):
+            versions = self.created_files[file_key]
             if version != None:
                 if versions.has_key(version):
                     return versions[version]
@@ -204,27 +204,14 @@ class InstanceGenerator():
                 mversion = max(versions)
                 return versions[mversion]
 
-        if uuid == None and self.created_files.has_key(path):
-            versions = self.created_files[path]
-            if version != None:
-                if versions.has_key(version):
-                    return versions[version]
-            else:
-                # In practice, there will only be one version here, since for now we only need to store the latest version
-                mversion = max(versions)
-                return versions[mversion]
-        
         return None
     
-    def get_latest_file_version(self, uuid, path):
+    def get_latest_file_version(self, file_key):
         ''' Get the latest version of a file that we created an Object for.
             Currently, we only store the latest version
         '''
-        if uuid != None and self.created_files.has_key(uuid):
-            versions = self.created_files[uuid]
-            return max(versions)
-        if uuid == None and self.created_files.has_key(path):
-            versions = self.created_files[path]
+        if self.created_files.has_key(file_key):
+            versions = self.created_files[file_key]
             return max(versions)
         return None
     
@@ -233,6 +220,10 @@ class InstanceGenerator():
             If version = None, look for an older version, and if found, add one and create a new Object 
         '''
         
+        if uuid != None:
+            file_key = uuid
+        else:
+            file_key = path
         record = {}
         fobject = {}
         abstract_object = {}
@@ -246,10 +237,9 @@ class InstanceGenerator():
         
         if version == None:
             # Look for an older version
-            old_version = self.get_latest_file_version(uuid, path)
+            old_version = self.get_latest_file_version(file_key)
             
-            if old_version == None:
-                # Version is 1 then
+            if old_version == None: # First version then
                 version = 1
             else:
                 version = int(old_version) + 1
@@ -262,24 +252,17 @@ class InstanceGenerator():
         else:
             uniq = self.create_uuid("uuid", uuid);
 
-        if uuid != None and self.created_files.has_key(uuid):
-            versions = self.created_files[uuid]
-            # we really only need to store the latest version for the moment
-            # if we ever need to refer to older versions, remove this
-            versions[version] = uniq
-        elif uuid == None and self.created_files.has_key(path):
-            versions = self.created_files[path]
-            # we really only need to store the latest version for the moment
-            # if we ever need to refer to older versions, remove this
-            versions[version] = uniq
-        elif uuid != None:
-            versions = {}
-            versions[version] = uniq
-            self.created_files[uuid] = versions
+        if self.created_files.has_key(file_key):
+            versions = self.created_files[file_key]
+            max_version = self.get_latest_file_version(file_key)
+            if version > max_version:
+                max_version = version
+            versions.clear() # Only keep the most recent
+            versions[max_version] = uniq
         else:
             versions = {}
             versions[version] = uniq
-            self.created_files[path] = versions
+            self.created_files[file_key] = versions
         
         fobject["uuid"] = uniq
         

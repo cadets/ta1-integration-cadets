@@ -32,8 +32,8 @@ class CDMTranslator(object):
     
     def __init__(self, schema, version):
         self.schema = schema
-	self.CDMVersion = version
-	self.instance_generator = InstanceGenerator(version)
+        self.CDMVersion = version
+        self.instance_generator = InstanceGenerator(version)
         self.logger = logging.getLogger("tc")
         
     def reset(self):
@@ -73,21 +73,14 @@ class CDMTranslator(object):
             
         # Create a new Process subject if necessary
         pid = cadets_record["pid"]
-        ppid = -1 # TODO: Default value
-        if "ppid" in cadets_record:
-            ppid = cadets_record["ppid"]
+        ppid = cadets_record.get("ppid", -1);
+        cadets_proc_uuid = cadets_record.get("subjuuid", cadets_record["pid"]);
 
-        if "puuid" in cadets_record:
-            cadets_proc_uuid = cadets_record["puuid"]
-        elif "subjuuid" in cadets_record:
-            cadets_proc_uuid = cadets_record["subjuuid"]
-        else:
-            cadets_proc_uuid = cadets_record["pid"]
         proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, cadets_record["exec"])
         if proc_uuid == None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
-	    # We don't know the time when this process was created, so we'll leave it blank.
-	    # Could use time_micros as an upper bound, but we'd need to specify
+            # We don't know the time when this process was created, so we'll leave it blank.
+            # Could use time_micros as an upper bound, but we'd need to specify
 
             if "exec" in cadets_record:
                 process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), cadets_record["exec"])
@@ -151,17 +144,9 @@ class CDMTranslator(object):
             edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
             datums.append(edge1)
 
-        if "fork" in call:
-            if "new_pid" in cadets_record: # handle forks
-                new_pid = cadets_record["new_pid"]
-            else:
-                new_pid = cadets_record["retval"]
-            if "new_puuid" in cadets_record:
-                new_proc_uuid = cadets_record["new_puuid"]
-            elif "ret_objuuid1" in cadets_record:
-                new_proc_uuid = cadets_record["ret_objuuid1"]
-            else:
-                new_proc_uuid = new_pid
+        if "fork" in call: # link forked processes
+            new_pid = cadets_record.get("new_pid", cadets_record.get("retval"));
+            new_proc_uuid = cadets_record.get("ret_objuuid1", new_pid);
 
             cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid, cadets_record["exec"])
             if cproc_uuid == None :
@@ -169,21 +154,14 @@ class CDMTranslator(object):
                 proc_record["datum"]["properties"]["exec"] = cadets_record["exec"]
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
-            self.logger.debug("AmZ:Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
+            self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
             fork_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
             datums.append(fork_edge)
 
-        if "exec" in call:
-            if "new_exec" in cadets_record: # handle execs
-                exec_path = cadets_record["new_exec"]
-            else:
-                exec_path = cadets_record["upath1"]
-            if "puuid" in cadets_record:
-                cadets_proc_uuid = cadets_record["puuid"]
-            elif "subjuuid" in cadets_record:
-                cadets_proc_uuid = cadets_record["subjuuid"]
-            else:
-                cadets_proc_uuid = cadets_record["pid"]
+        if "exec" in call: # link exec events to the file executed
+            exec_path = cadets_record.get("new_exec", cadets_record.get("upath1"));
+            cadets_proc_uuid = cadets_record.get("subjuuid", cadets_record["pid"]);
+
             short_name = exec_path
             if exec_path.rfind("/") != -1:
                 short_name = short_name[exec_path.rfind("/")+1:]
@@ -193,21 +171,18 @@ class CDMTranslator(object):
                 proc_record["datum"]["properties"]["exec"] = short_name;
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
-            self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
+            self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
             if "arg_objuuid1" in cadets_record:
-                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"], exec_path)
+                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
             else:
-                file_uuid = self.instance_generator.get_file_object_id(None, exec_path)
+                file_uuid = self.instance_generator.get_file_object_id(exec_path)
             if file_uuid == None:
-                if "arg_objuuid1" in cadets_record:
-                    file_record = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], exec_path, self.get_source(), None)
-                else:
-                    file_record = self.instance_generator.create_file_object(None, exec_path, self.get_source(), None)
+                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), exec_path, self.get_source(), None);
                 datums.append(file_record)
                 file_uuid = file_record["datum"]["uuid"]
-            self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
+            self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
             exec_file_edge = self.create_edge(file_uuid, event["uuid"], time_micros, "EDGE_FILE_AFFECTS_EVENT")
-            self.logger.debug("AmZ:Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
+            self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
             exec_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
             datums.append(exec_file_edge)
             datums.append(exec_edge)
@@ -389,16 +364,15 @@ class CDMTranslator(object):
             etype = event["type"]
             
             if "arg_objuuid1" in cadets_record:
-                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"], path) 
+                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"]) 
             else:
-                file_uuid = self.instance_generator.get_file_object_id(None, path) 
+                file_uuid = self.instance_generator.get_file_object_id(path) 
             if file_uuid != None:
                 if self.createFileVersions and etype == "EVENT_OPEN":
-                    self.logger.debug("Creating version of file {f}".format(f=path))
-                    # Write event, create a new version of the file
+                    # open event, create a new version of the file, with path info
                     if "arg_objuuid1" in cadets_record:
-                        old_version = self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"], path)
-                        if old_version == None:
+                        self.logger.debug("Creating version of file {f}".format(f=path))
+                        if self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"]) == None:
                             fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
                             newRecords.append(fileobj)
                         else:
@@ -409,10 +383,10 @@ class CDMTranslator(object):
                     self.logger.debug("Creating new version of file {f}".format(f=path))
                     # Write event, create a new version of the file
                     if "arg_objuuid1" in cadets_record:
-                        old_version = self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"], path)
+                        old_version = self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"])
                         fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
                     else:
-                        old_version = self.instance_generator.get_latest_file_version(None, path)
+                        old_version = self.instance_generator.get_latest_file_version(path)
                         fileobj = self.instance_generator.create_file_object(None, path, self.get_source(), None)
                     self.logger.debug("File version from {ov} to {nv}".format(ov=old_version, nv=fileobj["datum"]["version"]))
                     newRecords.append(fileobj)
@@ -424,10 +398,7 @@ class CDMTranslator(object):
                         newRecords.append(edge1)
             else:
                 self.logger.debug("Creating first version of the file")
-                if "arg_objuuid1" in cadets_record:
-                    fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
-                else:
-                    fileobj = self.instance_generator.create_file_object(None, path, self.get_source(), None)
+                fileobj = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), path, self.get_source(), None)
                 file_uuid = fileobj["datum"]["uuid"]
                 newRecords.append(fileobj)
             
