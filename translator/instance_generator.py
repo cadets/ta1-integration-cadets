@@ -7,6 +7,7 @@ Store a map of the instances we've created with their uuids, so we can tell if w
 import logging
 import random
 import struct
+from uuid import UUID
 
 from tc.schema.records import record_generator
 
@@ -79,8 +80,8 @@ class InstanceGenerator():
         elif object_type == "netflow":
             uuid = (5 << 64)
         elif object_type == "uuid":
-            uuid = (6 << 64)
-            data = hash(data) & 0xFFFFFFFFFFFFFFFF
+#             uuid = (6 << 64)
+            data = data
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
 
@@ -250,7 +251,7 @@ class InstanceGenerator():
         if uuid == None:
             uniq = self.create_uuid("file", path)
         else:
-            uniq = self.create_uuid("uuid", uuid);
+            uniq = self.create_uuid("uuid", UUID(uuid).int);
 
         if self.created_files.has_key(file_key):
             versions = self.created_files[file_key]
