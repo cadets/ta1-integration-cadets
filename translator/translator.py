@@ -14,21 +14,9 @@ class CDMTranslator(object):
     # True: Raise an exception if we can't translate a record, False: just log it
     exceptionOnError = True
 
-    # Event counter, used for unique ids and entry/return matching lookahead
+    # Event counter, used for unique ids
     eventCounter = 0
     
-    # Match entry events with return events and generate a single Event that combines the data in both
-    # If false, instead we'll generate two separate events, one for the entry and one for the return
-    matchEntryReturn = True
-    # If we're matching, and we haven't found a return event in the next N events, just emit the entry by itself
-    matchReturnLookahead = 5
-    # Structure to store the entry events we're waiting for the returns for
-    entryEvents = {}    # Key is the event type (<dtrace provider>:<module>:<function>:<probe name>) for the return event that we're waiting for
-                        # Value is the entry event
-                        
-    # Store the lookahead left for each entry event we're tracking
-    entryLookahead = {} # Key is the event type, value is the event count when we give up (eventCounter + matchReturnLookahead)
-            
     # If true, create a File object for any event with a path
     createFileObjects = True
     # If true, create new versions of the File object for every write event, if False, we'll only create one File subject
@@ -44,8 +32,8 @@ class CDMTranslator(object):
     
     def __init__(self, schema, version):
         self.schema = schema
-	self.CDMVersion = version
-	self.instance_generator = InstanceGenerator(version)
+        self.CDMVersion = version
+        self.instance_generator = InstanceGenerator(version)
         self.logger = logging.getLogger("tc")
         
     def reset(self):
@@ -54,8 +42,6 @@ class CDMTranslator(object):
         self.eventCounter = 0
         
         self.instance_generator.reset()        
-        self.entryEvents.clear()
-        self.entryLookahead.clear()
         
     def get_source(self):
         ''' Get the InstrumentationSource, for now this is hardcoded to SOURCE_FREEBSD_DTRACE_CADETS '''
@@ -87,20 +73,19 @@ class CDMTranslator(object):
             
         # Create a new Process subject if necessary
         pid = cadets_record["pid"]
-        ppid = -1 # TODO: Default value
-        if "ppid" in cadets_record:
-            ppid = cadets_record["ppid"]
+        ppid = cadets_record.get("ppid", -1);
+        cadets_proc_uuid = cadets_record.get("subjuuid", cadets_record["pid"]);
 
-        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_record["exec"])
+        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, cadets_record["exec"])
         if proc_uuid == None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
-	    # We don't know the time when this process was created, so we'll leave it blank.
-	    # Could use time_micros as an upper bound, but we'd need to specify
+            # We don't know the time when this process was created, so we'll leave it blank.
+            # Could use time_micros as an upper bound, but we'd need to specify
 
             if "exec" in cadets_record:
-                process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source(), cadets_record["exec"])
+                process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), cadets_record["exec"])
             else:
-                process_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source(), "")
+                process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), "")
             process = process_record["datum"]
             proc_uuid = process["uuid"]
             
@@ -149,7 +134,7 @@ class CDMTranslator(object):
         if event_record != None:
             event = event_record["datum"]
             datums.append(event_record)
-            object_records = self.create_subjects(event)
+            object_records = self.create_subjects(event, cadets_record)
             if object_records != None:
                 for objr in object_records:
                     datums.append(objr)
@@ -159,38 +144,45 @@ class CDMTranslator(object):
             edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
             datums.append(edge1)
 
-        if "new_pid" in cadets_record: # handle forks
-            new_pid = cadets_record["new_pid"]
-            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, cadets_record["exec"])
+        if "fork" in call: # link forked processes
+            new_pid = cadets_record.get("new_pid", cadets_record.get("retval"));
+            new_proc_uuid = cadets_record.get("ret_objuuid1", new_pid);
+
+            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid, cadets_record["exec"])
             if cproc_uuid == None :
-                proc_record = self.instance_generator.create_process_subject(new_pid, ppid, None, self.get_source(), cadets_record["exec"])
+                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], None, self.get_source(), cadets_record["exec"])
                 proc_record["datum"]["properties"]["exec"] = cadets_record["exec"]
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
-            self.logger.debug("AmZ:Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
+            self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
             fork_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
             datums.append(fork_edge)
 
-        if "new_exec" in cadets_record: # handle execs
-            exec_path = cadets_record["new_exec"]
+        if "exec" in call: # link exec events to the file executed
+            exec_path = cadets_record.get("new_exec", cadets_record.get("upath1"));
+            cadets_proc_uuid = cadets_record.get("subjuuid", cadets_record["pid"]);
+
             short_name = exec_path
             if exec_path.rfind("/") != -1:
                 short_name = short_name[exec_path.rfind("/")+1:]
-            cproc_uuid = self.instance_generator.get_process_subject_id(pid, short_name)
+            cproc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, short_name)
             if cproc_uuid == None :
-                proc_record = self.instance_generator.create_process_subject(pid, ppid, None, self.get_source(), short_name)
+                proc_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), short_name)
                 proc_record["datum"]["properties"]["exec"] = short_name;
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
-            self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
-            file_uuid = self.instance_generator.get_file_object_id(exec_path)
+            self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
+            if "arg_objuuid1" in cadets_record:
+                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
+            else:
+                file_uuid = self.instance_generator.get_file_object_id(exec_path)
             if file_uuid == None:
-                file_record = self.instance_generator.create_file_object(exec_path, self.get_source(), None)
+                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), exec_path, self.get_source(), None);
                 datums.append(file_record)
                 file_uuid = file_record["datum"]["uuid"]
-            self.logger.debug("AmZ:Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
+            self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
             exec_file_edge = self.create_edge(file_uuid, event["uuid"], time_micros, "EDGE_FILE_AFFECTS_EVENT")
-            self.logger.debug("AmZ:Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
+            self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
             exec_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
             datums.append(exec_file_edge)
             datums.append(exec_edge)
@@ -201,57 +193,6 @@ class CDMTranslator(object):
                 edge2 = self.create_edge(proc_uuid, user_uuid, time_micros, "EDGE_SUBJECT_HASLOCALPRINCIPAL")
                 datums.append(edge2)
 
-        return datums
-    
-    def handle_entry_match(self, fastForward=False):
-        ''' If we are matching entry and return events, combining them into one, update here '''
-        datums = []
-        
-        cur_counter = self.eventCounter
-        if fastForward:
-            # move ahead to the lookahead, so we generate events for everything we're waiting for
-            # this is used at the end, when we're done with cadets records and we want to finish and generate events for
-            # anything we're still looking for a return for
-            cur_counter = self.eventCounter + self.matchReturnLookahead + 1
-            
-        if self.matchEntryReturn:
-            # Give up on any returns we are waiting that are now past the event lookahead
-            giveup = []
-            for rt in self.entryLookahead:
-                rtCounter = self.entryLookahead[rt]
-                if rtCounter <= cur_counter:
-                    # Add the entry event
-                    try:
-                        entry_event_record = self.entryEvents[rt]
-                        entry_event = entry_event_record["datum"]
-
-                        self.logger.debug("Gave up waiting for return for entry event {e}, creating event".format
-                                          (e=entry_event["type"]))
-
-                        creator_pid = entry_event_record["tempPid"]
-                        del entry_event_record["tempPid"]
-                        entry_proc_uuid = self.instance_generator.get_process_subject_id(creator_pid, entry_event_record["exec"])
-                        datums.append(entry_event_record)
-
-                        object_records = self.create_subjects(entry_event)
-                        if object_records != None:
-                            for objr in object_records:
-                                datums.append(objr)
-
-                        # Add an edge from the event to the subject that generated it
-                        self.logger.debug("Creating edge from Event {e} to Subject {s}".format
-                                          (s=creator_pid, e=entry_event["type"]))    
-                        edge2 = self.create_edge(entry_event["uuid"], entry_proc_uuid, entry_event["timestampMicros"], 
-                                                 "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
-                        datums.append(edge2)
-                        giveup.append(rt)
-                    except KeyError:
-                        pass
-            
-            for rt in giveup:
-                del self.entryLookahead[rt]
-                del self.entryEvents[rt]
-                
         return datums
     
     def translate_call(self, provider, module, call, probe, cadets_record):
@@ -269,6 +210,8 @@ class CDMTranslator(object):
         event["uuid"] = uuid
         if provider == "syscall":
             event["type"] = self.convert_syscall_event_type(call)
+        elif provider == "audit":
+            event["type"] = self.convert_audit_event_type(call)
         else:
             event["type"] = "EVENT_APP_UNKNOWN"
             
@@ -297,61 +240,12 @@ class CDMTranslator(object):
             
         if "path" in cadets_record:
             event["properties"]["path"] = cadets_record["path"]
+        elif "upath1" in cadets_record:
+            event["properties"]["path"] = cadets_record["upath1"]
         
         record["datum"] = event
         record["CDMVersion"] = self.CDMVersion
         
-        if self.matchEntryReturn:
-            returnType = "{provider}:{module}:{call}:return".format(provider=provider, module=module, call=call)
-            if probe == "entry":
-                # Don't generate an event for the entry, wait for the return and combine the two
-                # Record the event type we're waiting for
-                
-                # Store the pid of the process that generated the event temporarily
-                record["tempPid"] = cadets_record["pid"] # Remove this when we finalize the event
-                
-                returnNone = True
-                if returnType in self.entryEvents: # this return type is already being waited for, so stop waiting for the previous one
-                    self.logger.debug("Found new entry probe instead of return we were waiting for: {provider}:{module}:{call}".format(provider=provider, module=module, call=call))
-                    entryEventRecord = self.entryEvents[returnType]
-                    entryEvent = entryEventRecord["datum"]
-                    old_record["datum"] = entryEvent
-                    returnNone = False
-
-                self.entryEvents[returnType] = record
-                # Give up looking after matchReturnLookahead more events
-                self.entryLookahead[returnType] = self.eventCounter + self.matchReturnLookahead
-            
-                self.logger.debug("Waiting for return probe for entry event: {rt}, giving up in {ec} events"
-                                  .format(rt=returnType, ec=self.matchReturnLookahead))
-                if returnNone:
-                    return None
-                else:
-                    return old_record
-            elif probe == "return":
-                # Are we waiting for this return?
-                try:
-                    if returnType in self.entryEvents:
-                        self.logger.debug("Found return probe we were waiting for: {rt}".format(rt=returnType))
-                        entryEventRecord = self.entryEvents[returnType]
-                        
-                        # Combine the events
-                        entryEvent = entryEventRecord["datum"]
-                        entryEvent["properties"]["probe"] = "entry:return"
-                    
-                        # Event timestamp is the call time, the return time will be a property
-                        entryEvent["properties"]["returnTimestampMicros"] = str(event["timestampMicros"])
-                        if "args" in event["properties"]:
-                            entryEvent["properties"]["returnArgs"] = event["properties"]["args"]
-                        record["datum"] = entryEvent
-
-                        self.logger.debug("New record: "+str(record))
-                        del self.entryEvents[returnType]
-                        del self.entryLookahead[returnType]
-                except KeyError as ex:
-                    self.logger.warn("KeyError: "+str(ex))
-                    pass
-                    
         return record
     
     def convert_syscall_event_type(self, call):
@@ -364,32 +258,79 @@ class CDMTranslator(object):
                 'bind' : 'EVENT_BIND',
                 'close' : 'EVENT_CLOSE',
                 'connect' : 'EVENT_CONNECT',
+                'exit' : 'EVENT_EXIT',
                 'fork' : 'EVENT_FORK',
+                'ftruncate' : 'EVENT_TRUNCATE',
+                'kill' : 'EVENT_SIGNAL',
                 'link' : 'EVENT_LINK',
                 'linkat' : 'EVENT_LINK',
-                'unlink' : 'EVENT_UNLINK',
-                'unlinkat' : 'EVENT_UNLINKAT',
                 'mmap' : 'EVENT_MMAP',
                 'mprotect' : 'EVENT_MPROTECT',
                 'open' : 'EVENT_OPEN',
                 'openat' : 'EVENT_OPEN',
-                'read' : 'EVENT_READ',
-                'readv' : 'EVENT_READ',
                 'pread' : 'EVENT_READ',
                 'preadv' : 'EVENT_READ',
-                'write' : 'EVENT_WRITE',
                 'pwrite' : 'EVENT_WRITE',
-                'writev' : 'EVENT_WRITE',
-                'kill' : 'EVENT_SIGNAL',
+                'read' : 'EVENT_READ',
+                'readv' : 'EVENT_READ',
+                'recvfrom' : 'EVENT_RECVFROM',
+                'recvmsg' : 'EVENT_RECVMSG',
+                'rename' : 'EVENT_RENAME',
+                'rfork' : 'EVENT_FORK',
+                'sendmsg' : 'EVENT_SENDMSG',
+                'sendto' : 'EVENT_SENDTO',
                 'truncate' : 'EVENT_TRUNCATE',
-                'ftruncate' : 'EVENT_TRUNCATE',
+                'unlink' : 'EVENT_UNLINK',
+                'unlinkat' : 'EVENT_UNLINKAT',
+                'vfork' : 'EVENT_FORK',
                 'wait' : 'EVENT_WAIT',
                 'waitid' : 'EVENT_WAIT',
-                'waitpid' : 'EVENT_WAIT',
                 'wait3' : 'EVENT_WAIT',
                 'wait4' : 'EVENT_WAIT',
-                'wait6' : 'EVENT_WAIT'
+                'wait6' : 'EVENT_WAIT',
+                'waitpid' : 'EVENT_WAIT',
+                'write' : 'EVENT_WRITE',
+                'writev' : 'EVENT_WRITE'
         }.get(call, 'EVENT_OS_UNKNOWN')
+
+    def convert_audit_event_type(self, call):
+        ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
+            Fallthrough default is EVENT_OS_UNKNOWN
+        '''
+        prefix_dict = {'aue_execve' : 'EVENT_EXECUTE',
+                'aue_accept' : 'EVENT_ACCEPT',
+                'aue_bind' : 'EVENT_BIND',
+                'aue_close' : 'EVENT_CLOSE',
+                'aue_connect' : 'EVENT_CONNECT',
+                'aue_exit' : 'EVENT_EXIT',
+                'aue_fork' : 'EVENT_FORK',
+                'aue_vfork' : 'EVENT_FORK',
+                'aue_rfork' : 'EVENT_FORK',
+                'aue_linkat' : 'EVENT_LINK',
+                'aue_link' : 'EVENT_LINK',
+                'aue_unlinkat' : 'EVENT_UNLINKAT',
+                'aue_unlink' : 'EVENT_UNLINK',
+                'aue_mmap' : 'EVENT_MMAP',
+                'aue_mprotect' : 'EVENT_MPROTECT',
+                'aue_open' : 'EVENT_OPEN',
+                'aue_read' : 'EVENT_READ',
+                'aue_pread' : 'EVENT_READ',
+                'aue_write' : 'EVENT_WRITE',
+                'aue_pwrite' : 'EVENT_WRITE',
+                'aue_rename' : 'EVENT_RENAME',
+                'aue_sendto' : 'EVENT_SENDTO',
+                'aue_sendmsg' : 'EVENT_SENDMSG',
+                'aue_recvfrom' : 'EVENT_RECVFROM',
+                'aue_recvmsg' : 'EVENT_RECVMSG',
+                'aue_kill' : 'EVENT_SIGNAL',
+                'aue_truncate' : 'EVENT_TRUNCATE',
+                'aue_ftruncate' : 'EVENT_TRUNCATE',
+                'aue_wait' : 'EVENT_WAIT'
+        }
+        for key in prefix_dict:
+            if(call.startswith(key)):
+                return prefix_dict.get(key)
+        return 'EVENT_OS_UNKNOWN'
                 
                     
     def create_edge(self, fromUuid, toUuid, timestamp, edge_type):
@@ -407,7 +348,7 @@ class CDMTranslator(object):
         record["CDMVersion"] = self.CDMVersion
         return record
     
-    def create_subjects(self, event):
+    def create_subjects(self, event, cadets_record):
         ''' Given a CDM event that we just created, generate Subject instances and the corresponding edges
             Currently, we create:
               a subject for any file that we discover via a "path" property
@@ -415,17 +356,38 @@ class CDMTranslator(object):
 
         '''
         newRecords = []
-        if self.createFileObjects and "path" in event["properties"]:
-            path = event["properties"]["path"]
+        if self.createFileObjects and ("path" in event["properties"] or "arg_objuuid1" in cadets_record):
+            if "path" in event["properties"]:
+                path = event["properties"]["path"]
+            else:
+                path = ""
             etype = event["type"]
             
-            file_uuid = self.instance_generator.get_file_object_id(path) 
+            if "arg_objuuid1" in cadets_record:
+                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"]) 
+            else:
+                file_uuid = self.instance_generator.get_file_object_id(path) 
             if file_uuid != None:
+                if self.createFileVersions and etype == "EVENT_OPEN":
+                    # open event, create a new version of the file, with path info
+                    if "arg_objuuid1" in cadets_record:
+                        self.logger.debug("Creating version of file {f}".format(f=path))
+                        if self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"]) == None:
+                            fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
+                            newRecords.append(fileobj)
+                        else:
+                            fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), -1)
+                            newRecords.append(fileobj)
+
                 if self.createFileVersions and etype == "EVENT_WRITE":
                     self.logger.debug("Creating new version of file {f}".format(f=path))
                     # Write event, create a new version of the file
-                    old_version = self.instance_generator.get_latest_file_version(path)
-                    fileobj = self.instance_generator.create_file_object(path, self.get_source(), None)
+                    if "arg_objuuid1" in cadets_record:
+                        old_version = self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"])
+                        fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
+                    else:
+                        old_version = self.instance_generator.get_latest_file_version(path)
+                        fileobj = self.instance_generator.create_file_object(None, path, self.get_source(), None)
                     self.logger.debug("File version from {ov} to {nv}".format(ov=old_version, nv=fileobj["datum"]["version"]))
                     newRecords.append(fileobj)
                     
@@ -436,7 +398,7 @@ class CDMTranslator(object):
                         newRecords.append(edge1)
             else:
                 self.logger.debug("Creating first version of the file")
-                fileobj = self.instance_generator.create_file_object(path, self.get_source(), 1) # first version of this file
+                fileobj = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), path, self.get_source(), None)
                 file_uuid = fileobj["datum"]["uuid"]
                 newRecords.append(fileobj)
             
