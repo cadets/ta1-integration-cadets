@@ -95,7 +95,7 @@ class InstanceGenerator():
         ''' Given a pid, did we create a subject for the pid previously?
             If so return the uid of the subject, if not return None
         '''
-        pid_exec = str(puuid) +"_"+ execname
+        pid_exec = str(puuid) +"_"+ str(execname)
         if self.created_processes.has_key(hash(pid_exec)):
             return self.created_processes[hash(pid_exec)]
 
@@ -119,7 +119,7 @@ class InstanceGenerator():
         subject["type"] = "SUBJECT_PROCESS"
         
         # Generate a uuid for this subject
-        pid_exec = str(puuid) +"_"+ execname
+        pid_exec = str(puuid) +"_"+ str(execname)
         uniq = self.create_uuid("pid", hash(pid_exec))
         self.created_processes[hash(pid_exec)] = uniq
         subject["uuid"] = uniq

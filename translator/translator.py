@@ -91,7 +91,7 @@ class CDMTranslator(object):
             
             # Add some additional properties including executable name and command line args
             if "exec" in cadets_record:
-                process["properties"]["exec"] = cadets_record["exec"]
+                process["properties"]["exec"] = str(cadets_record["exec"])
             if "args" in cadets_record:
                 process["cmdLine"] = cadets_record["args"]
                             
@@ -151,7 +151,7 @@ class CDMTranslator(object):
             cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid, cadets_record["exec"])
             if cproc_uuid == None :
                 proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], None, self.get_source(), cadets_record["exec"])
-                proc_record["datum"]["properties"]["exec"] = cadets_record["exec"]
+                proc_record["datum"]["properties"]["exec"] = str(cadets_record["exec"])
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
             self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
@@ -163,12 +163,12 @@ class CDMTranslator(object):
             cadets_proc_uuid = cadets_record.get("subjuuid", cadets_record["pid"]);
 
             short_name = exec_path
-            if exec_path.rfind("/") != -1:
+            if exec_path != None and exec_path.rfind("/") != -1:
                 short_name = short_name[exec_path.rfind("/")+1:]
             cproc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, short_name)
             if cproc_uuid == None :
                 proc_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), short_name)
-                proc_record["datum"]["properties"]["exec"] = short_name;
+                proc_record["datum"]["properties"]["exec"] = str(short_name);
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
             self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
