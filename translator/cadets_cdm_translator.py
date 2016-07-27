@@ -51,8 +51,8 @@ def get_arg_parser():
                         help="File to translate, default is to translate every file in the directory that ends with .json")
     parser.add_argument("-lc", action="store", type=str, default=LOGGING_CONF,
                         help="Logging configuration file")
-    parser.add_argument("-wj", action="store_true", default=True, help="Write JSON output file")
-    parser.add_argument("-wb", action="store_true", default=True, help="Write binary output file")
+    parser.add_argument("-wj", action="store_true", default=False, help="Write JSON output file")
+    parser.add_argument("-wb", action="store_true", default=False, help="Write binary output file")
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
                         help="CDM Version number, make sure this matches the schema file you set with psf")
         
@@ -97,12 +97,6 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema)
     
-    # Read the JSON CADETS records
-    with open(path, 'r') as cadets_in:
-        logger.info("Loading records from "+cadets_in.name)
-        cadets_records = json.load(cadets_in)
-        cadets_in.close()
-        
     # Open the output files
     base_out = os.path.basename(path)
     json_out = None
@@ -115,25 +109,29 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
         bin_out = open(bin_out_path, 'w')
         # Create a file writer and serialize all provided records to it.
         file_writer = AvroGenericSerializer(p_schema, bin_out)
-      
-    # Iterate through the records, translating each to a CDM record
-    
     incount = 0
     cdmcount = 0
-    
-    for cadets_record in cadets_records:
-        logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
-        cdm_records = translator.translate_record(cadets_record)
-        logger.debug("{i} translated to {t1} records".format(i=incount, t1=len(cdm_records)))
-        
-        cdmcount += len(cdm_records)
-        
-        if write_json:
-            write_cdm_json_records(cdm_records, serializer, json_out, incount)
-        if write_binary:
-            write_cdm_binary_records(cdm_records, file_writer, bin_out)
-            
-        incount += 1
+
+    # Read the JSON CADETS records
+    with open(path, 'r') as cadets_in:
+        logger.info("Loading records from "+cadets_in.name)
+        # Iterate through the records, translating each to a CDM record
+        for raw_cadets_record in cadets_in.readlines():
+            if len(raw_cadets_record) > 3 :
+                cadets_record = json.loads(raw_cadets_record[2:]);
+                logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
+                cdm_records = translator.translate_record(cadets_record)
+                logger.debug("{i} translated to {t1} records".format(i=incount, t1=len(cdm_records)))
+                
+                cdmcount += len(cdm_records)
+                
+                if write_json:
+                    write_cdm_json_records(cdm_records, serializer, json_out, incount)
+                if write_binary:
+                    write_cdm_binary_records(cdm_records, file_writer, bin_out)
+                    
+                incount += 1
+        cadets_in.close()
                         
     logger.info("Translated {i} records into {ic} CDM items".format(i=incount, ic=cdmcount))
    
