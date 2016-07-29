@@ -54,7 +54,7 @@ def get_arg_parser():
     parser.add_argument("-wj", action="store_true", default=True, help="Write JSON output file")
     parser.add_argument("-wb", action="store_true", default=True, help="Write binary output file")
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
-			help="CDM Version number, make sure this matches the schema file you set with psf")
+                        help="CDM Version number, make sure this matches the schema file you set with psf")
         
     return parser
 
@@ -124,13 +124,8 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
     for cadets_record in cadets_records:
         logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
         cdm_records = translator.translate_record(cadets_record)
-        more_records = translator.handle_entry_match()
-        logger.debug("{i} translated to {t1} records, plus {t2} records from earlier events".format(i=incount, t1=len(cdm_records), t2=len(more_records)))
+        logger.debug("{i} translated to {t1} records".format(i=incount, t1=len(cdm_records)))
         
-        if more_records != None:
-            for m_record in more_records:
-                cdm_records.append(m_record)
-            
         cdmcount += len(cdm_records)
         
         if write_json:
@@ -140,16 +135,6 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
             
         incount += 1
                         
-    # Finish by generating events for any entry that we haven't yet received a return for
-    final_records = translator.handle_entry_match(True)
-    if final_records != None:
-        logger.debug("Adding {i} more records from entry events with no return".format(i=len(final_records)))
-        cdmcount += len(final_records)
-        if write_json:
-            write_cdm_json_records(final_records, serializer, json_out, incount)
-        if write_binary:
-            write_cdm_binary_records(final_records, file_writer, bin_out)
-    
     logger.info("Translated {i} records into {ic} CDM items".format(i=incount, ic=cdmcount))
    
     if json_out != None:
@@ -176,5 +161,5 @@ def write_cdm_binary_records(cdm_records, file_writer, bin_out):
         if cdm_record != None:    
             file_writer.serialize_to_file(cdm_record)
         
-        
-main()
+if __name__ == '__main__':        
+    main()
