@@ -74,7 +74,7 @@ class CDMTranslator(object):
         # Create a new Process subject if necessary
         pid = cadets_record["pid"]
         ppid = cadets_record.get("ppid", -1);
-        cadets_proc_uuid = cadets_record.get("subjuuid", cadets_record["pid"]);
+        cadets_proc_uuid = cadets_record.get("subjprocuuid", cadets_record["pid"]);
 
         proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, cadets_record["exec"])
         if proc_uuid == None:
@@ -160,7 +160,7 @@ class CDMTranslator(object):
 
         if "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("new_exec", cadets_record.get("upath1"));
-            cadets_proc_uuid = cadets_record.get("subjuuid", cadets_record["pid"]);
+            cadets_proc_uuid = cadets_record.get("subjprocuuid", cadets_record["pid"]);
 
             short_name = exec_path
             if exec_path != None and exec_path.rfind("/") != -1:
