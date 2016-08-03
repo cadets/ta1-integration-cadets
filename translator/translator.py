@@ -74,27 +74,18 @@ class CDMTranslator(object):
         # Create a new Process subject if necessary
         pid = cadets_record["pid"]
         ppid = cadets_record.get("ppid", -1);
-        cadets_proc_uuid = cadets_record.get("subjprocuuid", cadets_record["pid"]);
+        cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]));
 
-        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, cadets_record["exec"])
+        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid)
         if proc_uuid == None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
             # We don't know the time when this process was created, so we'll leave it blank.
             # Could use time_micros as an upper bound, but we'd need to specify
 
-            if "exec" in cadets_record:
-                process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), cadets_record["exec"])
-            else:
-                process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), "")
+            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source())
             process = process_record["datum"]
             proc_uuid = process["uuid"]
             
-            # Add some additional properties including executable name and command line args
-            if "exec" in cadets_record:
-                process["properties"]["exec"] = str(cadets_record["exec"])
-            if "args" in cadets_record:
-                process["cmdLine"] = cadets_record["args"]
-                            
             datums.append(process_record)
             
             # Add a HASLOCALPRINCIPAL edge from the process to the user
@@ -146,12 +137,11 @@ class CDMTranslator(object):
 
         if "fork" in call: # link forked processes
             new_pid = cadets_record.get("new_pid", cadets_record.get("retval"));
-            new_proc_uuid = cadets_record.get("ret_objuuid1", new_pid);
+            new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid));
 
-            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid, cadets_record["exec"])
+            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid)
             if cproc_uuid == None :
-                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], None, self.get_source(), cadets_record["exec"])
-                proc_record["datum"]["properties"]["exec"] = str(cadets_record["exec"])
+                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], None, self.get_source())
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
             self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
@@ -160,15 +150,15 @@ class CDMTranslator(object):
 
         if "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("new_exec", cadets_record.get("upath1"));
-            cadets_proc_uuid = cadets_record.get("subjprocuuid", cadets_record["pid"]);
+
+            cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]));
 
             short_name = exec_path
             if exec_path != None and exec_path.rfind("/") != -1:
                 short_name = short_name[exec_path.rfind("/")+1:]
-            cproc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid, short_name)
+            cproc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid)
             if cproc_uuid == None :
-                proc_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source(), short_name)
-                proc_record["datum"]["properties"]["exec"] = str(short_name);
+                proc_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source())
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
             self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
@@ -182,10 +172,7 @@ class CDMTranslator(object):
                 file_uuid = file_record["datum"]["uuid"]
             self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
             exec_file_edge = self.create_edge(file_uuid, event["uuid"], time_micros, "EDGE_FILE_AFFECTS_EVENT")
-            self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
-            exec_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
             datums.append(exec_file_edge)
-            datums.append(exec_edge)
 
             # Add a HASLOCALPRINCIPAL edge from the process to the user
             if user_uuid != None:
