@@ -137,7 +137,7 @@ class CDMTranslator(object):
             datums.append(edge1)
 
         if "fork" in call: # link forked processes
-            new_pid = cadets_record.get("new_pid", cadets_record.get("retval"));
+            new_pid = cadets_record.get("retval");
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid));
 
             cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid)
@@ -150,13 +150,10 @@ class CDMTranslator(object):
             datums.append(fork_edge)
 
         if "exec" in call: # link exec events to the file executed
-            exec_path = cadets_record.get("new_exec", cadets_record.get("upath1"));
-
+            exec_path = cadets_record.get("upath1");
             self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
-            if "arg_objuuid1" in cadets_record:
-                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
-            else:
-                file_uuid = self.instance_generator.get_file_object_id(exec_path)
+
+            file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
             if file_uuid == None:
                 file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), exec_path, self.get_source(), None);
                 datums.append(file_record)
@@ -186,9 +183,7 @@ class CDMTranslator(object):
         uuid = self.instance_generator.create_uuid("event", self.eventCounter)
                 
         event["uuid"] = uuid
-        if provider == "syscall":
-            event["type"] = self.convert_syscall_event_type(call)
-        elif provider == "audit":
+        if provider == "audit":
             event["type"] = self.convert_audit_event_type(call)
         else:
             event["type"] = "EVENT_APP_UNKNOWN"
@@ -221,9 +216,7 @@ class CDMTranslator(object):
                 # for other keys, (path, fd, address, port, query, request)
                 # Store the value in properties
             
-        if "path" in cadets_record:
-            event["properties"]["path"] = cadets_record["path"]
-        elif "upath1" in cadets_record:
+        if "upath1" in cadets_record:
             event["properties"]["path"] = cadets_record["upath1"]
         
         record["datum"] = event
@@ -231,51 +224,6 @@ class CDMTranslator(object):
         
         return record
     
-    def convert_syscall_event_type(self, call):
-        ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
-            Fallthrough default is EVENT_OS_UNKNOWN
-        '''
-        return {'execve' : 'EVENT_EXECUTE',
-                'accept' : 'EVENT_ACCEPT',
-                'accept4' : 'EVENT_ACCEPT',
-                'bind' : 'EVENT_BIND',
-                'close' : 'EVENT_CLOSE',
-                'connect' : 'EVENT_CONNECT',
-                'exit' : 'EVENT_EXIT',
-                'fork' : 'EVENT_FORK',
-                'ftruncate' : 'EVENT_TRUNCATE',
-                'kill' : 'EVENT_SIGNAL',
-                'link' : 'EVENT_LINK',
-                'linkat' : 'EVENT_LINK',
-                'mmap' : 'EVENT_MMAP',
-                'mprotect' : 'EVENT_MPROTECT',
-                'open' : 'EVENT_OPEN',
-                'openat' : 'EVENT_OPEN',
-                'pread' : 'EVENT_READ',
-                'preadv' : 'EVENT_READ',
-                'pwrite' : 'EVENT_WRITE',
-                'read' : 'EVENT_READ',
-                'readv' : 'EVENT_READ',
-                'recvfrom' : 'EVENT_RECVFROM',
-                'recvmsg' : 'EVENT_RECVMSG',
-                'rename' : 'EVENT_RENAME',
-                'rfork' : 'EVENT_FORK',
-                'sendmsg' : 'EVENT_SENDMSG',
-                'sendto' : 'EVENT_SENDTO',
-                'truncate' : 'EVENT_TRUNCATE',
-                'unlink' : 'EVENT_UNLINK',
-                'unlinkat' : 'EVENT_UNLINKAT',
-                'vfork' : 'EVENT_FORK',
-                'wait' : 'EVENT_WAIT',
-                'waitid' : 'EVENT_WAIT',
-                'wait3' : 'EVENT_WAIT',
-                'wait4' : 'EVENT_WAIT',
-                'wait6' : 'EVENT_WAIT',
-                'waitpid' : 'EVENT_WAIT',
-                'write' : 'EVENT_WRITE',
-                'writev' : 'EVENT_WRITE'
-        }.get(call, 'EVENT_OS_UNKNOWN')
-
     def convert_audit_event_type(self, call):
         ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
             Fallthrough default is EVENT_OS_UNKNOWN
