@@ -152,16 +152,6 @@ class CDMTranslator(object):
         if "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("new_exec", cadets_record.get("upath1"));
 
-            cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]));
-
-            short_name = exec_path
-            if exec_path != None and exec_path.rfind("/") != -1:
-                short_name = short_name[exec_path.rfind("/")+1:]
-            cproc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid)
-            if cproc_uuid == None :
-                proc_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source())
-                cproc_uuid = proc_record["datum"]["uuid"]
-                datums.append(proc_record)
             self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
             if "arg_objuuid1" in cadets_record:
                 file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
@@ -219,6 +209,8 @@ class CDMTranslator(object):
         event["properties"]["call"] = call
         event["properties"]["module"] = module
         event["properties"]["provider"] = provider
+
+        event["programPoint"] = cadets_record["exec"]
         
         for key in cadets_record:
             if not key in cdm_keys: # we already handled the standard CDM keys
