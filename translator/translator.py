@@ -353,13 +353,13 @@ class CDMTranslator(object):
             if file_uuid != None:
                 if self.createFileVersions and etype == "EVENT_OPEN":
                     # open event, create a new version of the file, with path info
-                    if "arg_objuuid1" in cadets_record:
+                    if "ret_objuuid1" in cadets_record:
                         self.logger.debug("Creating version of file {f}".format(f=path))
-                        if self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"]) == None:
-                            fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
+                        if self.instance_generator.get_latest_file_version(cadets_record["ret_objuuid1"]) == None:
+                            fileobj = self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], path, self.get_source(), None)
                             newRecords.append(fileobj)
                         else:
-                            fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), -1)
+                            fileobj = self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], path, self.get_source(), -1)
                             newRecords.append(fileobj)
 
                 if self.createFileVersions and etype == "EVENT_WRITE":
