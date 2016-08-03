@@ -4,6 +4,7 @@ CADETS JSON record format to TC CDM format translator
 
 import logging
 from instance_generator import InstanceGenerator
+from uuid import UUID
 
 # These are the json keys in the CADETS record that we handle specifically in the translator.
 # Any other keys not in this list, we'll add directly to the properties section of the Event
@@ -221,7 +222,10 @@ class CDMTranslator(object):
         
         for key in cadets_record:
             if not key in cdm_keys: # we already handled the standard CDM keys
-                event["properties"][str(key)] = str(cadets_record[key]) 
+                if "uuid" in str(key):
+                    event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
+                else:
+                    event["properties"][str(key)] = str(cadets_record[key]) 
                 # for other keys, (path, fd, address, port, query, request)
                 # Store the value in properties
             
