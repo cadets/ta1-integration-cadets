@@ -114,8 +114,9 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
     with open(path, 'r') as cadets_in:
         logger.info("Loading records from "+cadets_in.name)
         # Iterate through the records, translating each to a CDM record
+        previous_record = ""
         for raw_cadets_record in cadets_in.readlines():
-            if len(raw_cadets_record) > 3:
+            if len(raw_cadets_record) > 3 and raw_cadets_record != previous_record:
                 cadets_record = json.loads(raw_cadets_record[2:])
                 logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
                 cdm_records = translator.translate_record(cadets_record)
@@ -129,6 +130,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
                     write_cdm_binary_records(cdm_records, file_writer)
 
                 incount += 1
+                previous_record = raw_cadets_record
         cadets_in.close()
 
     logger.info("Translated {i} records into {ic} CDM items".format(i=incount, ic=cdmcount))
