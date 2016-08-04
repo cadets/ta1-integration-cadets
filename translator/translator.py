@@ -9,7 +9,12 @@ from instance_generator import InstanceGenerator
 # These are the json keys in the CADETS record that we handle specifically in
 # the translator.  Any keys not in this list, we'll add directly to the
 # properties section of the Event
-cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args"]
+cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args", "subjprocuuid"]
+file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP", "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ", "EVENT_WRITE", "aue_chown", "aue_lchown", "aue_fchown", "aue_chmod", "aue_lchmod", "aue_fchmod", "aue_fchmodat"] # TODO not complete list
+no_uuids_calls = []
+process_calls = ["EVENT_FORK", "EVENT_EXIT", "kill"]
+network_calls = ["recvfrom", "recvmsg", "sendto", "sendmsg", "socketpair", "socket", "connect", "accept"]
+uuid_keys = ["arg_objuuid1", "arg_objuuid2", "ret_objuuid1", "ret_objuuid2"]
 
 class CDMTranslator(object):
 
@@ -150,6 +155,8 @@ class CDMTranslator(object):
             self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
             fork_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
             datums.append(fork_edge)
+            fork_edge2 = self.create_edge(event["uuid"], cproc_uuid, time_micros, "EDGE_EVENT_AFFECTS_SUBJECT")
+            datums.append(fork_edge2)
 
         if "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("upath1")
@@ -211,15 +218,15 @@ class CDMTranslator(object):
 
         for key in cadets_record:
             if not key in cdm_keys: # we already handled the standard CDM keys
-                if "uuid" in str(key):
-                    event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
-                else:
+                if key not in uuid_keys:
+#                     event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
+#                 else:
                     event["properties"][str(key)] = str(cadets_record[key])
                 # for other keys, (path, fd, address, port, query, request)
                 # Store the value in properties
 
-        if "upath1" in cadets_record:
-            event["properties"]["path"] = cadets_record["upath1"]
+#         if "upath1" in cadets_record:
+#             event["properties"]["path"] = cadets_record["upath1"]
 
         record["datum"] = event
         record["CDMVersion"] = self.CDMVersion
@@ -284,66 +291,12 @@ class CDMTranslator(object):
     def create_subjects(self, event, cadets_record):
         ''' Given a CDM event that we just created, generate Subject instances and the corresponding edges
             Currently, we create:
-              a subject for any file that we discover via a "path" property
+              a subject for any files that we discover via the uuids
               Plus an edge from the event to the subject,  EDGE_EVENT_AFFECTS_FILE or EDGE_FILE_AFFECTS_EVENT
         '''
         newRecords = []
-        if self.createFileObjects and ("path" in event["properties"] or "arg_objuuid1" in cadets_record):
-            if "path" in event["properties"]:
-                path = event["properties"]["path"]
-            else:
-                path = ""
-            etype = event["type"]
-
-            if "arg_objuuid1" in cadets_record:
-                file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
-            else:
-                file_uuid = self.instance_generator.get_file_object_id(path)
-            if file_uuid != None:
-                if self.createFileVersions and etype == "EVENT_OPEN":
-                    # open event, create a new version of the file, with path info
-                    if "ret_objuuid1" in cadets_record:
-                        self.logger.debug("Creating version of file {f}".format(f=path))
-                        if self.instance_generator.get_latest_file_version(cadets_record["ret_objuuid1"]) is None:
-                            fileobj = self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], path, self.get_source(), None)
-                            newRecords.append(fileobj)
-                        else:
-                            fileobj = self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], path, self.get_source(), -1)
-                            newRecords.append(fileobj)
-
-                if self.createFileVersions and etype == "EVENT_WRITE":
-                    self.logger.debug("Creating new version of file {f}".format(f=path))
-                    # Write event, create a new version of the file
-                    if "arg_objuuid1" in cadets_record:
-                        old_version = self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"])
-                        fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
-                    else:
-                        old_version = self.instance_generator.get_latest_file_version(path)
-                        fileobj = self.instance_generator.create_file_object(None, path, self.get_source(), None)
-                    self.logger.debug("File version from {ov} to {nv}".format(ov=old_version, nv=fileobj["datum"]["version"]))
-                    newRecords.append(fileobj)
-
-                    # Add an EDGE_OBJECT_PREV_VERSION
-                    if old_version != None:
-                        self.logger.debug("Adding PREV_VERSION edge")
-                        edge1 = self.create_edge(file_uuid, fileobj["datum"]["uuid"], event["timestampMicros"], "EDGE_OBJECT_PREV_VERSION")
-                        newRecords.append(edge1)
-            else:
-                self.logger.debug("Creating first version of the file")
-                fileobj = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), path, self.get_source(), None)
-                file_uuid = fileobj["datum"]["uuid"]
-                newRecords.append(fileobj)
-
-            if etype == "EVENT_WRITE":
-                # Writes create an edge from the event to the file object
-                self.logger.debug("Creating EVENT_AFFECTS_FILE edge for a file write")
-                edge2 = self.create_edge(event["uuid"], file_uuid, event["timestampMicros"], "EDGE_EVENT_AFFECTS_FILE")
-                newRecords.append(edge2)
-            else:
-                # anything else (read/open) create an edge from the file object to the event
-                self.logger.debug("Creating FILE_AFFECTS_EVENT for the read or open")
-                edge2 = self.create_edge(file_uuid, event["uuid"], event["timestampMicros"], "EDGE_FILE_AFFECTS_EVENT")
-                newRecords.append(edge2)
+        if self.createFileObjects and (event["type"] in file_calls or event["properties"]["call"] in file_calls):
+            newRecords = newRecords + self.create_file_subjects(event, cadets_record)
 
         # NetFlows
         if self.createNetflowObjects and "address" in event["properties"] and "port" in event["properties"]:
@@ -356,10 +309,71 @@ class CDMTranslator(object):
             newRecords.append(nf_obj)
 
             # Add an EDGE_EVENT_AFFECTS_NETFLOW
-            # TODO: which direction should this edge go? event -> netflow or netflow -> event
             self.logger.debug("Creating a EVENT_AFFECTS_NETFLOW edge")
             edge3 = self.create_edge(event["uuid"], nf_uuid, event["timestampMicros"], "EDGE_EVENT_AFFECTS_NETFLOW")
             newRecords.append(edge3)
 
         return newRecords
 
+    def create_file_subjects(self, event, cadets_record):
+        newRecords = []
+        for uuid in uuid_keys:
+                etype = event["type"]
+
+                if uuid in cadets_record:
+                    file_uuid = self.instance_generator.get_file_object_id(cadets_record[uuid])
+                else:
+                    continue;
+                if file_uuid != None:
+                    if self.createFileVersions and etype == "EVENT_OPEN":
+                        # open event, create a new version of the file, with path info
+
+                        path = cadets_record["upath1"]
+                        if uuid == "arg_objuuid1":
+                            self.logger.debug("Creating version of file {f}".format(f=path))
+                            if self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"]) is None:
+                                fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
+                                newRecords.append(fileobj)
+                            else:
+                                fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), -1)
+                                newRecords.append(fileobj)
+
+                    if self.createFileVersions and etype == "EVENT_WRITE":
+                        self.logger.debug("Creating new version of file with UUID {f}".format(f=cadets_record[uuid]))
+                        # Write event, create a new version of the file
+                        old_version = self.instance_generator.get_latest_file_version(cadets_record[uuid])
+                        fileobj = self.instance_generator.create_file_object(cadets_record[uuid], "", self.get_source(), None)
+                        self.logger.debug("File version from {ov} to {nv}".format(ov=old_version, nv=fileobj["datum"]["version"]))
+                        newRecords.append(fileobj)
+
+                        # Add an EDGE_OBJECT_PREV_VERSION
+                        if old_version != None:
+                            self.logger.debug("Adding PREV_VERSION edge")
+                            edge1 = self.create_edge(file_uuid, fileobj["datum"]["uuid"], event["timestampMicros"], "EDGE_OBJECT_PREV_VERSION")
+                            newRecords.append(edge1)
+                else:
+                    self.logger.debug("Creating first version of the file")
+                    fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record.get("upath1", ""), self.get_source(), None)
+                    file_uuid = fileobj["datum"]["uuid"]
+                    newRecords.append(fileobj)
+
+                if etype == "EVENT_WRITE" or etype == "EVENT_UNLINK" or etype == "EVENT_UNLINKAT":
+                    # Writes create an edge from the event to the file object
+                    self.logger.debug("Creating EVENT_AFFECTS_FILE edge for a file write")
+                    edge2 = self.create_edge(event["uuid"], file_uuid, event["timestampMicros"], "EDGE_EVENT_AFFECTS_FILE")
+                    newRecords.append(edge2)
+                elif etype == "EVENT_OPEN":
+                    if uuid == "ret_objuuid1":
+                        # on open create an edge from the file object to the event.
+                        # open often has multiple uuids pointing to the same file.
+                        # Avoid creating multiple edges
+                        self.logger.debug("Creating FILE_AFFECTS_EVENT for open")
+                        edge2 = self.create_edge(file_uuid, event["uuid"], event["timestampMicros"], "EDGE_FILE_AFFECTS_EVENT")
+                        newRecords.append(edge2)
+                else:
+                    # anything else (read, etc) create an edge from the file object to the event
+                    self.logger.debug("Creating FILE_AFFECTS_EVENT for the read or other file operation")
+                    edge2 = self.create_edge(file_uuid, event["uuid"], event["timestampMicros"], "EDGE_FILE_AFFECTS_EVENT")
+                    newRecords.append(edge2)
+
+        return newRecords
