@@ -31,7 +31,7 @@ SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
 CDMVERSION = "13"
-KAFKASTRING = "ta3-starc-1b:9092,ta3-starc-2b:9092,ta3-starc-3b:9092"
+KAFKASTRING = "ta3-starc-1a.tc.bbn.com:9092"
 TOPIC = "CADETS"
 
 logger = logging.getLogger("tc")
