@@ -128,8 +128,8 @@ class InstanceGenerator():
         self.created_processes[puuid] = uniq
         subject["uuid"] = uniq
 
-        record["datum"] = subject
         record["CDMVersion"] = self.CDMVersion
+        record["datum"] = subject
         return record
 
     def get_thread_subject_id(self, tid):
@@ -162,8 +162,8 @@ class InstanceGenerator():
         # TODO: tid can be a property
         # subject["properties"]["tid"] = tid
 
-        record["datum"] = subject
         record["CDMVersion"] = self.CDMVersion
+        record["datum"] = subject
         return record
 
     def get_user_id(self, uid):
@@ -191,8 +191,8 @@ class InstanceGenerator():
         self.created_users[uid] = uniq
         principal["uuid"] = uniq
 
-        record["datum"] = principal
         record["CDMVersion"] = self.CDMVersion
+        record["datum"] = principal
         return record
 
     def get_file_object_id(self, file_key, version=None):
@@ -272,8 +272,8 @@ class InstanceGenerator():
 
         fobject["uuid"] = uniq
 
-        record["datum"] = fobject
         record["CDMVersion"] = self.CDMVersion
+        record["datum"] = fobject
         return record
 
     def create_netflow_object(self, destHost, destPort, source):
@@ -300,6 +300,6 @@ class InstanceGenerator():
         self.netflow_counter += 1
         nobject["uuid"] = uniq
 
-        record["datum"] = nobject
         record["CDMVersion"] = self.CDMVersion
+        record["datum"] = nobject
         return record

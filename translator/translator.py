@@ -229,7 +229,6 @@ class CDMTranslator(object):
 #             event["properties"]["path"] = cadets_record["upath1"]
 
         record["datum"] = event
-        record["CDMVersion"] = self.CDMVersion
 
         return record
 
@@ -284,8 +283,8 @@ class CDMTranslator(object):
         edge["timestamp"] = timestamp
 
         record = {}
-        record["datum"] = edge
         record["CDMVersion"] = self.CDMVersion
+        record["datum"] = edge
         return record
 
     def create_subjects(self, event, cadets_record):
