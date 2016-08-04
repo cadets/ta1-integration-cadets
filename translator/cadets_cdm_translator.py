@@ -80,8 +80,11 @@ def main():
     # Initialize a CDM Translator
     translator = CDMTranslator(p_schema, args.cdmv)
 
-    # Load the input file
+    # Make sure the translator is doing something
+    if not (args.wj or args.wb or args.wk):
+        logger.warn("Translator will run, but produce no output.")
 
+    # Load the input file
     if args.f is None:
         cfiles = [cf for cf in os.listdir(args.tdir) if isfile(os.path.join(args.tdir, cf))]
         for cfile in cfiles:
@@ -163,6 +166,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         logger.info("Wrote binary CDM records to {bo}".format(bo=bin_out.name))
     if write_kafka:
         producer.stop()
+        logger.info("Wrote CDM records to kafka {to}".format(to=kafkatopic))
 
 def write_cdm_json_records(cdm_records, serializer, json_out, incount):
     ''' Write an array of CDM records to a json output file via a serializer '''
