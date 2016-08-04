@@ -101,9 +101,9 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
     bin_out = None
     if write_json:
         json_out_path = os.path.join(output_dir, base_out+".cdm.json")
-        json_out = open(json_out_path, 'w')
+        json_out = open(os.path.expanduser(json_out_path), 'w')
     if write_binary:
-        bin_out_path = os.path.join(output_dir, base_out+".cdm.bin")
+        bin_out_path = os.path.join(os.path.expanduser(output_dir), base_out+".cdm.bin")
         bin_out = open(bin_out_path, 'w')
         # Create a file writer and serialize all provided records to it.
         file_writer = AvroGenericSerializer(p_schema, bin_out)
