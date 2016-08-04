@@ -19,6 +19,9 @@ import json
 from tc.schema.serialization import AvroGenericSerializer, Utils
 from tc.schema.serialization.kafka import KafkaAvroGenericSerializer
 
+from pykafka import KafkaClient
+from pykafka.partitioners import HashingPartitioner
+
 from translator import CDMTranslator
 
 # Default values, replace or use command line arguments
@@ -28,6 +31,8 @@ SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
 CDMVERSION = "13"
+KAFKASTRING = "ta3-starc-1b:9092,ta3-starc-2b:9092,ta3-starc-3b:9092"
+TOPIC = "CADETS"
 
 logger = logging.getLogger("tc")
 
@@ -49,6 +54,10 @@ def get_arg_parser():
                         help="Logging configuration file")
     parser.add_argument("-wj", action="store_true", default=False, help="Write JSON output file")
     parser.add_argument("-wb", action="store_true", default=False, help="Write binary output file")
+    parser.add_argument("-wk", action="store_true", default=False, help="Write to Kafka")
+    parser.add_argument("-ks", action="store", default=KAFKASTRING, help="Kafka connection string")
+    parser.add_argument("-ktopic", action="store", type=str, default=TOPIC,
+                        help="Kafka topic to publish to")
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
                         help="CDM Version number, make sure this matches the schema file you set with psf")
 
@@ -82,15 +91,15 @@ def main():
             elif fext == ".json":
                 logger.info("Translating JSON file: "+cfile)
                 path = os.path.join(args.tdir, cfile)
-                translate_file(translator, path, args.odir, args.wb, args.wj)
+                translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic)
                 translator.reset()
 
     else:
         path = os.path.join(args.tdir, args.f)
-        translate_file(translator, path, args.odir, args.wb, args.wj)
+        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic)
 
 
-def translate_file(translator, path, output_dir, write_binary, write_json):
+def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema)
@@ -107,6 +116,13 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
         bin_out = open(bin_out_path, 'w')
         # Create a file writer and serialize all provided records to it.
         file_writer = AvroGenericSerializer(p_schema, bin_out)
+    if write_kafka:
+        client = KafkaClient(kafkastring)
+        # Create the topic in kafka if it doesn't already exist
+        pykafka_topic = client.topics[kafkatopic]
+        producer = pykafka_topic.get_producer(
+            partitioner=HashingPartitioner(), sync=False,
+            linger_ms=1, ack_timeout_ms=30000, max_retries=0)
     incount = 0
     cdmcount = 0
 
@@ -128,6 +144,8 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
                     write_cdm_json_records(cdm_records, serializer, json_out, incount)
                 if write_binary:
                     write_cdm_binary_records(cdm_records, file_writer)
+                if write_kafka:
+                    write_kafka_records(cdm_records, producer, serializer, incount, kafkatopic)
 
                 incount += 1
                 previous_record = raw_cadets_record
@@ -143,13 +161,14 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
         file_writer.close_file_serializer()
         bin_out.close()
         logger.info("Wrote binary CDM records to {bo}".format(bo=bin_out.name))
+    if write_kafka:
+        producer.stop()
 
 def write_cdm_json_records(cdm_records, serializer, json_out, incount):
     ''' Write an array of CDM records to a json output file via a serializer '''
     for cdm_record in cdm_records:
         if cdm_record != None:
             logger.debug("{i} -> Translated CDM record: {data}".format(i=incount, data=cdm_record))
-
             jout = serializer.serialize_to_json(cdm_record)
             json_out.write(jout+"\n")
 
@@ -158,6 +177,15 @@ def write_cdm_binary_records(cdm_records, file_writer):
     for cdm_record in cdm_records:
         if cdm_record != None:
             file_writer.serialize_to_file(cdm_record)
+
+def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic):
+    '''
+    Write an array of CDM records to Kafka
+    '''
+    for edge in cdm_records:
+        # Serialize the record
+        message = serializer.serialize(topic, edge)
+        producer.produce(message, str(kafka_key).encode())
 
 if __name__ == '__main__':
     main()
