@@ -77,7 +77,9 @@ def main():
         cfiles = [cf for cf in os.listdir(args.tdir) if isfile(os.path.join(args.tdir, cf))]
         for cfile in cfiles:
             _, fext = os.path.splitext(cfile)
-            if fext == ".json":
+            if cfile.endswith(".cdm.json"):
+                logger.info("Skipping CDM file: "+cfile)
+            elif fext == ".json":
                 logger.info("Translating JSON file: "+cfile)
                 path = os.path.join(args.tdir, cfile)
                 translate_file(translator, path, args.odir, args.wb, args.wj)
