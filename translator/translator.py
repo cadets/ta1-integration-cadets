@@ -9,7 +9,7 @@ from instance_generator import InstanceGenerator
 # These are the json keys in the CADETS record that we handle specifically in
 # the translator.  Any keys not in this list, we'll add directly to the
 # properties section of the Event
-cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args", "subjprocuuid"]
+cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args", "subjprocuuid", "subjthruuid"]
 file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP", "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ", "EVENT_WRITE", "aue_chown", "aue_lchown", "aue_fchown", "aue_chmod", "aue_lchmod", "aue_fchmod", "aue_fchmodat"] # TODO not complete list
 no_uuids_calls = []
 process_calls = ["EVENT_FORK", "EVENT_EXIT", "kill"]
@@ -184,8 +184,6 @@ class CDMTranslator(object):
 
         record = {}
         record["CDMVersion"] = self.CDMVersion
-        old_record = {}
-        old_record["CDMVersion"] = self.CDMVersion
         event = {}
         event["properties"] = {}
 
