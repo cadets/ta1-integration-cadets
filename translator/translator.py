@@ -9,7 +9,7 @@ from instance_generator import InstanceGenerator
 # These are the json keys in the CADETS record that we handle specifically in
 # the translator.  Any keys not in this list, we'll add directly to the
 # properties section of the Event
-cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args", "subjprocuuid", "subjthruuid"]
+cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args", "subjprocuuid", "subjthruuid", "errno"]
 file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP", "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ", "EVENT_WRITE", "aue_chown", "aue_lchown", "aue_fchown", "aue_chmod", "aue_lchmod", "aue_fchmod", "aue_fchmodat"] # TODO not complete list
 no_uuids_calls = []
 process_calls = ["EVENT_FORK", "EVENT_EXIT", "kill"]
@@ -102,8 +102,8 @@ class CDMTranslator(object):
                 edge2 = self.create_edge(proc_uuid, user_uuid, time_micros, "EDGE_SUBJECT_HASLOCALPRINCIPAL")
                 datums.append(edge2)
 
-        # Create a new Thread subject if necessary
 
+        # Create a new Thread subject if necessary
         # TODO:  For now, we'll skip creating the Thread
         if False:
             tid = cadets_record["tid"]
@@ -142,6 +142,8 @@ class CDMTranslator(object):
             self.logger.debug("Creating edge from Event {e} to Subject {s}".format(s=pid, e=event_type))
             edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
             datums.append(edge1)
+
+        event["properties"]["subjprocuuid"] = str(UUID(cadets_record["subjprocuuid"]).hex)
 
         if "fork" in call: # link forked processes
             new_pid = cadets_record.get("retval")
@@ -218,9 +220,9 @@ class CDMTranslator(object):
 
         for key in cadets_record:
             if not key in cdm_keys: # we already handled the standard CDM keys
-                if key not in uuid_keys:
-#                     event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
-#                 else:
+                if key in uuid_keys:
+                    event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
+                else:
                     event["properties"][str(key)] = str(cadets_record[key])
                 # for other keys, (path, fd, address, port, query, request)
                 # Store the value in properties
