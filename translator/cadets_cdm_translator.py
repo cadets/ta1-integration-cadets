@@ -25,7 +25,7 @@ from translator import CDMTranslator
 TRACE_DIR = "../../trace-data"
 IN_FILE = None
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
-OUTPUT_DIR = "output"
+OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
 CDMVERSION = "13"
 

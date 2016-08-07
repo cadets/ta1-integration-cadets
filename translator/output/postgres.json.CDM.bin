@@ -1,907 +1,0 @@
-Objavro.schema¾ã{"doc": "* A record representing either a vertex or an edge. This is the top level record that allows\n     * us to easily mix the vertices and edges defined above on the wire.", "namespace": "com.bbn.tc.schema.avro", "name": "TCCDMDatum", "fields": [{"type": [{"doc": "* A provenance tag defines source dependence on specific data sources (inputs).\n     * A tag identifier is typically bound to a source and used by the tracking system to\n     * capture dependence on this source input.\n     * A provenance tag is represented as a tree. Each node in the tree has a value and\n     * a set of children nodes.", "namespace": "com.bbn.tc.schema.avro", "name": "ProvenanceTagNode", "fields": [{"doc": "*  the value of the node: can have the following types\n         *   int                 references another node by tagId\n         *   UUID                object uuid (source or sink for example)\n         *   TaOpCode            the opcode applied to the children nodes, see TaOpCode\n         *   IntegrityTag        an integrity tag\n         *   ConfidentialityTag  a confidentiality tag", "type": ["int", {"namespace": "com.bbn.tc.schema.avro", "type": "fixed", "name": "UUID", "size": 16}, {"symbols": ["TAG_OP_SEQUENCE", "TAG_OP_UNION", "TAG_OP_ENCODE", "TAG_OP_STRONG", "TAG_OP_MEDIUM", "TAG_OP_WEAK"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "TagOpCode", "doc": "* The tag opcode describes the provenance relation i.e., how multiple sources are combined to\n     * produce the output. We identify the following provenance relations\n     *\n     *   TAG_OP_SEQUENCE       the output is derived from the specified inputs in order, sequentially\n     *   TAG_OP_UNION,         the output is the union of its inputs\n     *   TAG_OP_ENCODE         the output is some encoding of the input\n     *   TAG_OP_STRONG         this is more qualitative (coarse) saying there is strong dependence\n     *   TAG_OP_MEDIUM         this is more qualitative (coarse) saying there is medium dependence\n     *   TAG_OP_WEAK           this is more qualitative (coarse) saying there is weak   dependence"}, {"symbols": ["INTEGRITY_UNTRUSTED", "INTEGRITY_BENIGN", "INTEGRITY_INVULNERABLE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "IntegrityTag", "doc": "* The integrity tag may be used to specify the initial integrity of an entity,\n     * or to endorse its content after performing appropriate checking/sanitization."}, {"symbols": ["CONFIDENTIALITY_SECRET", "CONFIDENTIALITY_SENSITIVE", "CONFIDENTIALITY_PRIVATE", "CONFIDENTIALITY_PUBLIC"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ConfidentialityTag", "doc": "* The confidentiality tag may be used to specify the initial confidentiality of an entity,\n     * or to declassify its content after performing appropriate checking/sanitization."}], "name": "value"}, {"default": null, "doc": "the child nodes", "type": ["null", {"items": "com.bbn.tc.schema.avro.ProvenanceTagNode", "type": "array"}], "name": "children"}, {"default": null, "doc": "* the id to be assigned to this tag node\n         * typically set once when the node is first created, and used in value afterwards", "type": ["null", "int"], "name": "tagId"}, {"default": null, "doc": "Arbitrary key, value pairs associated with a tag node", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Subjects represent execution contexts and include mainly threads and processes. They can be more granular and\n     * can represent other execution boundaries such as functions and blocks if needed.", "namespace": "com.bbn.tc.schema.avro", "name": "Subject", "fields": [{"doc": "universally unique identifier for the subject", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "the subject type", "type": {"symbols": ["SUBJECT_PROCESS", "SUBJECT_THREAD", "SUBJECT_UNIT", "SUBJECT_BASIC_BLOCK"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "SubjectType", "doc": "* SUBJECT_PROCESS,    process\n     * SUBJECT_THREAD,     thread within a process\n     * SUBJECT_UNIT        so far we only know of TRACE BEEP using this"}, "name": "type"}, {"doc": "OS process id for type process and unit id for a unit (Optional)", "type": "int", "name": "pid"}, {"doc": "OS parent process id for type process and pid for type unit (Optional)", "type": "int", "name": "ppid"}, {"doc": "Where it came from, see InstrumentationSource", "type": {"symbols": ["SOURCE_LINUX_AUDIT_TRACE", "SOURCE_LINUX_PROC_TRACE", "SOURCE_LINUX_BEEP_TRACE", "SOURCE_FREEBSD_OPENBSM_TRACE", "SOURCE_ANDROID_JAVA_CLEARSCOPE", "SOURCE_ANDROID_NATIVE_CLEARSCOPE", "SOURCE_FREEBSD_DTRACE_CADETS", "SOURCE_FREEBSD_TESLA_CADETS", "SOURCE_FREEBSD_LOOM_CADETS", "SOURCE_FREEBSD_MACIF_CADETS", "SOURCE_WINDOWS_DIFT_FAROS", "SOURCE_LINUX_THEIA"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "InstrumentationSource", "doc": "* SOURCE_LINUX_AUDIT_TRACE,          from Linux /dev/audit\n     * SOURCE_LINUX_PROC_TRACE,           from Linux's /proc\n     * SOURCE_LINUX_BEEP_TRACE,           from BEEP instrumentation\n     * SOURCE_FREEBSD_OPENBSM_TRACE,      from FreeBSD openBSM\n     * SOURCE_ANDROID_JAVA_CLEARSCOPE,    from android java instrumentation\n     * SOURCE_ANDROID_NATIVE_CLEARSCOPE,  from android's native instrumentation\n     * SOURCE_FREEBSD_DTRACE_CADETS, SOURCE_FREEBSD_TESLA_CADETS  for CADETS freebsd instrumentation\n     * SOURCE_FREEBSD_LOOM_CADETS, SOURCE_FREEBSD_MACIF_CADETS    for CADETS freebsd instrumentation\n     * SOURCE_LINUX_THEIA                 from the GATech THEIA instrumentation source\n     *"}, "name": "source"}, {"default": null, "doc": "* The start time of the subject\n         * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.\n         * (Optional)", "type": ["null", "long"], "name": "startTimestampMicros"}, {"default": null, "doc": "unit id for unit based instrumentation (Optional)", "type": ["null", "int"], "name": "unitId"}, {"default": null, "doc": "The end time of the subject (Optional)", "type": ["null", "long"], "name": "endTimestampMicros"}, {"default": null, "doc": "Process command line arguments including process name (Optional)", "type": ["null", "string"], "name": "cmdLine"}, {"default": null, "doc": "imported libraries (static or dynamic), (Optional)", "type": ["null", {"items": "string", "type": "array"}], "name": "importedLibraries"}, {"default": null, "doc": "exported libraries (static or dynamic), (Optional)", "type": ["null", {"items": "string", "type": "array"}], "name": "exportedLibraries"}, {"default": null, "doc": "additional process information, such portable execution (PE) info in windows (Optional)", "type": ["null", "string"], "name": "pInfo"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Events represent actions executed on behalf of subjects. Events could include system calls,\n     * function calls, instruction executions, or even more abstract notions representing a blind execution\n     * such as black boxes that are not instrumented (more shortly). Events are the core entity in the model\n     * and they are the main abstraction for representing information flow between data objects, and subjects.\n     * Events are atomic and immutable.", "namespace": "com.bbn.tc.schema.avro", "name": "Event", "fields": [{"doc": "A universally unique identifier for the event", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"default": 0, "doc": "A logical sequence number for ordering events relative to each other within a subject's execution context", "type": "long", "name": "sequence"}, {"doc": "The type of the event", "type": {"symbols": ["EVENT_ACCEPT", "EVENT_BIND", "EVENT_CHANGE_PRINCIPAL", "EVENT_CHECK_FILE_ATTRIBUTES", "EVENT_CLONE", "EVENT_CLOSE", "EVENT_CONNECT", "EVENT_CREATE_OBJECT", "EVENT_CREATE_THREAD", "EVENT_EXECUTE", "EVENT_FORK", "EVENT_LINK", "EVENT_UNLINK", "EVENT_MMAP", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_MPROTECT", "EVENT_OPEN", "EVENT_READ", "EVENT_RECVFROM", "EVENT_RECVMSG", "EVENT_RENAME", "EVENT_WRITE", "EVENT_SIGNAL", "EVENT_TRUNCATE", "EVENT_WAIT", "EVENT_OS_UNKNOWN", "EVENT_KERNEL_UNKNOWN", "EVENT_APP_UNKNOWN", "EVENT_UI_UNKNOWN", "EVENT_UNKNOWN", "EVENT_BLIND", "EVENT_UNIT", "EVENT_UPDATE", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_SHM", "EVENT_EXIT"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "EventType", "doc": "* These event types correspond to the common system calls. Note that we added blind, unit, and update events\n     *   EVENT_ACCEPT                     accept a connection on an object\n     *   EVENT_BIND                       bind to a network endpoint object\n     *   EVENT_CHANGE_PRINCIPAL           change the principal associated with the process\n     *   EVENT_CHECK_FILE_ATTRIBUTES      check the file attributes such as permissions\n     *   EVENT_CLONE                      clone a subject\n     *   EVENT_CLOSE                      close an object\n     *   EVENT_CONNECT                    connect to an object\n     *   EVENT_CREATE_OBJECT              create an object\n     *   EVENT_CREATE_THREAD              create a thread subject\n     *   EVENT_EXECUTE                    execute an object\n     *   EVENT_FORK                       fork a process subject\n     *   EVENT_LINK                       link an object to a new name\n     *   EVENT_UNLINK                     unlink a name from an object\n     *   EVENT_MMAP                       memory map an object\n     *   EVENT_MODIFY_FILE_ATTRIBUTES     modify the attributes of a file object\n     *   EVENT_MPROTECT                   change permissions of a memory object\n     *   EVENT_OPEN                       open an object\n     *   EVENT_READ                       read from an object (file or socket)\n     *   EVENT_RECVFROM                   receive message from a socket\n     *   EVENT_RECVMSG                    receive message from a socket\n     *   EVENT_RENAME                     rename an object\n     *   EVENT_WRITE                      write to an object (file or socket)\n     *   EVENT_SIGNAL                     signal another subject\n     *   EVENT_TRUNCATE                   truncate an object\n     *   EVENT_WAIT                       wait on another subject\n     *   EVENT_KERNEL_UNKNOWN             some kernel event\n     *   EVENT_OS_UNKNOWN                 some OS layer event\n     *   EVENT_APP_UNKNOWN                some application layer event\n     *   EVENT_UI_UNKNOWN                 some UI layer event\n     *   EVENT_UNKNOWN                    some event (we don't know what layer)\n     *   EVENT_BLIND                      blind event for a black boxes that are not instrumented\n     *   EVENT_UNIT                       create a BEEP unit\n     *   EVENT_UPDATE                     update an object\n     *   EVENT_SENDTO                     send through socket\n     *   EVENT_SENDMSG                    send message through socket\n     *   EVENT_SHM                        share memory between processes\n     *   EVENT_EXIT                       process exit"}, "name": "type"}, {"doc": "The thread id to which this event belongs", "type": "int", "name": "threadId"}, {"doc": "What source system generated this event, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "* The time at which the event occurred. Timestamps allow reasoning about order of events\n         *  on a host when the same clock is used.\n         * TODO When different clocks are used on a host or across hosts, we need to also define a clock source\n         * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "timestampMicros"}, {"default": null, "doc": "Event name (Optional)", "type": ["null", "string"], "name": "name"}, {"default": null, "doc": "Event parameters represented as values, see Value (Optional)", "type": ["null", {"items": {"doc": "* Values represent transient data, mainly parameters to events. Values are created and used once within an\n     * event's execution and are relevant mainly during fine-grained tracking (such as with tag/taint propagation).\n     * Values have tags describing their provenance. Sometimes the actual value's value is reported in addition to\n     * the value's metadata\n     *\n     * The size of the value is the number of elements of type valueDataType. This should be 0 for primitive or\n     * complex types or the size of the array for arrays i.e., if size>0, then this value is an array.\n     * A complex value (such as an object) can contain other values (primitives of other complex values) within it, as\n     * components.\n     *\n     * isNull indicates whether a complex value is null. runtimeDataType indicates the runtime datatype. E.g., <br>\n     *  e.g., an integer will have size=0 and valueDataType=INT, and valueBytes.length=4 bytes <br>\n     *  e.g., an int[4] will have  size=4 and valueDataType=INT, and valueBytes.length=16 bytes (4*4) <br>\n     *  e.g., a string s=\"abc\" has size=3 and valueDataType=CHAR, and valueBytes.length=6 bytes (treated as char[]) <br>\n     *  e.g., an MyClass obj has size=0, valueDataType=COMPLEX, runtimeDataType=\"MyClass\", valueBytes=<pointer> <br>", "namespace": "com.bbn.tc.schema.avro", "name": "Value", "fields": [{"default": 0, "doc": "The size of the value: the number of elements of type valueDataType; 0 for primitives", "type": "int", "name": "size"}, {"doc": "The type of the value whether input or return", "type": {"symbols": ["VALUE_TYPE_IN", "VALUE_TYPE_OUT", "VALUE_TYPE_INOUT"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ValueType", "doc": "* A value type is either in, out, or in/out\n     * This is for event parameters to distinguish inputs vs return values\n     *\n     *   VALUE_TYPE_IN       An input value to the event\n     *   VALUE_TYPE_OUT      An output value from the event (return value)\n     *   VALUE_TYPE_INOUT    Adding this for completeness"}, "name": "type"}, {"doc": "The actual datatype of the value elements, e.g., int, double, byte, etc. (Optional)\n         *  Strings are treated as char[] so type=CHAR\n         *  String[] is a COMPLEX value whose components are the string values (each modeled as a char[])\n         *  Complex composite objects comprising of primitive values use the COMPLEX type", "type": {"symbols": ["VALUE_DATA_TYPE_BYTE", "VALUE_DATA_TYPE_BOOL", "VALUE_DATA_TYPE_CHAR", "VALUE_DATA_TYPE_SHORT", "VALUE_DATA_TYPE_INT", "VALUE_DATA_TYPE_FLOAT", "VALUE_DATA_TYPE_LONG", "VALUE_DATA_TYPE_DOUBLE", "VALUE_DATA_TYPE_COMPLEX"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "ValueDataType", "doc": "* A value data type is one of the primitive data types. A string is treated as a char array"}, "name": "valueDataType"}, {"default": false, "doc": "Whether this value is null, needed to indicate null objects (default: false)", "type": "boolean", "name": "isNull"}, {"default": null, "doc": "the name of the Value, string. (Optional)", "type": ["null", "string"], "name": "name"}, {"default": null, "doc": "The runtime data type of the value (Optional); For example, an object of dataType=COMPLEX, can have\n         *  a runtime data type of say \"MyClass\"", "type": ["null", "string"], "name": "runtimeDataType"}, {"default": null, "doc": "The actual bytes of the value in Big Endian format, e.g., an int is converted to a 4 byte buffer (Optional)", "type": ["null", "bytes"], "name": "valueBytes"}, {"default": null, "doc": "* The value's tag expression describing its provenance (Optional)\n         * Since value could be an array, the tag can use run length encoding if needed. The format of the array is:\n         *   {<numElements:int>, <tagId:int>}*\n         * For example, to assign a tag 0 (unknown) to elements 0-3, 1 to elements 4-7 and 2 to elements 8-15 of\n         * an int[16] value, this would be represented using the following tag array\n         *  {4, 0, 4, 1, 8, 2} meaning the first 4 elements have tag 0, next 4 have tag 1, next 8 have tag 2\n         * Note that 4 elements of the array correspond to 16 bytes in the valueBytes buffer\n         * Note that tagId had to be defined/emitted earlier (see ProvenanceTagNode)\n         * before it can be assigned to a value", "type": ["null", {"items": "int", "type": "array"}], "name": "tag"}, {"default": null, "doc": "A complex value might comprise other component values if needed (Optional)", "type": ["null", {"items": "com.bbn.tc.schema.avro.Value", "type": "array"}], "name": "components"}], "type": "record"}, "type": "array"}], "name": "parameters"}, {"default": null, "doc": "Location refers to the location of the data affecting the event\n         *  (e.g., the read offset in the file for the read system call event (Optional)", "type": ["null", "long"], "name": "location"}, {"default": null, "doc": "Size refers to the size of the data affecting the event\n         *  (e.g., the number of bytes read from the file for the read system call event (Optional)", "type": ["null", "long"], "name": "size"}, {"default": null, "doc": "The program point where the event was triggered (e.g., executable and line number), (Optional)", "type": ["null", "string"], "name": "programPoint"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Represents a network flow object. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "NetFlowObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": {"doc": "*  Objects, in general, represent data sources and sinks which could include sockets, files,\n     *  memory, and any data in general that can be an input and/or output to an event.\n     *  This record is intended to be abstract i.e., one should not instantiate an Object\n     *  but rather instantiate one of its sub types File, NetFlow, of Memory", "namespace": "com.bbn.tc.schema.avro", "name": "AbstractObject", "fields": [{"doc": "The source that emitted the object, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Permission bits defined over the object (Optional)", "type": ["null", {"namespace": "com.bbn.tc.schema.avro", "type": "fixed", "name": "SHORT", "size": 2}], "name": "permission"}, {"default": null, "doc": "* The timestamp when the object was last modified (Optional).\n        * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "lastTimestampMicros"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, "name": "baseObject"}, {"doc": "The ip address of the source host for this flow", "type": "string", "name": "srcAddress"}, {"doc": "The network port on the source host for this flow", "type": "int", "name": "srcPort"}, {"doc": "The ip address of the destination host for this flow", "type": "string", "name": "destAddress"}, {"doc": "The network port on the destination host for this flow", "type": "int", "name": "destPort"}, {"default": null, "doc": "The IP protocol number e.g., TCP=6", "type": ["null", "int"], "name": "ipProtocol"}], "type": "record"}, {"doc": "* Represents a file on the file system. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "FileObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The location of the file absolute path or remote url", "type": "string", "name": "url"}, {"default": false, "doc": "Whether the file is a Unix pipe", "type": "boolean", "name": "isPipe"}, {"default": 1, "doc": "The file version incremented every time the file changes", "type": "int", "name": "version"}, {"default": null, "doc": "The file size in bytes (Optional)", "type": ["null", "long"], "name": "size"}], "type": "record"}, {"doc": "* Represents a generic source or sink on the host device that is can be a file, memory, or netflow.\n     * This is the most basic representation of a source or sink, basically specifying its type only.", "namespace": "com.bbn.tc.schema.avro", "name": "SrcSinkObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The type of the object", "type": {"symbols": ["SOURCE_ACCELEROMETER", "SOURCE_TEMPERATURE", "SOURCE_GYROSCOPE", "SOURCE_MAGNETIC_FIELD", "SOURCE_HEART_RATE", "SOURCE_LIGHT", "SOURCE_PROXIMITY", "SOURCE_PRESSURE", "SOURCE_RELATIVE_HUMIDITY", "SOURCE_LINEAR_ACCELERATION", "SOURCE_MOTION", "SOURCE_STEP_DETECTOR", "SOURCE_STEP_COUNTER", "SOURCE_TILT_DETECTOR", "SOURCE_ROTATION_VECTOR", "SOURCE_GRAVITY", "SOURCE_GEOMAGNETIC_ROTATION_VECTOR", "SOURCE_CAMERA", "SOURCE_GPS", "SOURCE_AUDIO", "SOURCE_SYSTEM_PROPERTY", "SOURCE_ENV_VARIABLE", "SOURCE_SINK_IPC", "SOURCE_UNKNOWN"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "SrcSinkType", "doc": "* There are many types of sources such as sensors\n     * The type of a sensor could be base (close to hardware) or composite\n     * See https://source.android.com/devices/sensors/index.html for details\n     * TODO: camera and GPS ideally should be modeled separately to match the Android model. These are rich subsystems"}, "name": "type"}], "type": "record"}, {"doc": "* Represents a page in memory. Instantiates an AbstractObject.\n     * TODO: is memory really an object (with permissions and so on) or is it a transient data?", "namespace": "com.bbn.tc.schema.avro", "name": "MemoryObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The location in memory", "type": "long", "name": "memoryAddress"}, {"default": null, "doc": "The memory page number", "type": ["null", "long"], "name": "pageNumber"}], "type": "record"}, {"doc": "* A principal is a local user\n    * TODO: extend for second evaluation to include remote principals\n    * TODO: what happens when the user information changes (are we tracking versions?)\n    * TODO: Authentication mechanisms: are TA1s providing that information and how?", "namespace": "com.bbn.tc.schema.avro", "name": "Principal", "fields": [{"doc": "A unique id for the principal", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"default": "PRINCIPAL_LOCAL", "doc": "The type of the principal, local by default", "type": {"symbols": ["PRINCIPAL_LOCAL", "PRINCIPAL_REMOTE"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "PrincipalType", "doc": "* The type of principal may be local to the host, or remote users/systems."}, "name": "type"}, {"doc": "The operating system identifier associated with the user", "type": "string", "name": "userId"}, {"doc": "The ids of the groups which this user is part of", "type": {"items": "string", "type": "array"}, "name": "groupIds"}, {"doc": "The source that emitted the Principal record, see InstrumentationSource", "type": "com.bbn.tc.schema.avro.InstrumentationSource", "name": "source"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* The purpose of a TagEntity is to be able to assign one or more tags to the objects/subjects/events\n     * at a later point in time after the objects/subjects/events have been emitted.\n     * As the name indicates, TagEntity wraps a tag (ProvenanceTagNode) with an entity i.e. assign a uuid\n     * to the tag to allow adding an edge from the object/subject/event to the TagEntity.", "namespace": "com.bbn.tc.schema.avro", "name": "TagEntity", "fields": [{"doc": "A unique ID for the entity", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The provenance tag", "type": "com.bbn.tc.schema.avro.ProvenanceTagNode", "name": "tag"}, {"default": null, "doc": "* The timestamp when the tag was created (Optional).\n        * A timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": ["null", "long"], "name": "timestampMicros"}, {"default": null, "doc": "Arbitrary key, value pairs describing the entity", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Edges in the CDM only connect the entities and do not have attributes of their own.\n     *  In order to make the streaming efficient, the edge specification does not require\n     *  the objects on both ends every time it is streamed/serialized. Instead, we defined\n     *  the edge to be simple, it has a type and it connects two entities each identified by\n     *  a uid each.\n     * Since the different edge types in the current model do not have different properties\n     *  (actually no properties at all), we do not define the different edges as separate\n     *  records at this time.\n     * For example, when streaming a large number of edges having the same from node, the\n     *  from node in all these edges will be represented using the node id instead of having\n     *  to replicate the full node object on the wire.", "namespace": "com.bbn.tc.schema.avro", "name": "SimpleEdge", "fields": [{"doc": "A unique id of the From entity on the edge", "type": "com.bbn.tc.schema.avro.UUID", "name": "fromUuid"}, {"doc": "The id of the To entity on the edge", "type": "com.bbn.tc.schema.avro.UUID", "name": "toUuid"}, {"doc": "The type of the edge, see EdgeType", "type": {"symbols": ["EDGE_EVENT_AFFECTS_MEMORY", "EDGE_EVENT_AFFECTS_FILE", "EDGE_EVENT_AFFECTS_NETFLOW", "EDGE_EVENT_AFFECTS_SUBJECT", "EDGE_EVENT_AFFECTS_SRCSINK", "EDGE_EVENT_HASPARENT_EVENT", "EDGE_EVENT_CAUSES_EVENT", "EDGE_EVENT_ISGENERATEDBY_SUBJECT", "EDGE_SUBJECT_AFFECTS_EVENT", "EDGE_SUBJECT_HASPARENT_SUBJECT", "EDGE_SUBJECT_HASLOCALPRINCIPAL", "EDGE_SUBJECT_RUNSON", "EDGE_FILE_AFFECTS_EVENT", "EDGE_NETFLOW_AFFECTS_EVENT", "EDGE_MEMORY_AFFECTS_EVENT", "EDGE_SRCSINK_AFFECTS_EVENT", "EDGE_OBJECT_PREV_VERSION", "EDGE_FILE_HAS_TAG", "EDGE_NETFLOW_HAS_TAG", "EDGE_MEMORY_HAS_TAG", "EDGE_SRCSINK_HAS_TAG", "EDGE_SUBJECT_HAS_TAG", "EDGE_EVENT_HAS_TAG", "EDGE_EVENT_AFFECTS_REGISTRYKEY", "EDGE_REGISTRYKEY_AFFECTS_EVENT", "EDGE_REGISTRYKEY_HAS_TAG"], "namespace": "com.bbn.tc.schema.avro", "type": "enum", "name": "EdgeType", "doc": "* The different types of simple edges in the CDM\n     *   EDGE_EVENT_AFFECTS_MEMORY          an event affects a memory object (such as updating a memory location)\n     *   EDGE_EVENT_AFFECTS_FILE            an event affects a file object (such as writing to a file)\n     *   EDGE_EVENT_AFFECTS_REGISTRYKEY     an event affects a registry value (such as writing to a registry key)\n     *   EDGE_EVENT_AFFECTS_NETFLOW         an event affects a netflow object (such as writing to socket)\n     *   EDGE_EVENT_AFFECTS_SUBJECT         an event affects a subject (such as forking a process)\n     *   EDGE_EVENT_AFFECTS_SRCSINK         an event affects a generic src/sink object\n     *   EDGE_EVENT_HASPARENT_EVENT         a metaevent that represents a set of child atomic events\n     *   EDGE_EVENT_CAUSES_EVENT            an event caused/triggered another event\n     *   EDGE_EVENT_ISGENERATEDBY_SUBJECT   an event is generated by a subject (every event is)\n     *   EDGE_SUBJECT_AFFECTS_EVENT         a subject affects an event (such as when killing a process)\n     *   EDGE_SUBJECT_HASPARENT_SUBJECT     a subject has a parent subject (such as thread has parent process)\n     *   EDGE_SUBJECT_HASPRINCIPAL          a subject has a principal (such as a process owned by a user)\n     *   EDGE_SUBJECT_RUNSON                a subject runs on a host (TODO: host not yet modeled)\n     *   EDGE_FILE_AFFECTS_EVENT            an event reads from a file\n     *   EDGE_REGISTRYKEY_AFFECTS_EVENT     an event reads values from a registry key\n     *   EDGE_NETFLOW_AFFECTS_EVENT         an event reads from a network flow\n     *   EDGE_MEMORY_AFFECTS_EVENT          an event reads from a memory object\n     *   EDGE_SRCSINK_AFFECTS_EVENT         a generic source/sink object affects an event\n     *   EDGE_OBJECT_PREV_VERSION           the previous version of an object, typically used for file versioning\n     *   EDGE_FILE_HAS_TAG                  attach a tag to a file object\n     *   EDGE_REGISTRYKEY_HAS_TAG           attach a tag to a registrykey object\n     *   EDGE_NETFLOW_HAS_TAG               attach a tag to a netflow object\n     *   EDGE_MEMORY_HAS_TAG                attach a tag to a memory object\n     *   EDGE_SRCSINK_HAS_TAG               attach a tag to a srcsink object\n     *   EDGE_SUBJECT_HAS_TAG               attach a tag to a subject\n     *   EDGE_EVENT_HAS_TAG                 attach a tag to an event\n     *"}, "name": "type"}, {"doc": "* When the edge was created.\n        * Timestamp stores the number of microseconds from the unix epoch, 1 January 1970 00:00:00.000000 UTC.", "type": "long", "name": "timestamp"}, {"default": null, "doc": "Arbitrary key, value pairs describing the edge", "type": ["null", {"type": "map", "values": "string"}], "name": "properties"}], "type": "record"}, {"doc": "* Represents a registry key. Instantiates an AbstractObject.", "namespace": "com.bbn.tc.schema.avro", "name": "RegistryKeyObject", "fields": [{"doc": "Universally unique identifier for the object", "type": "com.bbn.tc.schema.avro.UUID", "name": "uuid"}, {"doc": "The base object attributes", "type": "com.bbn.tc.schema.avro.AbstractObject", "name": "baseObject"}, {"doc": "The registry key/path", "type": "string", "name": "key"}, {"default": 1, "doc": "The version incremented every time the entry changes", "type": "int", "name": "version"}, {"default": null, "doc": "The entry size in bytes (Optional)", "type": ["null", "long"], "name": "size"}], "type": "record"}], "name": "datum"}, {"default": "13", "type": "string", "name": "CDMVersion"}], "type": "record"}avro.codecnull ‚Ï¥„Æ´›w$Bı°vØ¦ë              é 1001  13ÿÿÿÿÿÿÿÿğ ±º…Ä`c ´Å
-       execpostgres 13ÿÿÿÿÿÿÿÿğ ±º…Ä`c              éšâ„°·Ñ– 13                6º¦ìœŸ¥Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13               ÿÿÿÿÿÿÿÿğ ±º…Ä`cìœŸ¥Ï˜ì¸( 13       ¬ıofş± ²Å
-       execpostgres 13       ¬ıofş±              éˆ‘…°·Ñ– 13              6Ê¤¸­¨Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±¸­¨Ï˜ì¸( 13ÿÿÿÿÿÿÿÿŒ|â	å=áá ¸Å
-       execpostgres 13ÿÿÿÿÿÿÿÿŒ|â	å=áá              éˆ‘…°·Ñ– 13              6Ø¤¸­¨Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=áá¸­¨Ï˜ì¸( 13              6Ê¤¸­¨Ï˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -1299 WHERE aid = 1673208;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±¸­¨Ï˜ì¸( 13       L2r6ßûú8 ¶Å
-       execpostgres 13       L2r6ßûú8              éˆ‘…°·Ñ– 13              6È£¸­¨Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8¸­¨Ï˜ì¸( 13              
-6Ø¤¸­¨Ï˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + -114 WHERE aid = 2774298;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=áá¸­¨Ï˜ì¸( 13              6È£¸­¨Ï˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -4083 WHERE aid = 2742860;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8¸­¨Ï˜ì¸( 13              6È£¸­¨Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 2742860;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8¸­¨Ï˜ì¸( 13              6Ø¤¸­¨Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 2774298;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=áá¸­¨Ï˜ì¸( 13              	6Ê¤şâ‡©Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 1673208;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              	       ¬ıofş±şâ‡©Ï˜ì¸( 13              
-6È£şâ‡©Ï˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -4083 WHERE tid = 192;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              
-       L2r6ßûú8şâ‡©Ï˜ì¸( 13              6Ø¤şâ‡©Ï˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + -114 WHERE tid = 382;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=ááşâ‡©Ï˜ì¸( 13              6È£şâ‡©Ï˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -4083 WHERE bid = 69;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8şâ‡©Ï˜ì¸( 13              6Ê¤şâ‡©Ï˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -1299 WHERE tid = 108;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±şâ‡©Ï˜ì¸( 13              6È£şâ‡©Ï˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (192, 69, 2742860, -4083, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8şâ‡©Ï˜ì¸( 13              6Ê¤şâ‡©Ï˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -1299 WHERE bid = 8;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±şâ‡©Ï˜ì¸( 13               6È£ÙªÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8ÙªÏ˜ì¸( 13              "6Ø¤ÙªÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -114 WHERE bid = 15;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=ááÙªÏ˜ì¸( 13              $6Ø¤ÙªÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (382, 15, 2774298, -114, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=ááÙªÏ˜ì¸( 13              &6Ê¤ÙªÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (108, 8, 1673208, -1299, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±ÙªÏ˜ì¸( 13              (6Ê¤ÙªÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±ÙªÏ˜ì¸( 13              *6Ø¤ÙªÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=ááÙªÏ˜ì¸( 13              ,6º¦îÓûªÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ÿÿÿÿÿÿÿÿğ ±º…Ä`cîÓûªÏ˜ì¸( 13              .6º¦îÓûªÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -2539 WHERE aid = 4625506;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ÿÿÿÿÿÿÿÿğ ±º…Ä`cîÓûªÏ˜ì¸( 13              06º¦ìŞõ«Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 4625506;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ÿÿÿÿÿÿÿÿğ ±º…Ä`cìŞõ«Ï˜ì¸( 13              26º¦ìŞõ«Ï˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -2539 WHERE tid = 158;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ÿÿÿÿÿÿÿÿğ ±º…Ä`cìŞõ«Ï˜ì¸( 13              46º¦ğùğ¬Ï˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -2539 WHERE bid = 47;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ÿÿÿÿÿÿÿÿğ ±º…Ä`cğùğ¬Ï˜ì¸( 13              66º¦ğùğ¬Ï˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (158, 47, 4625506, -2539, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ÿÿÿÿÿÿÿÿğ ±º…Ä`cğùğ¬Ï˜ì¸( 13              86º¦ğùğ¬Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ÿÿÿÿÿÿÿÿğ ±º…Ä`cğùğ¬Ï˜ì¸( 13              :6Ê¤œàİ¯Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±œàİ¯Ï˜ì¸( 13              <6È£ì‰Ò±Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8ì‰Ò±Ï˜ì¸( 13              >6Ê¤ì‰Ò±Ï˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + 4697 WHERE aid = 906847;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±ì‰Ò±Ï˜ì¸( 13               @6È£ì‰Ò±Ï˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + -480 WHERE aid = 6687114;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                      L2r6ßûú8ì‰Ò±Ï˜ì¸( 13              !B6Ê¤ì‰Ò±Ï˜ì¸(     
-
-queryrSELECT abalance FROM pgbench_accounts WHERE aid = 906847;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              !       ¬ıofş±ì‰Ò±Ï˜ì¸( 13              "D6È£Ş‡Ì²Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 6687114;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              "       L2r6ßûú8Ş‡Ì²Ï˜ì¸( 13              #F6Ê¤Ş‡Ì²Ï˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 4697 WHERE tid = 194;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              #       ¬ıofş±Ş‡Ì²Ï˜ì¸( 13              $H6È£Ş‡Ì²Ï˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + -480 WHERE tid = 171;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              $       L2r6ßûú8Ş‡Ì²Ï˜ì¸( 13              %J6È£ÜÆ³Ï˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -480 WHERE bid = 32;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              %       L2r6ßûú8ÜÆ³Ï˜ì¸( 13              &L6Ê¤ÜÆ³Ï˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 4697 WHERE bid = 33;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              &       ¬ıofş±ÜÆ³Ï˜ì¸( 13              'N6È£ÜÆ³Ï˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (171, 32, 6687114, -480, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              '       L2r6ßûú8ÜÆ³Ï˜ì¸( 13              (P6Ê¤ÜÆ³Ï˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (194, 33, 906847, 4697, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              (       ¬ıofş±ÜÆ³Ï˜ì¸( 13              )R6º¦ÜÆ³Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              )ÿÿÿÿÿÿÿÿğ ±º…Ä`cÜÆ³Ï˜ì¸( 13              *T6Ø¤ÜÆ³Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              *ÿÿÿÿÿÿÿÿŒ|â	å=ááÜÆ³Ï˜ì¸( 13              +V6Ê¤ÜÆ³Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              +       ¬ıofş±ÜÆ³Ï˜ì¸( 13              ,X6º¦ÜÆ³Ï˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + 965 WHERE aid = 5502781;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ,ÿÿÿÿÿÿÿÿğ ±º…Ä`cÜÆ³Ï˜ì¸( 13              -Z6Ø¤Ä§À´Ï˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -1467 WHERE aid = 3497192;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              -ÿÿÿÿÿÿÿÿŒ|â	å=ááÄ§À´Ï˜ì¸( 13              .\6È£Ä§À´Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              .       L2r6ßûú8Ä§À´Ï˜ì¸( 13              /^6º¦Ä§À´Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 5502781;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              /ÿÿÿÿÿÿÿÿğ ±º…Ä`cÄ§À´Ï˜ì¸( 13              0`6º¦Ä§À´Ï˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + 965 WHERE tid = 253;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              0ÿÿÿÿÿÿÿÿğ ±º…Ä`cÄ§À´Ï˜ì¸( 13              1b6º¦æÁºµÏ˜ì¸(     
-
-queryˆUPDATE pgbench_branches SET bbalance = bbalance + 965 WHERE bid = 6;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              1ÿÿÿÿÿÿÿÿğ ±º…Ä`cæÁºµÏ˜ì¸( 13              2d6Ø¤æÁºµÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 3497192;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              2ÿÿÿÿÿÿÿÿŒ|â	å=ááæÁºµÏ˜ì¸( 13              3f6º¦æÁºµÏ˜ì¸(     
-
-queryÖINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (253, 6, 5502781, 965, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              3ÿÿÿÿÿÿÿÿğ ±º…Ä`cæÁºµÏ˜ì¸( 13              4h6º¦æÁºµÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              4ÿÿÿÿÿÿÿÿğ ±º…Ä`cæÁºµÏ˜ì¸( 13              5j6Ø¤æÁºµÏ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -1467 WHERE tid = 554;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              5ÿÿÿÿÿÿÿÿŒ|â	å=ááæÁºµÏ˜ì¸( 13              6l6Ê¤æÁºµÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              6       ¬ıofş±æÁºµÏ˜ì¸( 13              7n6Ø¤æÁºµÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -1467 WHERE bid = 1;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              7ÿÿÿÿÿÿÿÿŒ|â	å=ááæÁºµÏ˜ì¸( 13              8p6Ê¤æÁºµÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -1800 WHERE aid = 2984298;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              8       ¬ıofş±æÁºµÏ˜ì¸( 13              9r6Ø¤†Ä´¶Ï˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (554, 1, 3497192, -1467, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              9ÿÿÿÿÿÿÿÿŒ|â	å=áá†Ä´¶Ï˜ì¸( 13              :t6Ø¤†Ä´¶Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              :ÿÿÿÿÿÿÿÿŒ|â	å=áá†Ä´¶Ï˜ì¸( 13              ;v6Ê¤†Ä´¶Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 2984298;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ;       ¬ıofş±†Ä´¶Ï˜ì¸( 13              <x6Ê¤†Ä´¶Ï˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -1800 WHERE tid = 625;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              <       ¬ıofş±†Ä´¶Ï˜ì¸( 13              =z6Ê¤š¹®·Ï˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -1800 WHERE bid = 46;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              =       ¬ıofş±š¹®·Ï˜ì¸( 13              >|6Ê¤š¹®·Ï˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (625, 46, 2984298, -1800, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              >       ¬ıofş±š¹®·Ï˜ì¸( 13              ?~6Ê¤š¹®·Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ?       ¬ıofş±š¹®·Ï˜ì¸( 13              @€6È£¨ò¼Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              @       L2r6ßûú8¨ò¼Ï˜ì¸( 13              A‚6È£¨ò¼Ï˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + -85 WHERE aid = 2330995;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              A       L2r6ßûú8¨ò¼Ï˜ì¸( 13              B„6È£¨ò¼Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 2330995;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              B       L2r6ßûú8¨ò¼Ï˜ì¸( 13              C†6È£¨ò¼Ï˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + -85 WHERE tid = 537;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              C       L2r6ßûú8¨ò¼Ï˜ì¸( 13              Dˆ6º¦¢À„¾Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Dÿÿÿÿÿÿÿÿğ ±º…Ä`c¢À„¾Ï˜ì¸( 13              EŠ6È£¢À„¾Ï˜ì¸(     
-
-queryˆUPDATE pgbench_branches SET bbalance = bbalance + -85 WHERE bid = 6;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              E       L2r6ßûú8¢À„¾Ï˜ì¸( 13              FŒ6Ê¤¢À„¾Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              F       ¬ıofş±¢À„¾Ï˜ì¸( 13              G6º¦¢À„¾Ï˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 2936 WHERE aid = 6637232;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Gÿÿÿÿÿÿÿÿğ ±º…Ä`c¢À„¾Ï˜ì¸( 13              H6È£¢À„¾Ï˜ì¸(     
-
-queryÖINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (537, 6, 2330995, -85, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              H       L2r6ßûú8¢À„¾Ï˜ì¸( 13              I’6º¦¢À„¾Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 6637232;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Iÿÿÿÿÿÿÿÿğ ±º…Ä`c¢À„¾Ï˜ì¸( 13              J”6È£¢À„¾Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              J       L2r6ßûú8¢À„¾Ï˜ì¸( 13              K–6º¦¢À„¾Ï˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 2936 WHERE tid = 596;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Kÿÿÿÿÿÿÿÿğ ±º…Ä`c¢À„¾Ï˜ì¸( 13              L˜6Ê¤¢À„¾Ï˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -4188 WHERE aid = 4361779;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              L       ¬ıofş±¢À„¾Ï˜ì¸( 13              Mš6º¦˜†ÿ¾Ï˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 2936 WHERE bid = 38;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Mÿÿÿÿÿÿÿÿğ ±º…Ä`c˜†ÿ¾Ï˜ì¸( 13              Nœ6Ê¤˜†ÿ¾Ï˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 4361779;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              N       ¬ıofş±˜†ÿ¾Ï˜ì¸( 13              O6º¦˜†ÿ¾Ï˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (596, 38, 6637232, 2936, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Oÿÿÿÿÿÿÿÿğ ±º…Ä`c˜†ÿ¾Ï˜ì¸( 13              P 6Ê¤˜†ÿ¾Ï˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -4188 WHERE tid = 602;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              P       ¬ıofş±˜†ÿ¾Ï˜ì¸( 13              Q¢6º¦˜†ÿ¾Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Qÿÿÿÿÿÿÿÿğ ±º…Ä`c˜†ÿ¾Ï˜ì¸( 13              R¤6Ø¤˜†ÿ¾Ï˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              RÿÿÿÿÿÿÿÿŒ|â	å=áá˜†ÿ¾Ï˜ì¸( 13              S¦6Ê¤˜†ÿ¾Ï˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -4188 WHERE bid = 50;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              S       ¬ıofş±˜†ÿ¾Ï˜ì¸( 13              T¨6Ø¤˜†ÿ¾Ï˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + 2079 WHERE aid = 542149;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              TÿÿÿÿÿÿÿÿŒ|â	å=áá˜†ÿ¾Ï˜ì¸( 13              Uª6Ê¤˜†ÿ¾Ï˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (602, 50, 4361779, -4188, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              U       ¬ıofş±˜†ÿ¾Ï˜ì¸( 13              V¬6Ø¤˜†ÿ¾Ï˜ì¸(     
-
-queryrSELECT abalance FROM pgbench_accounts WHERE aid = 542149;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              VÿÿÿÿÿÿÿÿŒ|â	å=áá˜†ÿ¾Ï˜ì¸( 13              W®6Ê¤˜†ÿ¾Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              W       ¬ıofş±˜†ÿ¾Ï˜ì¸( 13              X°6Ø¤òù¿Ï˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 2079 WHERE tid = 489;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              XÿÿÿÿÿÿÿÿŒ|â	å=ááòù¿Ï˜ì¸( 13              Y²6Ø¤òù¿Ï˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 2079 WHERE bid = 31;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              YÿÿÿÿÿÿÿÿŒ|â	å=ááòù¿Ï˜ì¸( 13              Z´6Ø¤òù¿Ï˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (489, 31, 542149, 2079, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ZÿÿÿÿÿÿÿÿŒ|â	å=ááòù¿Ï˜ì¸( 13              [¶6Ø¤òù¿Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              [ÿÿÿÿÿÿÿÿŒ|â	å=ááòù¿Ï˜ì¸( 13              \¸6È£ØŠóÀÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              \       L2r6ßûú8ØŠóÀÏ˜ì¸( 13              ]º6È£ØŠóÀÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -1920 WHERE aid = 5455602;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ]       L2r6ßûú8ØŠóÀÏ˜ì¸( 13              ^¼6È£†šíÁÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 5455602;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ^       L2r6ßûú8†šíÁÏ˜ì¸( 13              _¾6È£†šíÁÏ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -1920 WHERE tid = 598;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              _       L2r6ßûú8†šíÁÏ˜ì¸( 13              `À6È£†šíÁÏ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -1920 WHERE bid = 63;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              `       L2r6ßûú8†šíÁÏ˜ì¸( 13              aÂ6È£†šíÁÏ˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (598, 63, 5455602, -1920, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              a       L2r6ßûú8†šíÁÏ˜ì¸( 13              bÄ6È£´µçÂÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              b       L2r6ßûú8´µçÂÏ˜ì¸( 13              cÆ6º¦´µçÂÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              cÿÿÿÿÿÿÿÿğ ±º…Ä`c´µçÂÏ˜ì¸( 13              dÈ6Ê¤´µçÂÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              d       ¬ıofş±´µçÂÏ˜ì¸( 13              eÊ6º¦¥áÃÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -4769 WHERE aid = 3968755;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              eÿÿÿÿÿÿÿÿğ ±º…Ä`c¥áÃÏ˜ì¸( 13              fÌ6Ê¤¥áÃÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -3205 WHERE aid = 1333676;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              f       ¬ıofş±¥áÃÏ˜ì¸( 13              gÎ6Ê¤¥áÃÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 1333676;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              g       ¬ıofş±¥áÃÏ˜ì¸( 13              hĞ6º¦¥áÃÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 3968755;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              hÿÿÿÿÿÿÿÿğ ±º…Ä`c¥áÃÏ˜ì¸( 13              iÒ6Ø¤¥áÃÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              iÿÿÿÿÿÿÿÿŒ|â	å=áá¥áÃÏ˜ì¸( 13              jÔ6º¦¥áÃÏ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -4769 WHERE tid = 526;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              jÿÿÿÿÿÿÿÿğ ±º…Ä`c¥áÃÏ˜ì¸( 13              kÖ6Ê¤¥áÃÏ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -3205 WHERE tid = 532;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              k       ¬ıofş±¥áÃÏ˜ì¸( 13              lØ6Ø¤¥áÃÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 3917 WHERE aid = 2174433;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              lÿÿÿÿÿÿÿÿŒ|â	å=áá¥áÃÏ˜ì¸( 13              mÚ6Ê¤¥áÃÏ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -3205 WHERE bid = 47;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              m       ¬ıofş±¥áÃÏ˜ì¸( 13              nÜ6º¦¥áÃÏ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -4769 WHERE bid = 70;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              nÿÿÿÿÿÿÿÿğ ±º…Ä`c¥áÃÏ˜ì¸( 13              oŞ6Ø¤°×ÛÄÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 2174433;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              oÿÿÿÿÿÿÿÿŒ|â	å=áá°×ÛÄÏ˜ì¸( 13              pà6Ê¤°×ÛÄÏ˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (532, 47, 1333676, -3205, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              p       ¬ıofş±°×ÛÄÏ˜ì¸( 13              qâ6º¦°×ÛÄÏ˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (526, 70, 3968755, -4769, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              qÿÿÿÿÿÿÿÿğ ±º…Ä`c°×ÛÄÏ˜ì¸( 13              rä6Ø¤°×ÛÄÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 3917 WHERE tid = 266;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              rÿÿÿÿÿÿÿÿŒ|â	å=áá°×ÛÄÏ˜ì¸( 13              sæ6Ê¤°×ÛÄÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              s       ¬ıofş±°×ÛÄÏ˜ì¸( 13              tè6º¦°×ÛÄÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              tÿÿÿÿÿÿÿÿğ ±º…Ä`c°×ÛÄÏ˜ì¸( 13              uê6Ø¤°×ÛÄÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 3917 WHERE bid = 46;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              uÿÿÿÿÿÿÿÿŒ|â	å=áá°×ÛÄÏ˜ì¸( 13              vì6Ø¤°×ÛÄÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (266, 46, 2174433, 3917, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              vÿÿÿÿÿÿÿÿŒ|â	å=áá°×ÛÄÏ˜ì¸( 13              wî6Ø¤°×ÛÄÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              wÿÿÿÿÿÿÿÿŒ|â	å=áá°×ÛÄÏ˜ì¸( 13              xğ6È£ì“¸ÊÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              x       L2r6ßûú8ì“¸ÊÏ˜ì¸( 13              yò6È£ì“¸ÊÏ˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + 211 WHERE aid = 3041674;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              y       L2r6ßûú8ì“¸ÊÏ˜ì¸( 13              zô6È£Üœ¬ÌÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 3041674;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              z       L2r6ßûú8Üœ¬ÌÏ˜ì¸( 13              {ö6È£ˆ ¦ÍÏ˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + 211 WHERE tid = 691;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              {       L2r6ßûú8ˆ ¦ÍÏ˜ì¸( 13              |ø6º¦ˆ ¦ÍÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              |ÿÿÿÿÿÿÿÿğ ±º…Ä`cˆ ¦ÍÏ˜ì¸( 13              }ú6È£ˆ ¦ÍÏ˜ì¸(     
-
-queryˆUPDATE pgbench_branches SET bbalance = bbalance + 211 WHERE bid = 1;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              }       L2r6ßûú8ˆ ¦ÍÏ˜ì¸( 13              ~ü6Ø¤ˆ ¦ÍÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ~ÿÿÿÿÿÿÿÿŒ|â	å=ááˆ ¦ÍÏ˜ì¸( 13              ş6Ê¤À° ÎÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±À° ÎÏ˜ì¸( 13              €€6º¦À° ÎÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + -461 WHERE aid = 6406494;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              €ÿÿÿÿÿÿÿÿğ ±º…Ä`cÀ° ÎÏ˜ì¸( 13              ‚6Ê¤À° ÎÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -4274 WHERE aid = 6317535;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±À° ÎÏ˜ì¸( 13              ‚„6Ø¤À° ÎÏ˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + 438 WHERE aid = 6134383;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ‚ÿÿÿÿÿÿÿÿŒ|â	å=ááÀ° ÎÏ˜ì¸( 13              ƒ†6Ê¤À° ÎÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 6317535;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ƒ       ¬ıofş±À° ÎÏ˜ì¸( 13              „ˆ6º¦À° ÎÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 6406494;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              „ÿÿÿÿÿÿÿÿğ ±º…Ä`cÀ° ÎÏ˜ì¸( 13              …Š6Ø¤À° ÎÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 6134383;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              …ÿÿÿÿÿÿÿÿŒ|â	å=ááÀ° ÎÏ˜ì¸( 13              †Œ6Ê¤À° ÎÏ˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + -4274 WHERE tid = 8;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              †       ¬ıofş±À° ÎÏ˜ì¸( 13              ‡6Ø¤À° ÎÏ˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + 438 WHERE tid = 233;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ‡ÿÿÿÿÿÿÿÿŒ|â	å=ááÀ° ÎÏ˜ì¸( 13              ˆ6º¦²®šÏÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + -461 WHERE tid = 366;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ˆÿÿÿÿÿÿÿÿğ ±º…Ä`c²®šÏÏ˜ì¸( 13              ‰’6Ê¤²®šÏÏ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -4274 WHERE bid = 12;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ‰       ¬ıofş±²®šÏÏ˜ì¸( 13              Š”6Ø¤²®šÏÏ˜ì¸(     
-
-queryŠUPDATE pgbench_branches SET bbalance = bbalance + 438 WHERE bid = 15;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ŠÿÿÿÿÿÿÿÿŒ|â	å=áá²®šÏÏ˜ì¸( 13              ‹–6º¦²®šÏÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -461 WHERE bid = 19;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ‹ÿÿÿÿÿÿÿÿğ ±º…Ä`c²®šÏÏ˜ì¸( 13              Œ˜6È£²®šÏÏ˜ì¸(     
-
-queryÖINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (691, 1, 3041674, 211, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              Œ       L2r6ßûú8²®šÏÏ˜ì¸( 13              š6Ê¤²®šÏÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (8, 12, 6317535, -4274, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±²®šÏÏ˜ì¸( 13              œ6Ê¤²®šÏÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±²®šÏÏ˜ì¸( 13              6Ø¤²®šÏÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (233, 15, 6134383, 438, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=áá²®šÏÏ˜ì¸( 13               6Ø¤°¹”ĞÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=áá°¹”ĞÏ˜ì¸( 13              ‘¢6º¦°¹”ĞÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (366, 19, 6406494, -461, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ‘ÿÿÿÿÿÿÿÿğ ±º…Ä`c°¹”ĞÏ˜ì¸( 13              ’¤6È£°¹”ĞÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ’       L2r6ßûú8°¹”ĞÏ˜ì¸( 13              “¦6º¦°¹”ĞÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              “ÿÿÿÿÿÿÿÿğ ±º…Ä`c°¹”ĞÏ˜ì¸( 13              ”¨6Ê¤ÒöˆÒÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ”       ¬ıofş±ÒöˆÒÏ˜ì¸( 13              •ª6Ê¤ÒöˆÒÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 2442 WHERE aid = 3938074;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              •       ¬ıofş±ÒöˆÒÏ˜ì¸( 13              –¬6Ê¤¾Ì‚ÔÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 3938074;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              –       ¬ıofş±¾Ì‚ÔÏ˜ì¸( 13              —®6º¦¾Ì‚ÔÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              —ÿÿÿÿÿÿÿÿğ ±º…Ä`c¾Ì‚ÔÏ˜ì¸( 13              ˜°6È£¾Ì‚ÔÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ˜       L2r6ßûú8¾Ì‚ÔÏ˜ì¸( 13              ™²6Ø¤¾Ì‚ÔÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ™ÿÿÿÿÿÿÿÿŒ|â	å=áá¾Ì‚ÔÏ˜ì¸( 13              š´6Ê¤¾Ì‚ÔÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 2442 WHERE tid = 361;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              š       ¬ıofş±¾Ì‚ÔÏ˜ì¸( 13              ›¶6È£¾Ì‚ÔÏ˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + -4141 WHERE aid = 76131;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ›       L2r6ßûú8¾Ì‚ÔÏ˜ì¸( 13              œ¸6Ø¤¾Ì‚ÔÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -2114 WHERE aid = 5916777;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              œÿÿÿÿÿÿÿÿŒ|â	å=áá¾Ì‚ÔÏ˜ì¸( 13              º6Ê¤ÔĞöÔÏ˜ì¸(     
-
-queryŠUPDATE pgbench_branches SET bbalance = bbalance + 2442 WHERE bid = 3;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                     ¬ıofş±ÔĞöÔÏ˜ì¸( 13              ¼6È£ÔĞöÔÏ˜ì¸(     
-
-querypSELECT abalance FROM pgbench_accounts WHERE aid = 76131;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8ÔĞöÔÏ˜ì¸( 13              Ÿ¾6Ø¤ÔĞöÔÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 5916777;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ŸÿÿÿÿÿÿÿÿŒ|â	å=ááÔĞöÔÏ˜ì¸( 13               À6Ê¤ÔĞöÔÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (361, 3, 3938074, 2442, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                      ¬ıofş±ÔĞöÔÏ˜ì¸( 13              ¡Â6È£ÔĞöÔÏ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -4141 WHERE tid = 226;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ¡       L2r6ßûú8ÔĞöÔÏ˜ì¸( 13              ¢Ä6Ø¤ÔĞöÔÏ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -2114 WHERE tid = 115;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ¢ÿÿÿÿÿÿÿÿŒ|â	å=ááÔĞöÔÏ˜ì¸( 13              £Æ6Ê¤ÔĞöÔÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              £       ¬ıofş±ÔĞöÔÏ˜ì¸( 13              ¤È6È£ÔĞöÔÏ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -4141 WHERE bid = 20;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ¤       L2r6ßûú8ÔĞöÔÏ˜ì¸( 13              ¥Ê6º¦ÔĞöÔÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 2308 WHERE aid = 5834191;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ¥ÿÿÿÿÿÿÿÿğ ±º…Ä`cÔĞöÔÏ˜ì¸( 13              ¦Ì6Ø¤ÔĞöÔÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -2114 WHERE bid = 8;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ¦ÿÿÿÿÿÿÿÿŒ|â	å=ááÔĞöÔÏ˜ì¸( 13              §Î6È£ÔĞöÔÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (226, 20, 76131, -4141, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              §       L2r6ßûú8ÔĞöÔÏ˜ì¸( 13              ¨Ğ6º¦šúğÕÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 5834191;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ¨ÿÿÿÿÿÿÿÿğ ±º…Ä`cšúğÕÏ˜ì¸( 13              ©Ò6Ø¤šúğÕÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (115, 8, 5916777, -2114, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ©ÿÿÿÿÿÿÿÿŒ|â	å=áášúğÕÏ˜ì¸( 13              ªÔ6È£šúğÕÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ª       L2r6ßûú8šúğÕÏ˜ì¸( 13              «Ö6Ø¤šúğÕÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              «ÿÿÿÿÿÿÿÿŒ|â	å=áášúğÕÏ˜ì¸( 13              ¬Ø6º¦šúğÕÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 2308 WHERE tid = 649;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ¬ÿÿÿÿÿÿÿÿğ ±º…Ä`cšúğÕÏ˜ì¸( 13              ­Ú6º¦šúğÕÏ˜ì¸(     
-
-queryŠUPDATE pgbench_branches SET bbalance = bbalance + 2308 WHERE bid = 8;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ­ÿÿÿÿÿÿÿÿğ ±º…Ä`cšúğÕÏ˜ì¸( 13              ®Ü6Ê¤ª—ÛÙÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ®       ¬ıofş±ª—ÛÙÏ˜ì¸( 13              ¯Ş6Ê¤ª—ÛÙÏ˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + 4280 WHERE aid = 296673;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ¯       ¬ıofş±ª—ÛÙÏ˜ì¸( 13              °à6Ê¤ÀÓÚÏ˜ì¸(     
-
-queryrSELECT abalance FROM pgbench_accounts WHERE aid = 296673;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              °       ¬ıofş±ÀÓÚÏ˜ì¸( 13              ±â6Ê¤ÀÓÚÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 4280 WHERE tid = 395;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ±       ¬ıofş±ÀÓÚÏ˜ì¸( 13              ²ä6Ê¤ÀÓÚÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 4280 WHERE bid = 61;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ²       ¬ıofş±ÀÓÚÏ˜ì¸( 13              ³æ6Ê¤ÀÓÚÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (395, 61, 296673, 4280, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ³       ¬ıofş±ÀÓÚÏ˜ì¸( 13              ´è6Ê¤®ßÌÛÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ´       ¬ıofş±®ßÌÛÏ˜ì¸( 13              µê6È£äªªáÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              µ       L2r6ßûú8äªªáÏ˜ì¸( 13              ¶ì6È£äªªáÏ˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + 276 WHERE aid = 3120964;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ¶       L2r6ßûú8äªªáÏ˜ì¸( 13              ·î6Ø¤äªªáÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ·ÿÿÿÿÿÿÿÿŒ|â	å=ááäªªáÏ˜ì¸( 13              ¸ğ6º¦äªªáÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (649, 8, 5834191, 2308, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ¸ÿÿÿÿÿÿÿÿğ ±º…Ä`cäªªáÏ˜ì¸( 13              ¹ò6Ø¤äªªáÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 4154 WHERE aid = 5947868;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ¹ÿÿÿÿÿÿÿÿŒ|â	å=ááäªªáÏ˜ì¸( 13              ºô6º¦æ£âÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ºÿÿÿÿÿÿÿÿğ ±º…Ä`cæ£âÏ˜ì¸( 13              »ö6È£æ£âÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 3120964;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              »       L2r6ßûú8æ£âÏ˜ì¸( 13              ¼ø6Ø¤æ£âÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 5947868;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ¼ÿÿÿÿÿÿÿÿŒ|â	å=ááæ£âÏ˜ì¸( 13              ½ú6È£æ£âÏ˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + 276 WHERE tid = 140;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ½       L2r6ßûú8æ£âÏ˜ì¸( 13              ¾ü6Ø¤æ£âÏ˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + 4154 WHERE tid = 93;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ¾ÿÿÿÿÿÿÿÿŒ|â	å=ááæ£âÏ˜ì¸( 13              ¿ş6È£æ£âÏ˜ì¸(     
-
-queryŠUPDATE pgbench_branches SET bbalance = bbalance + 276 WHERE bid = 11;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ¿       L2r6ßûú8æ£âÏ˜ì¸( 13              À€6Ø¤æ£âÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 4154 WHERE bid = 17;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÀÿÿÿÿÿÿÿÿŒ|â	å=ááæ£âÏ˜ì¸( 13              Á‚6Ê¤ºéãÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Á       ¬ıofş±ºéãÏ˜ì¸( 13              Â„6Ê¤ºéãÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + -759 WHERE aid = 2622975;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Â       ¬ıofş±ºéãÏ˜ì¸( 13              Ã†6È£ºéãÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (140, 11, 3120964, 276, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              Ã       L2r6ßûú8ºéãÏ˜ì¸( 13              Äˆ6Ø¤ºéãÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (93, 17, 5947868, 4154, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÄÿÿÿÿÿÿÿÿŒ|â	å=ááºéãÏ˜ì¸( 13              ÅŠ6È£ºéãÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              Å       L2r6ßûú8ºéãÏ˜ì¸( 13              ÆŒ6Ê¤ºéãÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 2622975;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Æ       ¬ıofş±ºéãÏ˜ì¸( 13              Ç6Ø¤ºéãÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÇÿÿÿÿÿÿÿÿŒ|â	å=ááºéãÏ˜ì¸( 13              È6Ê¤ºéãÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + -759 WHERE tid = 340;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              È       ¬ıofş±ºéãÏ˜ì¸( 13              É’6Ê¤ü¾—äÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -759 WHERE bid = 67;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              É       ¬ıofş±ü¾—äÏ˜ì¸( 13              Ê”6Ê¤ü¾—äÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (340, 67, 2622975, -759, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Ê       ¬ıofş±ü¾—äÏ˜ì¸( 13              Ë–6Ê¤ü¾—äÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Ë       ¬ıofş±ü¾—äÏ˜ì¸( 13              Ì˜6º¦˜è’åÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Ìÿÿÿÿÿÿÿÿğ ±º…Ä`c˜è’åÏ˜ì¸( 13              Íš6º¦˜è’åÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + -253 WHERE aid = 1061920;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Íÿÿÿÿÿÿÿÿğ ±º…Ä`c˜è’åÏ˜ì¸( 13              Îœ6º¦Öé‹æÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 1061920;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Îÿÿÿÿÿÿÿÿğ ±º…Ä`cÖé‹æÏ˜ì¸( 13              Ï6º¦Öé‹æÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + -253 WHERE tid = 526;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Ïÿÿÿÿÿÿÿÿğ ±º…Ä`cÖé‹æÏ˜ì¸( 13              Ğ 6º¦Öé‹æÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -253 WHERE bid = 16;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Ğÿÿÿÿÿÿÿÿğ ±º…Ä`cÖé‹æÏ˜ì¸( 13              Ñ¢6º¦²ñ…çÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (526, 16, 1061920, -253, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Ñÿÿÿÿÿÿÿÿğ ±º…Ä`c²ñ…çÏ˜ì¸( 13              Ò¤6º¦²ñ…çÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              Òÿÿÿÿÿÿÿÿğ ±º…Ä`c²ñ…çÏ˜ì¸( 13              Ó¦6Ø¤ÒûáìÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÓÿÿÿÿÿÿÿÿŒ|â	å=ááÒûáìÏ˜ì¸( 13              Ô¨6Ê¤ÒûáìÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Ô       ¬ıofş±ÒûáìÏ˜ì¸( 13              Õª6Ø¤ÒûáìÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -2007 WHERE aid = 5826314;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÕÿÿÿÿÿÿÿÿŒ|â	å=ááÒûáìÏ˜ì¸( 13              Ö¬6Ê¤ÒûáìÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -2624 WHERE aid = 4556177;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Ö       ¬ıofş±ÒûáìÏ˜ì¸( 13              ×®6Ø¤ÒûáìÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 5826314;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ×ÿÿÿÿÿÿÿÿŒ|â	å=ááÒûáìÏ˜ì¸( 13              Ø°6Ê¤ÒûáìÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 4556177;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Ø       ¬ıofş±ÒûáìÏ˜ì¸( 13              Ù²6Ø¤ÒûáìÏ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -2007 WHERE tid = 667;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÙÿÿÿÿÿÿÿÿŒ|â	å=ááÒûáìÏ˜ì¸( 13              Ú´6È£€—ÜíÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              Ú       L2r6ßûú8€—ÜíÏ˜ì¸( 13              Û¶6Ê¤€—ÜíÏ˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + -2624 WHERE tid = 8;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              Û       ¬ıofş±€—ÜíÏ˜ì¸( 13              Ü¸6Ø¤€—ÜíÏ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -2007 WHERE bid = 37;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÜÿÿÿÿÿÿÿÿŒ|â	å=áá€—ÜíÏ˜ì¸( 13              İº6È£€—ÜíÏ˜ì¸(     
-
-query”UPDATE pgbench_accounts SET abalance = abalance + 214 WHERE aid = 3790834;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              İ       L2r6ßûú8€—ÜíÏ˜ì¸( 13              Ş¼6Ø¤€—ÜíÏ˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (667, 37, 5826314, -2007, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ŞÿÿÿÿÿÿÿÿŒ|â	å=áá€—ÜíÏ˜ì¸( 13              ß¾6È£€—ÜíÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 3790834;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ß       L2r6ßûú8€—ÜíÏ˜ì¸( 13              àÀ6Ø¤€—ÜíÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              àÿÿÿÿÿÿÿÿŒ|â	å=áá€—ÜíÏ˜ì¸( 13              áÂ6È£˜¼ÖîÏ˜ì¸(     
-
-queryŠUPDATE pgbench_tellers SET tbalance = tbalance + 214 WHERE tid = 656;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              á       L2r6ßûú8˜¼ÖîÏ˜ì¸( 13              âÄ6Ê¤˜¼ÖîÏ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -2624 WHERE bid = 57;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              â       ¬ıofş±˜¼ÖîÏ˜ì¸( 13              ãÆ6È£˜¼ÖîÏ˜ì¸(     
-
-queryŠUPDATE pgbench_branches SET bbalance = bbalance + 214 WHERE bid = 57;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ã       L2r6ßûú8˜¼ÖîÏ˜ì¸( 13              äÈ6Ê¤œ¡ÖïÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (8, 57, 4556177, -2624, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ä       ¬ıofş±œ¡ÖïÏ˜ì¸( 13              åÊ6Ê¤œ¡ÖïÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              å       ¬ıofş±œ¡ÖïÏ˜ì¸( 13              æÌ6º¦üÑ¿òÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              æÿÿÿÿÿÿÿÿğ ±º…Ä`cüÑ¿òÏ˜ì¸( 13              çÎ6º¦üÑ¿òÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -4736 WHERE aid = 4908532;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              çÿÿÿÿÿÿÿÿğ ±º…Ä`cüÑ¿òÏ˜ì¸( 13              èĞ6º¦üÑ¿òÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 4908532;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              èÿÿÿÿÿÿÿÿğ ±º…Ä`cüÑ¿òÏ˜ì¸( 13              éÒ6º¦Èà¸óÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + -4736 WHERE tid = 38;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              éÿÿÿÿÿÿÿÿğ ±º…Ä`cÈà¸óÏ˜ì¸( 13              êÔ6º¦Èà¸óÏ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -4736 WHERE bid = 62;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              êÿÿÿÿÿÿÿÿğ ±º…Ä`cÈà¸óÏ˜ì¸( 13              ëÖ6Ø¤Èà¸óÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ëÿÿÿÿÿÿÿÿŒ|â	å=ááÈà¸óÏ˜ì¸( 13              ìØ6Ø¤®³ôÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 2993 WHERE aid = 5360072;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ìÿÿÿÿÿÿÿÿŒ|â	å=áá®³ôÏ˜ì¸( 13              íÚ6È£®³ôÏ˜ì¸(     
-
-queryØINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (656, 57, 3790834, 214, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              í       L2r6ßûú8®³ôÏ˜ì¸( 13              îÜ6Ø¤®³ôÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 5360072;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              îÿÿÿÿÿÿÿÿŒ|â	å=áá®³ôÏ˜ì¸( 13              ïŞ6Ê¤Ôã­õÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ï       ¬ıofş±Ôã­õÏ˜ì¸( 13              ğà6º¦Ôã­õÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (38, 62, 4908532, -4736, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              ğÿÿÿÿÿÿÿÿğ ±º…Ä`cÔã­õÏ˜ì¸( 13              ñâ6È£Ôã­õÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ñ       L2r6ßûú8Ôã­õÏ˜ì¸( 13              òä6º¦Ôã­õÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13              òÿÿÿÿÿÿÿÿğ ±º…Ä`cÔã­õÏ˜ì¸( 13              óæ6Ê¤Ôã­õÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -1642 WHERE aid = 4355312;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ó       ¬ıofş±Ôã­õÏ˜ì¸( 13              ôè6Ê¤†÷¨öÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 4355312;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ô       ¬ıofş±†÷¨öÏ˜ì¸( 13              õê6Ø¤†÷¨öÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 2993 WHERE tid = 646;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              õÿÿÿÿÿÿÿÿŒ|â	å=áá†÷¨öÏ˜ì¸( 13              öì6Ø¤†÷¨öÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 2993 WHERE bid = 45;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              öÿÿÿÿÿÿÿÿŒ|â	å=áá†÷¨öÏ˜ì¸( 13              ÷î6Ê¤†÷¨öÏ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -1642 WHERE tid = 367;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ÷       ¬ıofş±†÷¨öÏ˜ì¸( 13              øğ6Ø¤†÷¨öÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (646, 45, 5360072, 2993, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              øÿÿÿÿÿÿÿÿŒ|â	å=áá†÷¨öÏ˜ì¸( 13              ùò6Ê¤âƒ¡÷Ï˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -1642 WHERE bid = 14;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ù       ¬ıofş±âƒ¡÷Ï˜ì¸( 13              úô6Ê¤âƒ¡÷Ï˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (367, 14, 4355312, -1642, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              ú       ¬ıofş±âƒ¡÷Ï˜ì¸( 13              ûö6Ê¤âƒ¡÷Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13              û       ¬ıofş±âƒ¡÷Ï˜ì¸( 13              üø6Ø¤âƒ¡÷Ï˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              üÿÿÿÿÿÿÿÿŒ|â	å=ááâƒ¡÷Ï˜ì¸( 13              ıú6È£ÆáƒşÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ı       L2r6ßûú8ÆáƒşÏ˜ì¸( 13              şü6È£ÆáƒşÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 2686 WHERE aid = 1087393;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ş       L2r6ßûú8ÆáƒşÏ˜ì¸( 13              ÿş6È£ùñşÏ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 1087393;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13              ÿ       L2r6ßûú8ùñşÏ˜ì¸( 13              €6È£ùñşÏ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 2686 WHERE tid = 627;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                     L2r6ßûú8ùñşÏ˜ì¸( 13             ‚6È£ùñşÏ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 2686 WHERE bid = 68;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8ùñşÏ˜ì¸( 13             „6È£ùñşÏ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (627, 68, 1087393, 2686, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8ùñşÏ˜ì¸( 13             †6È£¾ˆìÿÏ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8¾ˆìÿÏ˜ì¸( 13             ˆ6º¦¾ˆìÿÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13             ÿÿÿÿÿÿÿÿğ ±º…Ä`c¾ˆìÿÏ˜ì¸( 13             Š6Ê¤¾ˆìÿÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±¾ˆìÿÏ˜ì¸( 13             Œ6Ø¤¾ˆìÿÏ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13             ÿÿÿÿÿÿÿÿŒ|â	å=áá¾ˆìÿÏ˜ì¸( 13             6º¦¾ˆìÿÏ˜ì¸(     
-
-query’UPDATE pgbench_accounts SET abalance = abalance + -601 WHERE aid = 15667;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13             ÿÿÿÿÿÿÿÿğ ±º…Ä`c¾ˆìÿÏ˜ì¸( 13             6Ê¤¾ˆìÿÏ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -3057 WHERE aid = 1515441;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±¾ˆìÿÏ˜ì¸( 13             	’6Ø¤¾ˆìÿÏ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 3298 WHERE aid = 3257413;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13             	ÿÿÿÿÿÿÿÿŒ|â	å=áá¾ˆìÿÏ˜ì¸( 13             
-”6º¦¾ˆìÿÏ˜ì¸(     
-
-querypSELECT abalance FROM pgbench_accounts WHERE aid = 15667;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13             
-ÿÿÿÿÿÿÿÿğ ±º…Ä`c¾ˆìÿÏ˜ì¸( 13             –6Ê¤şİå€Ğ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 1515441;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±şİå€Ğ˜ì¸( 13             ˜6Ø¤şİå€Ğ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 3257413;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13             ÿÿÿÿÿÿÿÿŒ|â	å=ááşİå€Ğ˜ì¸( 13             š6Ê¤şİå€Ğ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -3057 WHERE tid = 150;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±şİå€Ğ˜ì¸( 13             œ6Ê¤şİå€Ğ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -3057 WHERE bid = 42;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±şİå€Ğ˜ì¸( 13             6È£şİå€Ğ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8şİå€Ğ˜ì¸( 13              6È£şİå€Ğ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 1111 WHERE aid = 3290918;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8şİå€Ğ˜ì¸( 13             ¢6Ê¤şİå€Ğ˜ì¸(     
-
-queryÜINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (150, 42, 1515441, -3057, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13‚Ï¥„Æ´›w$Bı°vfî[                    ¬ıofş±şİå€Ğ˜ì¸( 13             ¤6º¦şİå€Ğ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + -601 WHERE tid = 560;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13             ÿÿÿÿÿÿÿÿğ ±º…Ä`cşİå€Ğ˜ì¸( 13             ¦6Ê¤şİå€Ğ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±şİå€Ğ˜ì¸( 13             ¨6Ø¤Ş­àĞ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 3298 WHERE tid = 236;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13             ÿÿÿÿÿÿÿÿŒ|â	å=ááŞ­àĞ˜ì¸( 13             ª6È£Ş­àĞ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 3290918;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8Ş­àĞ˜ì¸( 13             ¬6È£Ş­àĞ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 1111 WHERE tid = 333;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8Ş­àĞ˜ì¸( 13             ®6º¦Ş­àĞ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + -601 WHERE bid = 17;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13             ÿÿÿÿÿÿÿÿğ ±º…Ä`cŞ­àĞ˜ì¸( 13             °6È£ §Ú‚Ğ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 1111 WHERE bid = 53;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8 §Ú‚Ğ˜ì¸( 13             ²6Ø¤†¤ÔƒĞ˜ì¸(     
-
-queryŒUPDATE pgbench_branches SET bbalance = bbalance + 3298 WHERE bid = 33;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13             ÿÿÿÿÿÿÿÿŒ|â	å=áá†¤ÔƒĞ˜ì¸( 13             ´6È£†¤ÔƒĞ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (333, 53, 3290918, 1111, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8†¤ÔƒĞ˜ì¸( 13             ¶6Ê¤†¤ÔƒĞ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±†¤ÔƒĞ˜ì¸( 13             ¸6Ê¤†¤ÔƒĞ˜ì¸(     
-
-query˜UPDATE pgbench_accounts SET abalance = abalance + -4215 WHERE aid = 5704123;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±†¤ÔƒĞ˜ì¸( 13             º6È£À´Î„Ğ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13                    L2r6ßûú8À´Î„Ğ˜ì¸( 13             ¼6Ê¤À´Î„Ğ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 5704123;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±À´Î„Ğ˜ì¸( 13             ¾6Ê¤À´Î„Ğ˜ì¸(     
-
-queryUPDATE pgbench_tellers SET tbalance = tbalance + -4215 WHERE tid = 426;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13                    ¬ıofş±À´Î„Ğ˜ì¸( 13              À6Ø¤À´Î„Ğ˜ì¸(     
-
-queryÚINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (236, 33, 3257413, 3298, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13              ÿÿÿÿÿÿÿÿŒ|â	å=ááÀ´Î„Ğ˜ì¸( 13             !Â6Ø¤ÈÀÈ…Ğ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13             !ÿÿÿÿÿÿÿÿŒ|â	å=ááÈÀÈ…Ğ˜ì¸( 13             "Ä6È£ÈÀÈ…Ğ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13             "       L2r6ßûú8ÈÀÈ…Ğ˜ì¸( 13             #Æ6È£ÈÀÈ…Ğ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 2429 WHERE aid = 6939426;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13             #       L2r6ßûú8ÈÀÈ…Ğ˜ì¸( 13             $È6È£¤ÛŒĞ˜ì¸(     
-
-querytSELECT abalance FROM pgbench_accounts WHERE aid = 6939426;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13             $       L2r6ßûú8¤ÛŒĞ˜ì¸( 13             %Ê6º¦¤ÛŒĞ˜ì¸(     
-
-queryÖINSERT INTO pgbench_history (tid, bid, aid, delta, mtime) VALUES (560, 17, 15667, -601, CURRENT_TIMESTAMP);
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13             %ÿÿÿÿÿÿÿÿğ ±º…Ä`c¤ÛŒĞ˜ì¸( 13             &Ì6Ø¤¤ÛŒĞ˜ì¸(     
-
-queryBEGIN;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13             &ÿÿÿÿÿÿÿÿŒ|â	å=áá¤ÛŒĞ˜ì¸( 13             'Î6Ø¤ºè˜Ğ˜ì¸(     
-
-query–UPDATE pgbench_accounts SET abalance = abalance + 3455 WHERE aid = 5788063;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86364 13             'ÿÿÿÿÿÿÿÿŒ|â	å=ááºè˜Ğ˜ì¸( 13             (Ğ6º¦ºè˜Ğ˜ì¸(     
-
-queryEND;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86362 13             (ÿÿÿÿÿÿÿÿğ ±º…Ä`cºè˜Ğ˜ì¸( 13             )Ò6È£ÚŞ’Ğ˜ì¸(     
-
-queryŒUPDATE pgbench_tellers SET tbalance = tbalance + 2429 WHERE tid = 171;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86363 13             )       L2r6ßûú8ÚŞ’Ğ˜ì¸( 13             *Ô6Ê¤ÚŞ’Ğ˜ì¸(     
-
-queryUPDATE pgbench_branches SET bbalance = bbalance + -4215 WHERE bid = 66;
-probequery-startcallPostgresMainmodulepostgresproviderpostgresql86361 13             *       ¬ıofş±ÚŞ’Ğ˜ì¸( 13‚Ï¥„Æ´›w$Bı°v
