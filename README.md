@@ -59,7 +59,7 @@ For now, use ta3-api-bindings-python/examples/publish_from_file.py:
 For example, this publishes the git_server trace to the CADETS1 topic.  This assumes you're either running inside tc-in-a-box, or running on a host machine communicating with tc-in-a-box via port forwarding. 
 
 ```
-$ python publish_from_file.py -f ../../trace-data/buildinject/buildinject.json.CDM.bin -psf ../../ta3-serialization-schema/avro/TCCDMDatum.avsc -topic CADETS1
+$ python publish_from_file.py -f ../../trace-data/buildinject/cdm/buildinject.cdm.bin -psf ../../ta3-serialization-schema/avro/TCCDMDatum.avsc -topic CADETS1
 ```
 
 
