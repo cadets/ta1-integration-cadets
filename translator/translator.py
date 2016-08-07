@@ -205,14 +205,16 @@ class CDMTranslator(object):
 
         event["source"] = self.get_source()
 
-        event["properties"]["probe"] = probe
+        event["properties"]["call"] = call
+        if provider != "audit":
+            event["properties"]["provider"] = provider
+            event["properties"]["module"] = module
+            event["properties"]["probe"] = probe
+
         if "args" in cadets_record:
             event["properties"]["args"] = cadets_record["args"]
-        event["properties"]["call"] = call
-        event["properties"]["module"] = module
-        event["properties"]["provider"] = provider
 
-        event["programPoint"] = cadets_record["exec"]
+        event["properties"]["exec"] = cadets_record["exec"]
 
         for key in cadets_record:
             if not key in cdm_keys: # we already handled the standard CDM keys
