@@ -6,9 +6,11 @@ for that record)
 '''
 
 import logging
-from uuid import UUID
+import uuid
 
 from tc.schema.records import record_generator
+
+UID_NAMESPACE = uuid.UUID('6ba7b813-9dad-11d1-80b4-00c04fd430c8')
 
 class InstanceGenerator():
 
@@ -26,12 +28,6 @@ class InstanceGenerator():
                     # Value is another dict of file version : uuid
                     # No need to store the file Objects themselves, we just store the generated uuid
 
-    # Netflows are always created new, we don't refer to a previously created netflow object
-    # So no need to store the uuids
-    # Instead we just use a counter for the netflow uuid, since the host:port may not be unique
-    #   (multiple connections to the same dest host:port)
-    netflow_counter = 0
-
     CDMVersion = None
 
     def __init__(self, version):
@@ -43,7 +39,6 @@ class InstanceGenerator():
         self.created_threads.clear()
         self.created_users.clear()
         self.created_files.clear()
-        self.netflow_counter = 0
 
     def create_uuid(self, object_type, data):
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
@@ -51,45 +46,26 @@ class InstanceGenerator():
 
             UUIDs are now 128 bits
 
-            For now, we use the data as the lower 64 bits
-            For "uid", we set the next byte to 0x0
-            For "pid", we set the next byte to 0x1
-            For "tid", we set the next byte to 0x2
-            For events, 0x3
-            for "file", 0x4, and we hash the file path using the simple hash() method and use the lower 32 bits
-            for "netflow", 0x5 and we use the counter as data
-            for "uuid", we use given uuid 
-
-            0    32   64       (for a pid, where data is the pid value)
-            0000 0001 data data
+            For "uid", generate an RFC4122 v4 UUID
+            For "event", generate an RFC4122 v5 UUID
+            for "netflow", generate an RFC4122 v4 UUID
+            for "uuid", we use given uuid (on pid, tid, file)
         '''
-        uuid = 0
+        id = 0
         if object_type == "uid":
-            uuid = 0
-        elif object_type == "pid":
-            uuid = (1 << 64)
-            data = int(data)
-        elif object_type == "tid":
-            uuid = (2 << 64)
+            id = uuid.uuid5(UID_NAMESPACE, str(data)).int
         elif object_type == "event":
-            uuid = (3 << 64)
-        elif object_type == "file":
-            uuid = (4 << 64)
-            # may want to replace with a better hash method, this one isn't portable, but it's fine for this use
-            data = hash(data) & 0xFFFFFFFFFFFFFFFF
+            id = uuid.uuid4().int
+        # XXX: Use socket UUIDs eventually
         elif object_type == "netflow":
-            uuid = (5 << 64)
+            id = uuid.uuid4().int
         elif object_type == "uuid":
-            data = data
+            id = data
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
 
-        uuid = uuid | data
-
         # Eventually use this
-        uuidb = record_generator.Util.get_uuid_from_value(uuid)
-
-        return uuidb
+        return record_generator.Util.get_uuid_from_value(id)
 
     def get_process_subject_id(self, pid, puuid):
         ''' Given a pid, did we create a subject for the pid previously?
@@ -124,7 +100,7 @@ class InstanceGenerator():
         if puuid == str(pid):
             uniq = self.create_uuid("pid", puuid)
         else:
-            uniq = self.create_uuid("uuid", UUID(puuid).int)
+            uniq = self.create_uuid("uuid", uuid.UUID(puuid).int)
         self.created_processes[puuid] = uniq
         subject["uuid"] = uniq
 
@@ -221,13 +197,13 @@ class InstanceGenerator():
             return max(versions)
         return None
 
-    def create_file_object(self, uuid, path, source, version=None):
+    def create_file_object(self, id, path, source, version=None):
         ''' Infer the existence of a file object, add it to the created list, and return it.
             If version = None, look for an older version, and if found, add one and create a new Object
         '''
 
-        if uuid != None:
-            file_key = uuid
+        if id != None:
+            file_key = id
         else:
             file_key = path
         record = {}
@@ -253,10 +229,7 @@ class InstanceGenerator():
         fobject["version"] = version
 
         # Generate a uuid for this subject
-        if uuid is None:
-            uniq = self.create_uuid("file", path)
-        else:
-            uniq = self.create_uuid("uuid", UUID(uuid).int)
+        uniq = self.create_uuid("uuid", uuid.UUID(id).int)
 
         if self.created_files.has_key(file_key):
             versions = self.created_files[file_key]
@@ -296,8 +269,7 @@ class InstanceGenerator():
         nobject["destPort"] = int(destPort)
 
         # Generate a uuid for this subject
-        uniq = self.create_uuid("netflow", self.netflow_counter)
-        self.netflow_counter += 1
+        uniq = self.create_uuid("netflow", 0)
         nobject["uuid"] = uniq
 
         record["CDMVersion"] = self.CDMVersion
