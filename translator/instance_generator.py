@@ -10,7 +10,9 @@ import uuid
 
 from tc.schema.records import record_generator
 
-UID_NAMESPACE = uuid.UUID('6ba7b813-9dad-11d1-80b4-00c04fd430c8')
+UID_NAMESPACE =     uuid.UUID('6ba7b813-9dad-11d1-80b4-00c04fd430c8')
+EVENT_NAMESPACE =   uuid.UUID('6ba7b815-9dad-11d1-80b4-00c04fd430c8')
+NETFLOW_NAMESPACE = uuid.UUID('6ba7b816-9dad-11d1-80b4-00c04fd430c8')
 
 class InstanceGenerator():
 
@@ -28,6 +30,12 @@ class InstanceGenerator():
                     # Value is another dict of file version : uuid
                     # No need to store the file Objects themselves, we just store the generated uuid
 
+    # Netflows are always created new, we don't refer to a previously created netflow object
+    # So no need to store the uuids
+    # Instead we just use a counter for the netflow uuid, since the host:port may not be unique
+    #   (multiple connections to the same dest host:port)
+    netflow_counter = 0
+
     CDMVersion = None
 
     def __init__(self, version):
@@ -39,6 +47,7 @@ class InstanceGenerator():
         self.created_threads.clear()
         self.created_users.clear()
         self.created_files.clear()
+        self.netflow_counter = 0
 
     def create_uuid(self, object_type, data):
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
@@ -46,19 +55,17 @@ class InstanceGenerator():
 
             UUIDs are now 128 bits
 
-            For "uid", generate an RFC4122 v4 UUID
-            For "event", generate an RFC4122 v5 UUID
-            for "netflow", generate an RFC4122 v4 UUID
+            For "uid", "event", "netflow", generate an RFC4122 v5 UUID
             for "uuid", we use given uuid (on pid, tid, file)
         '''
         id = 0
         if object_type == "uid":
             id = uuid.uuid5(UID_NAMESPACE, str(data)).int
         elif object_type == "event":
-            id = uuid.uuid4().int
+            id = uuid.uuid5(EVENT_NAMESPACE, str(data)).int
         # XXX: Use socket UUIDs eventually
         elif object_type == "netflow":
-            id = uuid.uuid4().int
+            id = uuid.uuid5(NETFLOW_NAMESPACE, str(data)).int
         elif object_type == "uuid":
             id = data
         else:
@@ -269,7 +276,8 @@ class InstanceGenerator():
         nobject["destPort"] = int(destPort)
 
         # Generate a uuid for this subject
-        uniq = self.create_uuid("netflow", 0)
+        uniq = self.create_uuid("netflow", self.netflow_counter)
+        self.netflow_counter += 1
         nobject["uuid"] = uniq
 
         record["CDMVersion"] = self.CDMVersion
