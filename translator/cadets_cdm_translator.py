@@ -13,7 +13,7 @@ import os
 from os.path import isfile
 import json
 
-#import sys
+import sys
 #sys.path.insert(0, '../../ta3-api-bindings-python')
 
 from tc.schema.serialization import AvroGenericSerializer, Utils
@@ -51,6 +51,7 @@ def get_arg_parser():
     parser.add_argument("-wb", action="store_true", default=False, help="Write binary output file")
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
                         help="CDM Version number, make sure this matches the schema file you set with psf")
+    parser.add_argument("-p", action="store_true", default=False, help="Print progress message for longer translations")
 
     return parser
 
@@ -82,15 +83,15 @@ def main():
             elif fext == ".json":
                 logger.info("Translating JSON file: "+cfile)
                 path = os.path.join(args.tdir, cfile)
-                translate_file(translator, path, args.odir, args.wb, args.wj)
+                translate_file(translator, path, args.odir, args.wb, args.wj, args.p)
                 translator.reset()
 
     else:
         path = os.path.join(args.tdir, args.f)
-        translate_file(translator, path, args.odir, args.wb, args.wj)
+        translate_file(translator, path, args.odir, args.wb, args.wj, args.p)
 
 
-def translate_file(translator, path, output_dir, write_binary, write_json):
+def translate_file(translator, path, output_dir, write_binary, write_json, show_progress):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema)
@@ -131,6 +132,9 @@ def translate_file(translator, path, output_dir, write_binary, write_json):
 
                 incount += 1
                 previous_record = raw_cadets_record
+                if show_progress and incount % 1000 == 0:
+                    sys.stdout.write("\rRead and translated >=%d records so far" % incount)
+                    sys.stdout.flush()
         cadets_in.close()
 
     logger.info("Translated {i} records into {ic} CDM items".format(i=incount, ic=cdmcount))
