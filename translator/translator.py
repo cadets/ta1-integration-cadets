@@ -198,7 +198,7 @@ class CDMTranslator(object):
             event["type"] = "EVENT_APP_UNKNOWN"
 
         event["threadId"] = cadets_record["tid"]
-        event["timestampMicros"] = cadets_record["time"] / 1000 # ns to micro
+        event["timestampMicros"] = int(cadets_record["time"] / 1000) # ns to micro
 
         # Use the event counter as the seq number
         # This assumes we're processing events in order
@@ -282,7 +282,7 @@ class CDMTranslator(object):
         edge["fromUuid"] = fromUuid
         edge["toUuid"] = toUuid
         edge["type"] = edge_type
-        edge["timestamp"] = timestamp
+        edge["timestamp"] = int(timestamp)
 
         record = {}
         record["CDMVersion"] = self.CDMVersion

@@ -78,7 +78,7 @@ class InstanceGenerator():
         ''' Given a pid, did we create a subject for the pid previously?
             If so return the uid of the subject, if not return None
         '''
-        if self.created_processes.has_key(puuid):
+        if puuid in self.created_processes:
             return self.created_processes[puuid]
 
         return None
@@ -119,7 +119,7 @@ class InstanceGenerator():
         ''' Given a tid, did we create a subject for tid?
             If so, return the uid of the subject, if not return None
         '''
-        if self.created_threads.has_key(tid):
+        if tid in self.created_threads:
             return self.created_threads[tid]
 
         return None
@@ -153,7 +153,7 @@ class InstanceGenerator():
         ''' Given a uid, did we create a Principal for that uid?
             If so, return the uid of the Principal, if not return None
         '''
-        if self.created_users.has_key(uid):
+        if uid in self.created_users:
             return self.created_users[uid]
 
         return None
@@ -183,10 +183,10 @@ class InstanceGenerator():
             If version = None, return the latest version, else look for that specific version
             If found return the uuid of the object, if not return None
         '''
-        if self.created_files.has_key(file_key):
+        if file_key in self.created_files:
             versions = self.created_files[file_key]
             if version != None:
-                if versions.has_key(version):
+                if version in versions:
                     return versions[version]
             else:
                 # In practice, there will only be one version here, since for now we only need to store the latest version
@@ -199,7 +199,7 @@ class InstanceGenerator():
         ''' Get the latest version of a file that we created an Object for.
             Currently, we only store the latest version
         '''
-        if self.created_files.has_key(file_key):
+        if file_key in self.created_files:
             versions = self.created_files[file_key]
             return max(versions)
         return None
@@ -238,7 +238,7 @@ class InstanceGenerator():
         # Generate a uuid for this subject
         uniq = self.create_uuid("uuid", uuid.UUID(id).int)
 
-        if self.created_files.has_key(file_key):
+        if file_key in self.created_files:
             versions = self.created_files[file_key]
             max_version = self.get_latest_file_version(file_key)
             if version > max_version:

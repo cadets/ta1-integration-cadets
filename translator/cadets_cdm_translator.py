@@ -123,7 +123,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
     if write_kafka:
         client = KafkaClient(kafkastring)
         # Create the topic in kafka if it doesn't already exist
-        pykafka_topic = client.topics[kafkatopic]
+        pykafka_topic = client.topics[kafkatopic.encode("utf-8")]
         producer = pykafka_topic.get_producer(
             partitioner=HashingPartitioner(), sync=False,
             linger_ms=1, ack_timeout_ms=30000, max_retries=0)
