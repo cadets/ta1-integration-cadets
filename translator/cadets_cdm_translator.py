@@ -61,6 +61,7 @@ def get_arg_parser():
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
                         help="CDM Version number, make sure this matches the schema file you set with psf")
     parser.add_argument("-p", action="store_true", default=False, help="Print progress message for longer translations")
+    parser.add_argument("-watch", action="store_true", default=False, help="Watch for new files in source tdir - not compatible with -f")
 
     return parser
 
@@ -68,6 +69,11 @@ def get_arg_parser():
 def main():
     parser = get_arg_parser()
     args = parser.parse_args()
+
+    if args.watch and args.f:
+        # incompatible args used
+        parser.print_help()
+        sys.exit(1)
 
     # Set up logging
     fileConfig(args.lc)
@@ -95,15 +101,15 @@ def main():
             elif fext == ".json":
                 logger.info("Translating JSON file: "+cfile)
                 path = os.path.join(args.tdir, cfile)
-                translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p)
+                translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
                 translator.reset()
 
     else:
         path = os.path.join(args.tdir, args.f)
-        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p)
+        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
 
 
-def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress):
+def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema)
@@ -135,8 +141,10 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         logger.info("Loading records from "+cadets_in.name)
         # Iterate through the records, translating each to a CDM record
         previous_record = ""
-        for raw_cadets_record in cadets_in.readlines():
-            if len(raw_cadets_record) > 3 and raw_cadets_record != previous_record:
+        while 1:
+            current_location = cadets_in.tell()
+            raw_cadets_record = cadets_in.readline()
+            if raw_cadets_record and len(raw_cadets_record) > 3 and raw_cadets_record != previous_record:
                 cadets_record = json.loads(raw_cadets_record[2:])
                 logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
                 cdm_records = translator.translate_record(cadets_record)
@@ -156,6 +164,19 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 if show_progress and incount % 1000 == 0:
                     sys.stdout.write("\rRead and translated >=%d records so far" % incount)
                     sys.stdout.flush()
+            else:
+                # may be the end of the file
+                # if so, we're done looking at it
+                # otherwise, continue looking at the file for more records
+                if raw_cadets_record.strip() == "]":
+                    break
+                elif not raw_cadets_record:
+                    if watch:
+                        cadets_in.seek(current_location)
+                    else:
+                        break
+
+        # no more lines in the file. Is it really done, or should we wait for more lines?
         cadets_in.close()
 
     logger.info("Translated {i} records into {ic} CDM items".format(i=incount, ic=cdmcount))
