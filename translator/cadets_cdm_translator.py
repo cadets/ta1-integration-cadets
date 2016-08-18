@@ -8,6 +8,7 @@ Load in trace records in CADETS json format, translate them to CDM format, and w
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import queue
 import logging
 import time
 from logging.config import fileConfig
@@ -98,21 +99,38 @@ def main():
     if args.f is None:
         cfiles = [cf for cf in os.listdir(args.tdir) if isfile(os.path.join(args.tdir, cf))]
         observer = Observer()
-        observer.schedule(TranslateFileHandler(translator, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p), path=os.path.expanduser(args.tdir), recursive=True)
+        file_queue = queue.Queue()
+        for cf in cfiles:
+            file_queue.put(cf)
+
+        observer.schedule(DisplayFileHandler(file_queue), path=os.path.expanduser(args.tdir), recursive=True)
         observer.start()
-        for cfile in cfiles:
-            _, fext = os.path.splitext(cfile)
-            if cfile.endswith(".cdm.json"):
-                logger.info("Skipping CDM file: "+cfile)
-            elif fext == ".json":
-                logger.info("Translating JSON file: "+cfile)
-                path = os.path.join(args.tdir, cfile)
-                translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
-                translator.reset()
+        time_since_last_new_file = 0
         try:
-# how to know when no more files to run - can't ctrl+c until it's on the last file, otherwise it stops early
             while args.watch:
-                time.sleep(1)
+                try:
+                    cfile = file_queue.get(True, 60);
+                    _, fext = os.path.splitext(cfile)
+                    if args.p and time_since_last_new_file > 0:
+                        sys.stdout.write("\n");
+                    time_since_last_new_file = 0
+                    if cfile.endswith(".cdm.json"):
+                        logger.info("Skipping CDM file: "+cfile)
+                    elif fext == ".json":
+                        logger.info("Translating JSON file: "+cfile)
+                        path = os.path.join(args.tdir, cfile)
+                        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
+                        translator.reset()
+                        logger.info("Approximately "+str(file_queue.qsize())+" files left to translate.")
+                    else:
+                        logger.debug("Skipping non-json file: "+cfile)
+                except queue.Empty:
+                    time_since_last_new_file += 1
+                    if args.p:
+                        sys.stdout.write("\r%d minute(s) without a file to translate." % time_since_last_new_file )
+                        sys.stdout.flush()
+                    time.sleep(1)
+
         except KeyboardInterrupt:
             observer.stop()
             observer.join()
@@ -122,30 +140,14 @@ def main():
         translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
 
 
-class TranslateFileHandler(FileSystemEventHandler):
-    def __init__(self, translator, output_dir, write_binary, write_json, write_kafka, kafka_string, kafka_topic, show_progress):
+class DisplayFileHandler(FileSystemEventHandler):
+    def __init__(self, file_queue):
         super(FileSystemEventHandler, self).__init__()
-        self.translator = translator
-        self.output_dir = output_dir
-        self.write_binary = write_binary
-        self.write_json = write_json
-        self.write_kafka = write_kafka
-        self.kafka_string = kafka_string
-        self.kafka_topic = kafka_topic
-        self.show_progress = show_progress
+        self.file_queue = file_queue
     def on_created(self, event):
-        if event.is_directory:
-            sys.stdout.write("Hey, a new directory!\n")
-        else:
+        if not event.is_directory:
             new_file = event.src_path
-            _, fext = os.path.splitext(new_file)
-            if new_file.endswith(".cdm.json"):
-                logger.info("Skipping CDM file: "+new_file)
-            elif fext == ".json":
-#                 sys.stdout.write("Hey, a new file %s!\n" % event.src_path)
-                translate_file(self.translator, new_file, self.output_dir, self.write_binary, self.write_json, self.write_kafka, self.kafka_string, self.kafka_topic, self.show_progress, True)
-                self.translator.reset()
-        pass
+            self.file_queue.put(new_file)
 
 def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch):
     p_schema = translator.schema
@@ -217,6 +219,8 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         # no more lines in the file. Is it really done, or should we wait for more lines?
         cadets_in.close()
 
+    if show_progress and incount >= 1000:
+        sys.stdout.write("\n")
     logger.info("Translated {i} records into {ic} CDM items".format(i=incount, ic=cdmcount))
 
     if json_out != None:
