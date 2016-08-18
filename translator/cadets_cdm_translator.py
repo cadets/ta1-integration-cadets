@@ -9,6 +9,7 @@ Load in trace records in CADETS json format, translate them to CDM format, and w
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import logging
+import time
 from logging.config import fileConfig
 import argparse
 import os
@@ -97,7 +98,7 @@ def main():
     if args.f is None:
         cfiles = [cf for cf in os.listdir(args.tdir) if isfile(os.path.join(args.tdir, cf))]
         observer = Observer()
-        observer.schedule(TranslateFileHandler(translator, args.tdir, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p), path=os.path.expanduser(args.tdir), recursive=True)
+        observer.schedule(TranslateFileHandler(translator, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p), path=os.path.expanduser(args.tdir), recursive=True)
         observer.start()
         for cfile in cfiles:
             _, fext = os.path.splitext(cfile)
@@ -108,6 +109,13 @@ def main():
                 path = os.path.join(args.tdir, cfile)
                 translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
                 translator.reset()
+        try:
+# how to know when no more files to run - can't ctrl+c until it's on the last file, otherwise it stops early
+            while args.watch:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            observer.stop()
+            observer.join()
 
     else:
         path = os.path.join(args.tdir, args.f)
@@ -115,10 +123,9 @@ def main():
 
 
 class TranslateFileHandler(FileSystemEventHandler):
-    def __init__(self, translator, path, output_dir, write_binary, write_json, write_kafka, kafka_string, kafka_topic, show_progress):
+    def __init__(self, translator, output_dir, write_binary, write_json, write_kafka, kafka_string, kafka_topic, show_progress):
         super(FileSystemEventHandler, self).__init__()
         self.translator = translator
-        self.path = path
         self.output_dir = output_dir
         self.write_binary = write_binary
         self.write_json = write_json
@@ -130,7 +137,14 @@ class TranslateFileHandler(FileSystemEventHandler):
         if event.is_directory:
             sys.stdout.write("Hey, a new directory!\n")
         else:
-            sys.stdout.write("Hey, a new file!\n")
+            new_file = event.src_path
+            _, fext = os.path.splitext(new_file)
+            if new_file.endswith(".cdm.json"):
+                logger.info("Skipping CDM file: "+new_file)
+            elif fext == ".json":
+#                 sys.stdout.write("Hey, a new file %s!\n" % event.src_path)
+                translate_file(self.translator, new_file, self.output_dir, self.write_binary, self.write_json, self.write_kafka, self.kafka_string, self.kafka_topic, self.show_progress, True)
+                self.translator.reset()
         pass
 
 def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch):
