@@ -26,7 +26,7 @@ from translator import CDMTranslator
 
 # Default values, replace or use command line arguments
 TRACE_DIR = "../../trace-data"
-IN_FILE = "/data/trace.json"
+IN_FILE = None
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
