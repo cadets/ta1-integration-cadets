@@ -6,6 +6,8 @@ Load in trace records in CADETS json format, translate them to CDM format, and w
 
 """
 
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 import logging
 from logging.config import fileConfig
 import argparse
@@ -94,6 +96,9 @@ def main():
     # Load the input file
     if args.f is None:
         cfiles = [cf for cf in os.listdir(args.tdir) if isfile(os.path.join(args.tdir, cf))]
+        observer = Observer()
+        observer.schedule(TranslateFileHandler(translator, args.tdir, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p), path=os.path.expanduser(args.tdir), recursive=True)
+        observer.start()
         for cfile in cfiles:
             _, fext = os.path.splitext(cfile)
             if cfile.endswith(".cdm.json"):
@@ -108,6 +113,25 @@ def main():
         path = os.path.join(args.tdir, args.f)
         translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
 
+
+class TranslateFileHandler(FileSystemEventHandler):
+    def __init__(self, translator, path, output_dir, write_binary, write_json, write_kafka, kafka_string, kafka_topic, show_progress):
+        super(FileSystemEventHandler, self).__init__()
+        self.translator = translator
+        self.path = path
+        self.output_dir = output_dir
+        self.write_binary = write_binary
+        self.write_json = write_json
+        self.write_kafka = write_kafka
+        self.kafka_string = kafka_string
+        self.kafka_topic = kafka_topic
+        self.show_progress = show_progress
+    def on_created(self, event):
+        if event.is_directory:
+            sys.stdout.write("Hey, a new directory!\n")
+        else:
+            sys.stdout.write("Hey, a new file!\n")
+        pass
 
 def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch):
     p_schema = translator.schema
