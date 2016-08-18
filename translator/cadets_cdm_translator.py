@@ -117,7 +117,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         json_out = open(os.path.expanduser(json_out_path), 'w')
     if write_binary:
         bin_out_path = os.path.join(os.path.expanduser(output_dir), base_out+".cdm.bin")
-        bin_out = open(bin_out_path, 'w')
+        bin_out = open(bin_out_path, 'wb')
         # Create a file writer and serialize all provided records to it.
         file_writer = AvroGenericSerializer(p_schema, bin_out)
     if write_kafka:
