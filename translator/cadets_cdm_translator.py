@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python3
 
 """
 Load in trace records in CADETS json format, translate them to CDM format, and write the CDM records to a file
@@ -35,8 +35,8 @@ SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
 CDMVERSION = "13"
-KAFKASTRING = "ta3-starc-1a.tc.bbn.com:9092"
-TOPIC = "CADETS"
+KAFKASTRING = "129.55.12.59:9092"
+TOPIC = "ta1-cadets-cdm13"
 
 logger = logging.getLogger("tc")
 
