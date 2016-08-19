@@ -187,7 +187,18 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
             current_location = cadets_in.tell()
             raw_cadets_record = cadets_in.readline()
             if raw_cadets_record and len(raw_cadets_record) > 3 and raw_cadets_record != previous_record:
-                cadets_record = json.loads(raw_cadets_record[2:])
+                try:
+                    cadets_record = json.loads(raw_cadets_record[2:])
+                except ValueError as err:
+                    # if we expect the file to be added to, try again
+                    # otherwise, give up on the line and continue
+                    if watch:
+                        cadets_in.seek(current_location)
+                    else:
+                        logger.warn("Invalid CADETS entry: " + raw_cadets_record)
+                        logger.warn("Error was: " + str(err))
+                    continue
+
                 logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
                 cdm_records = translator.translate_record(cadets_record)
                 logger.debug("{i} translated to {t1} records".format(i=incount, t1=len(cdm_records)))
