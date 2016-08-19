@@ -98,49 +98,51 @@ def main():
     # Load the input file
     if args.f is None:
         cfiles = [cf for cf in os.listdir(args.tdir) if isfile(os.path.join(args.tdir, cf))]
-        observer = Observer()
         file_queue = queue.Queue()
         for cf in cfiles:
             file_queue.put(cf)
 
-        observer.schedule(DisplayFileHandler(file_queue), path=os.path.expanduser(args.tdir), recursive=True)
-        observer.start()
-        time_since_last_new_file = 0
+        if args.watch:
+            observer = Observer()
+            observer.schedule(EnqueueFileHandler(file_queue), path=os.path.expanduser(args.tdir), recursive=True)
+            observer.start()
+        minutes_since_last_file = 0
         try:
-            while args.watch:
+            while args.watch or not file_queue.empty():
                 try:
-                    cfile = file_queue.get(True, 60);
+                    # wait up to 60 seconds for a file
+                    # triggers queue.Empty exception if no files are in the queue.
+                    cfile = file_queue.get(True, 60)
                     _, fext = os.path.splitext(cfile)
-                    if args.p and time_since_last_new_file > 0:
-                        sys.stdout.write("\n");
-                    time_since_last_new_file = 0
-                    if cfile.endswith(".cdm.json"):
-                        logger.info("Skipping CDM file: "+cfile)
-                    elif fext == ".json":
+                    if args.p and minutes_since_last_file > 0:
+                        sys.stdout.write("\n")
+                        minutes_since_last_file = 0
+                    if cfile.endswith(".cdm.json") or fext != ".json":
+                        logger.info("Skipping file: "+cfile)
+                    else:
                         logger.info("Translating JSON file: "+cfile)
                         path = os.path.join(args.tdir, cfile)
                         translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
                         translator.reset()
-                        logger.info("Approximately "+str(file_queue.qsize())+" files left to translate.")
-                    else:
-                        logger.debug("Skipping non-json file: "+cfile)
+                        logger.info("About "+str(file_queue.qsize())+" files left to translate.")
                 except queue.Empty:
-                    time_since_last_new_file += 1
                     if args.p:
-                        sys.stdout.write("\r%d minute(s) without a file to translate." % time_since_last_new_file )
+                        minutes_since_last_file += 1
+                        sys.stdout.write("\r%d minute(s) without a file to translate." % minutes_since_last_file )
                         sys.stdout.flush()
                     time.sleep(1)
 
-        except KeyboardInterrupt:
-            observer.stop()
-            observer.join()
+        except KeyboardInterrupt: # handle ctrl+c
+            if args.watch:
+                observer.stop()
+                observer.join()
 
     else:
         path = os.path.join(args.tdir, args.f)
         translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
 
 
-class DisplayFileHandler(FileSystemEventHandler):
+class EnqueueFileHandler(FileSystemEventHandler):
     def __init__(self, file_queue):
         super(FileSystemEventHandler, self).__init__()
         self.file_queue = file_queue
@@ -205,16 +207,18 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                     sys.stdout.write("\rRead and translated >=%d records so far" % incount)
                     sys.stdout.flush()
             else:
-                # may be the end of the file
-                # if so, we're done looking at it
-                # otherwise, continue looking at the file for more records
-                if raw_cadets_record.strip() == "]":
-                    break
-                elif not raw_cadets_record:
+                # "]" marks the end of the records in the file, even if there are still more lines
+                # If we find that, we're all done with the file.
+                # If we reached the actual EOF and we're waiting for the file to finish, reset the file location and retry.
+                # If we reached the actual EOF and we're not waiting, then just consider this file finished.
+                if not raw_cadets_record:
                     if watch:
                         cadets_in.seek(current_location)
+                        time.sleep(1)
                     else:
                         break
+                elif raw_cadets_record.strip() == "]":
+                    break
 
         # no more lines in the file. Is it really done, or should we wait for more lines?
         cadets_in.close()
