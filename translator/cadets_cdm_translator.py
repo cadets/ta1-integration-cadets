@@ -183,6 +183,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         logger.info("Loading records from "+cadets_in.name)
         # Iterate through the records, translating each to a CDM record
         previous_record = ""
+        waiting = False # are we already waiting to find another value record?
         while 1:
             current_location = cadets_in.tell()
             # XXX: Strip null from json record
@@ -193,12 +194,14 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 except ValueError as err:
                     # if we expect the file to be added to, try again
                     # otherwise, give up on the line and continue
+                    if not waiting:
+                        logger.warn("Invalid CADETS entry at byte "+str(current_location)+": " + raw_cadets_record)
+                        logger.warn("Error was: " + str(err))
+                        waiting = True
                     if watch:
                         cadets_in.seek(current_location)
-                    else:
-                        logger.warn("Invalid CADETS entry: " + raw_cadets_record)
-                        logger.warn("Error was: " + str(err))
                     continue
+                waiting = False
 
                 logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
                 cdm_records = translator.translate_record(cadets_record)
@@ -224,6 +227,9 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 # If we reached the actual EOF and we're waiting for the file to finish, reset the file location and retry.
                 # If we reached the actual EOF and we're not waiting, then just consider this file finished.
                 if not raw_cadets_record:
+                    if not waiting:
+                        logger.warn("No more records found at byte " + str(current_location))
+                        waiting = True
                     if watch:
                         cadets_in.seek(current_location)
                         time.sleep(1)
