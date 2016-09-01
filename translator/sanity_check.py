@@ -76,6 +76,7 @@ def examine_file(translator, path):
     # Read the JSON CADETS records
     with open(path, 'r') as cadets_in:
         referenced_uuids.clear()
+        incount = 0
         # Iterate through the records, translating each to a CDM record
         while 1:
             raw_record = cadets_in.readline()
@@ -83,6 +84,8 @@ def examine_file(translator, path):
                 break
             if raw_record == "\n":
                 continue
+
+            incount = incount + 1
 
             try:
                 cadets_record = json.loads(raw_record)
@@ -92,8 +95,7 @@ def examine_file(translator, path):
 
             validated = examine_record(translator, cadets_record)
             if not validated:
-                logger.warn("Unusual entry, check for correctness")
-                logger.warn(raw_record)
+                logger.warn("Check record #" + str(incount) + ": " + raw_record)
 
         cadets_in.close()
 #         logger.info("referenced_uuids size: " + str(len(referenced_uuids)))
@@ -120,6 +122,7 @@ def examine_record(translator, record):
 
     if not details.get("type"):
         # Everything but files should have a "type"
+        logger.warn("Record has no type")
         return False
 
     record_type = details["type"]
@@ -127,8 +130,13 @@ def examine_record(translator, record):
     if record_type.startswith("EVENT"):
         referenced_uuids[details["uuid"]] = "EVENT"
     elif record_type.startswith("EDGE"):
-        if not (referenced_uuids.get(details["toUuid"]) and referenced_uuids.get(details["fromUuid"])):
-            logger.warn("Edge referenced an unknown node")
+        if not referenced_uuids.get(details["toUuid"]):
+            logger.warn("Edge to an unknown node")
+            referenced_uuids[details["toUuid"]] = "UNKNOWN"
+            return False
+        if not referenced_uuids.get(details["fromUuid"]):
+            logger.warn("Edge from an unknown node")
+            referenced_uuids[details["fromUuid"]] = "UNKNOWN"
             return False
     elif record_type == "SUBJECT_PROCESS":
         referenced_uuids[details["uuid"]] = "PROCESS"
