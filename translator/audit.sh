@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -e -x
+set -x
 
 #sudo rm -i /data/2016*.json
 
