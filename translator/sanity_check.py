@@ -111,33 +111,78 @@ def validate_record(record):
 
     return False
 
+
+PROCESS = "PROCESS"
+FILE = "FILE"
+PRINCIPAL = "PRINCIPAL"
+EVENT = "EVENT"
+UNKNOWN = "UNKNOWN"
+
 def validate_file(details):
-    referenced_uuids[details["uuid"]] = "FILE"
-    if details["uuid"] == "00000000000000000000000000000000":
-        logger.warn("Was trace run on a file system with UFS?")
+    '''
+    A file is valid as long as the UUID has not already been used for a
+    different node.
+
+    Currently a file may reuse a previous file uuid, which indicates the "file"
+    is the same as well.
+    '''
+    if not referenced_uuids.get(details["uuid"]) or referenced_uuids[details["uuid"]] is UNKNOWN:
+        referenced_uuids[details["uuid"]] = FILE
+        if details["uuid"] == "00000000000000000000000000000000":
+            logger.warn("Check that trace was run on a file system with UFS")
+            return False
+    if referenced_uuids[details["uuid"]] is not FILE:
+        logger.warn("UUID already used for " + referenced_uuids[details["uuid"]])
         return False
     return True
 
 def validate_principal(details):
-    referenced_uuids[details["uuid"]] = "PRINCIPAL"
+    '''
+    A principal is valid as long as the UUID has not already been used.
+    '''
+    if not referenced_uuids.get(details["uuid"]) or referenced_uuids[details["uuid"]] is UNKNOWN:
+        referenced_uuids[details["uuid"]] = PRINCIPAL
+    else:
+        # for principals, the uuid should always need to be created.
+        logger.warn("UUID already used for " + referenced_uuids[details["uuid"]])
+        return False
     return True
 
 def validate_process(details):
-    referenced_uuids[details["uuid"]] = "PROCESS"
+    '''
+    A process is valid as long as the UUID has not already been used.
+    '''
+    if not referenced_uuids.get(details["uuid"]) or referenced_uuids[details["uuid"]] is UNKNOWN:
+        referenced_uuids[details["uuid"]] = PROCESS
+    else:
+        # for processes, the uuid should always need to be created.
+        logger.warn("UUID already used for " + referenced_uuids[details["uuid"]])
+        return False
     return True
 
 def validate_event(details):
-    referenced_uuids[details["uuid"]] = "EVENT"
+    '''
+    An event is valid as long as the UUID has not already been used.
+    '''
+    if not referenced_uuids.get(details["uuid"]) or referenced_uuids[details["uuid"]] is UNKNOWN:
+        referenced_uuids[details["uuid"]] = EVENT
+    else:
+        # for events, the uuid should always need to be created.
+        logger.warn("UUID already used for " + referenced_uuids[details["uuid"]])
+        return False
     return True
 
 def validate_edge(details):
+    '''
+    An edge is valid as long as both nodes it indicates are already defined.
+    '''
     if not referenced_uuids.get(details["toUuid"]):
         logger.warn("Edge to an unknown node")
-        referenced_uuids[details["toUuid"]] = "UNKNOWN"
+        referenced_uuids[details["toUuid"]] = UNKNOWN
         return False
     if not referenced_uuids.get(details["fromUuid"]):
         logger.warn("Edge from an unknown node")
-        referenced_uuids[details["fromUuid"]] = "UNKNOWN"
+        referenced_uuids[details["fromUuid"]] = UNKNOWN
         return False
     return True
 
