@@ -49,19 +49,16 @@ The default value for the file to translate is None, which will cause it to tras
 Details of the CADETS-to-CDM translation will be stored [here](https://git.tc.bbn.com/bbn/ta1-integration-cadets/wikis/home)
 
 # Publishing to Kafka
-You can use the examples in ta3-api-bindings-python to publish these traces to Kafka
-Issue #2 is to more seamlessly integrate those examples.
-
-https://git.tc.bbn.com/bbn/ta3-api-bindings-python/wikis/home
-
-For now, use ta3-api-bindings-python/examples/publish_from_file.py:
-
-For example, this publishes the git_server trace to the CADETS1 topic.  This assumes you're either running inside tc-in-a-box, or running on a host machine communicating with tc-in-a-box via port forwarding. 
 
 ```
-$ python publish_from_file.py -f ../../ta1-integration-cadets/translator/output/git_server.json.CDM.bin -psf ../../ta3-serialization-schema/avro/TCCDMDatum.avsc -topic CADETS1
+$ ./cadets_cdm_translator.py  -f buildinject/cadets/buildinject.json -wk
 ```
 
+Options:
 
-
-
+```
+-ks ta3-starc-1a.tc.bbn.com:9092
+-ktopic ta1-cadets-cdm13
+-v
+-p
+```
