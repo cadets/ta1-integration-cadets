@@ -27,9 +27,6 @@ class CDMTranslator(object):
 
     # If true, create a File object for any event with a path
     createFileObjects = True
-    # If true, create new versions of the File object for every write event,
-    # if False, we'll only create one File subject
-    createFileVersions = True
 
     # If true, create NetflowObject objects for each event with an address:port
     # Since we don't have the source host and port, use defaults of localhost:-1
@@ -325,35 +322,8 @@ class CDMTranslator(object):
                     file_uuid = self.instance_generator.get_file_object_id(cadets_record[uuid])
                 else:
                     continue;
-                if file_uuid != None:
-                    if self.createFileVersions and etype == "EVENT_OPEN":
-                        # open event, create a new version of the file, with path info
-
-                        path = cadets_record["upath1"]
-                        if uuid == "arg_objuuid1":
-                            self.logger.debug("Creating version of file {f}".format(f=path))
-                            if self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"]) is None:
-                                fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
-                                newRecords.append(fileobj)
-                            else:
-                                fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), -1)
-                                newRecords.append(fileobj)
-
-                    if self.createFileVersions and etype == "EVENT_WRITE":
-                        self.logger.debug("Creating new version of file with UUID {f}".format(f=cadets_record[uuid]))
-                        # Write event, create a new version of the file
-                        old_version = self.instance_generator.get_latest_file_version(cadets_record[uuid])
-                        fileobj = self.instance_generator.create_file_object(cadets_record[uuid], "", self.get_source(), None)
-                        self.logger.debug("File version from {ov} to {nv}".format(ov=old_version, nv=fileobj["datum"]["version"]))
-                        newRecords.append(fileobj)
-
-                        # Add an EDGE_OBJECT_PREV_VERSION
-                        if old_version != None:
-                            self.logger.debug("Adding PREV_VERSION edge")
-                            edge1 = self.create_edge(file_uuid, fileobj["datum"]["uuid"], event["timestampMicros"], "EDGE_OBJECT_PREV_VERSION")
-                            newRecords.append(edge1)
-                else:
-                    self.logger.debug("Creating first version of the file")
+                if file_uuid is None:
+                    self.logger.debug("Creating file")
                     fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record.get("upath1", ""), self.get_source(), None)
                     file_uuid = fileobj["datum"]["uuid"]
                     newRecords.append(fileobj)
