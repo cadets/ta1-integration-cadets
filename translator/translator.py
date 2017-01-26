@@ -61,7 +61,7 @@ class CDMTranslator(object):
     def translate_record(self, cadets_record):
         ''' Generate a CDM record from the passed in JSON CADETS record '''
 
-        # List of CDM vertices or edges that we created from this record
+        # List of CDM vertices
         datums = []
 
         # nanos to micros
@@ -92,12 +92,6 @@ class CDMTranslator(object):
             proc_uuid = process["uuid"]
 
             datums.append(process_record)
-
-            # Add a HASLOCALPRINCIPAL edge from the process to the user
-            if user_uuid != None:
-                self.logger.debug("Creating edge from Subject {s} to Principal {u}".format(s=pid, u=uid))
-                edge2 = self.create_edge(proc_uuid, user_uuid, time_micros, "EDGE_SUBJECT_HASLOCALPRINCIPAL")
-                datums.append(edge2)
 
 
         # Create a new Thread subject if necessary
@@ -135,11 +129,6 @@ class CDMTranslator(object):
                 for objr in object_records:
                     datums.append(objr)
 
-            # Add an edge from the event to the subject that generated it
-            self.logger.debug("Creating edge from Event {e} to Subject {s}".format(s=pid, e=event_type))
-            edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
-            datums.append(edge1)
-
         event["properties"]["subjprocuuid"] = str(UUID(cadets_record["subjprocuuid"]).hex)
 
         if "fork" in call: # link forked processes
@@ -151,30 +140,14 @@ class CDMTranslator(object):
                 proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], None, self.get_source())
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
-            self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
-            fork_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
-            datums.append(fork_edge)
-            fork_edge2 = self.create_edge(event["uuid"], cproc_uuid, time_micros, "EDGE_EVENT_AFFECTS_SUBJECT")
-            datums.append(fork_edge2)
 
         if "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("upath1")
-            self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
-
             file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
             if file_uuid is None:
                 file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), exec_path, self.get_source(), None)
                 datums.append(file_record)
                 file_uuid = file_record["datum"]["uuid"]
-            self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
-            exec_file_edge = self.create_edge(file_uuid, event["uuid"], time_micros, "EDGE_FILE_AFFECTS_EVENT")
-            datums.append(exec_file_edge)
-
-            # Add a HASLOCALPRINCIPAL edge from the process to the user
-            if user_uuid != None:
-                self.logger.debug("Creating edge from Subject {s} to Principal {u}".format(s=pid, u=uid))
-                edge2 = self.create_edge(proc_uuid, user_uuid, time_micros, "EDGE_SUBJECT_HASLOCALPRINCIPAL")
-                datums.append(edge2)
 
         return datums
 
@@ -271,26 +244,10 @@ class CDMTranslator(object):
         return 'EVENT_OS_UNKNOWN'
 
 
-    def create_edge(self, fromUuid, toUuid, timestamp, edge_type):
-        ''' Create a 'type' Edge from the fromUuid to the toUuid object" '''
-        edge = {}
-
-        edge["properties"] = {}
-        edge["fromUuid"] = fromUuid
-        edge["toUuid"] = toUuid
-        edge["type"] = edge_type
-        edge["timestamp"] = int(timestamp)
-
-        record = {}
-        record["CDMVersion"] = self.CDMVersion
-        record["datum"] = edge
-        return record
-
     def create_subjects(self, event, cadets_record):
-        ''' Given a CDM event that we just created, generate Subject instances and the corresponding edges
+        ''' Given a CDM event that we just created, generate Subject instances
             Currently, we create:
               a subject for any files that we discover via the uuids
-              Plus an edge from the event to the subject,  EDGE_EVENT_AFFECTS_FILE or EDGE_FILE_AFFECTS_EVENT
         '''
         newRecords = []
         if self.createFileObjects and (event["type"] in file_calls or event["properties"]["call"] in file_calls):
@@ -305,11 +262,6 @@ class CDMTranslator(object):
             nf_obj = self.instance_generator.create_netflow_object(destAddr, destPort, self.get_source())
             nf_uuid = nf_obj["datum"]["uuid"]
             newRecords.append(nf_obj)
-
-            # Add an EDGE_EVENT_AFFECTS_NETFLOW
-            self.logger.debug("Creating a EVENT_AFFECTS_NETFLOW edge")
-            edge3 = self.create_edge(event["uuid"], nf_uuid, event["timestampMicros"], "EDGE_EVENT_AFFECTS_NETFLOW")
-            newRecords.append(edge3)
 
         return newRecords
 
@@ -327,24 +279,5 @@ class CDMTranslator(object):
                     fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record.get("upath1", ""), self.get_source(), None)
                     file_uuid = fileobj["datum"]["uuid"]
                     newRecords.append(fileobj)
-
-                if etype == "EVENT_WRITE" or etype == "EVENT_UNLINK" or etype == "EVENT_UNLINKAT":
-                    # Writes create an edge from the event to the file object
-                    self.logger.debug("Creating EVENT_AFFECTS_FILE edge for a file write")
-                    edge2 = self.create_edge(event["uuid"], file_uuid, event["timestampMicros"], "EDGE_EVENT_AFFECTS_FILE")
-                    newRecords.append(edge2)
-                elif etype == "EVENT_OPEN":
-                    if uuid == "ret_objuuid1":
-                        # on open create an edge from the file object to the event.
-                        # open often has multiple uuids pointing to the same file.
-                        # Avoid creating multiple edges
-                        self.logger.debug("Creating FILE_AFFECTS_EVENT for open")
-                        edge2 = self.create_edge(file_uuid, event["uuid"], event["timestampMicros"], "EDGE_FILE_AFFECTS_EVENT")
-                        newRecords.append(edge2)
-                else:
-                    # anything else (read, etc) create an edge from the file object to the event
-                    self.logger.debug("Creating FILE_AFFECTS_EVENT for the read or other file operation")
-                    edge2 = self.create_edge(file_uuid, event["uuid"], event["timestampMicros"], "EDGE_FILE_AFFECTS_EVENT")
-                    newRecords.append(edge2)
 
         return newRecords
