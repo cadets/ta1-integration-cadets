@@ -163,16 +163,16 @@ class InstanceGenerator():
         '''
         record = {}
         principal = {}
-        principal["properties"] = {}
-        principal["userId"] = str(uid)
-        principal["source"] = source
-        principal["groupIds"] = []
+        principal["uuid"] = self.create_uuid("uid", uid);
         principal["type"] = "PRINCIPAL_LOCAL"
+        principal["userId"] = str(uid)
+#         principal["username"] = string
+        principal["groupIds"] = []
+        principal["source"] = source
+        principal["properties"] = {}
 
-        # Generate a uuid for this user
-        uniq = self.create_uuid("uid", uid)
-        self.created_users[uid] = uniq
-        principal["uuid"] = uniq
+        # Save the uuid for this user
+        self.created_users[uid] = principal["uuid"]
 
         record["CDMVersion"] = self.CDMVersion
         record["datum"] = principal
