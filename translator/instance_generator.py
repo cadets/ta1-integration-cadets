@@ -74,7 +74,7 @@ class InstanceGenerator():
         # Eventually use this
         return record_generator.Util.get_uuid_from_value(id)
 
-    def get_process_subject_id(self, pid, puuid):
+    def get_process_subject_id(self, puuid):
         ''' Given a pid, did we create a subject for the pid previously?
             If so return the uid of the subject, if not return None
         '''
@@ -83,25 +83,28 @@ class InstanceGenerator():
 
         return None
 
-    def create_process_subject(self, pid, puuid, ppid, time_micros, source):
+    def create_process_subject(self, pid, puuid, ppid, principal, time_nanos, source):
         ''' Create a process subject, add it to the created list, and return it
         '''
 
         record = {}
         subject = {}
-        subject["properties"] = {}
 
-        subject["pid"] = pid
-        subject["ppid"] = ppid
+        subject["localPrincipal"] = self.create_uuid("uid", principal);
+        subject["parentSubject"] = self.create_uuid("uuid", 0)
+        subject["cid"] = pid # relevent pid/tid/etc
 
-        # We don't really know the start time of the process, since this method
-        # is inferring the existance of a process by the fact that it performed
-        # an action.  startTimestampMicros is optional, so we'll let the caller
-        # set the value to None, meaning we don't know
-        if time_micros != None:
-            subject["startTimestampMicros"] = time_micros
+        subject["startTimestampNanos"] = time_nanos
         subject["source"] = source
         subject["type"] = "SUBJECT_PROCESS"
+#         subject["unitId"] = int
+#         subject["interation"] = int
+#         subject["count"] = int
+#         subject["cmdLine"] = string
+#         subject["privilegeLevel"] = privilege level
+#         subject["importedLibraries"] = [string]
+#         subject["exportedLibraries"] = [string]
+        subject["properties"] = {}
 
         # Generate a uuid for this subject
         if puuid == str(pid):

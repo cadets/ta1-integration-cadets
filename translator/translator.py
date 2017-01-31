@@ -81,13 +81,13 @@ class CDMTranslator(object):
         ppid = cadets_record.get("ppid", -1)
         cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]))
 
-        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid)
+        proc_uuid = self.instance_generator.get_process_subject_id(cadets_proc_uuid)
         if proc_uuid is None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
-            # We don't know the time when this process was created, so we'll leave it blank.
+            # We don't know the time when this process was created, so we'll make it 0 for now
             # Could use time_micros as an upper bound, but we'd need to specify
 
-            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source())
+            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, cadets_record["uid"], 0, self.get_source())
             process = process_record["datum"]
             proc_uuid = process["uuid"]
 
@@ -135,9 +135,9 @@ class CDMTranslator(object):
             new_pid = cadets_record.get("retval")
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
 
-            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid)
+            cproc_uuid = self.instance_generator.get_process_subject_id(new_proc_uuid)
             if cproc_uuid is None:
-                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], None, self.get_source())
+                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], cadets_record["uid"], cadets_record["time"], self.get_source())
                 cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
 
