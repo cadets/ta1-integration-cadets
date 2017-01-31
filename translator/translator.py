@@ -96,8 +96,8 @@ class CDMTranslator(object):
 
         # Create a new Thread subject if necessary
         # TODO:  For now, we'll skip creating the Thread
+        tid = cadets_record["tid"]
         if False:
-            tid = cadets_record["tid"]
             thread_uuid = self.instance_generator.get_thread_subject_id(tid)
             if thread_uuid is None:
                 self.logger.debug("Creating new Thread Subject for {t}".format(t=tid))
@@ -129,8 +129,6 @@ class CDMTranslator(object):
                 for objr in object_records:
                     datums.append(objr)
 
-        event["properties"]["subjprocuuid"] = str(UUID(cadets_record["subjprocuuid"]).hex)
-
         if "fork" in call: # link forked processes
             new_pid = cadets_record.get("retval")
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
@@ -150,16 +148,58 @@ class CDMTranslator(object):
 
         return datums
 
+    def predicates_by_event(self, event, call, cadets_record):
+# TODO - use event names or the actual call info from the initial record?
+        if event in ["EVENT_READ", "EVENT_WRITE"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("fdpath"), None, None, cadets_record.get("retval"))
+        if event in ["EVENT_MMAP"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_OTHER"] and call == "aue_pipe":
+            return (cadets_record.get("ret_objuuid1"), None, cadets_record["ret_objuuid2"], None, None)
+        if event in ["EVENT_FORK"]:
+            return (cadets_record.get("ret_objuuid1"), None, None, None, None) # fork has a second return uuid. The resulting thread uuid
+        if event in ["EVENT_OPEN"]:
+            return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
+        if event in ["EVENT_EXECUTE"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
+        if event in ["EVENT_CLOSE"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, None)
+        if event in ["EVENT_LSEEK"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, None) # is acting on itself
+        if event in ["EVENT_EXIT"]:
+            return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
+        print("Unhandled event/call: %s/%s\n", event, call)
+        return (None, None, None, None, None)
+
     def translate_call(self, provider, module, call, probe, cadets_record):
         ''' Translate a system or function call event '''
 
         record = {}
         record["CDMVersion"] = self.CDMVersion
         event = {}
-        event["properties"] = {}
 
         uuid = self.instance_generator.create_uuid("event", self.eventCounter)
 
+        event["subject"] = str(UUID(cadets_record["subjprocuuid"]).hex)
+        (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(self.convert_audit_event_type(call), call, cadets_record);
+        if pred_obj:
+            event["predicateObject"] = str(UUID(pred_obj).hex)
+        else:
+            self.logger.warn("No predicate object for record: %s", cadets_record);
+
+        if pred_obj_path:
+            event["predicateObjectPath"] = pred_obj_path
+        if pred_obj2:
+            event["predicateObject2"] = str(UUID(pred_obj2).hex)
+        if pred_obj2_path:
+            event["predicateObject2Path"] = pred_obj2_path
+        event["name"] = call
+#         event["parameters"] = [Values] #TODO
+#         event["location"] = long
+        if size:
+            event["size"] = size
+#         event["programPoint"] = string
+        event["properties"] = {}
         event["uuid"] = uuid
         if provider == "audit":
             event["type"] = self.convert_audit_event_type(call)
@@ -167,7 +207,7 @@ class CDMTranslator(object):
             event["type"] = "EVENT_APP_UNKNOWN"
 
         event["threadId"] = cadets_record["tid"]
-        event["timestampMicros"] = int(cadets_record["time"] / 1000) # ns to micro
+        event["timestampNanos"] = cadets_record["time"]
 
         # Use the event counter as the seq number
         # This assumes we're processing events in order
@@ -176,25 +216,25 @@ class CDMTranslator(object):
 
         event["source"] = self.get_source()
 
-        event["properties"]["call"] = call
-        if provider != "audit":
-            event["properties"]["provider"] = provider
-            event["properties"]["module"] = module
-            event["properties"]["probe"] = probe
+#         event["properties"]["call"] = call
+#         if provider != "audit":
+#             event["properties"]["provider"] = provider
+#             event["properties"]["module"] = module
+#             event["properties"]["probe"] = probe
 
         if "args" in cadets_record:
             event["properties"]["args"] = cadets_record["args"]
 
         event["properties"]["exec"] = cadets_record["exec"]
 
-        for key in cadets_record:
-            if not key in cdm_keys: # we already handled the standard CDM keys
-                if key in uuid_keys:
-                    event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
-                else:
-                    event["properties"][str(key)] = str(cadets_record[key])
-                # for other keys, (path, fd, address, port, query, request)
-                # Store the value in properties
+#         for key in cadets_record:
+#             if not key in cdm_keys: # we already handled the standard CDM keys
+#                 if key in uuid_keys:
+#                     event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
+#                 else:
+#                     event["properties"][str(key)] = str(cadets_record[key])
+#                 # for other keys, (path, fd, address, port, query, request)
+#                 # Store the value in properties
 
 #         if "upath1" in cadets_record:
 #             event["properties"]["path"] = cadets_record["upath1"]
@@ -205,12 +245,13 @@ class CDMTranslator(object):
 
     def convert_audit_event_type(self, call):
         ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
-            Fallthrough default is EVENT_OS_UNKNOWN
+            Fallthrough default is EVENT_OTHER
         '''
         prefix_dict = {'aue_execve' : 'EVENT_EXECUTE',
                        'aue_accept' : 'EVENT_ACCEPT',
                        'aue_bind' : 'EVENT_BIND',
                        'aue_close' : 'EVENT_CLOSE',
+                       'aue_lseek' : 'EVENT_LSEEK',
                        'aue_connect' : 'EVENT_CONNECT',
                        'aue_exit' : 'EVENT_EXIT',
                        'aue_fork' : 'EVENT_FORK',
@@ -218,7 +259,7 @@ class CDMTranslator(object):
                        'aue_rfork' : 'EVENT_FORK',
                        'aue_linkat' : 'EVENT_LINK',
                        'aue_link' : 'EVENT_LINK',
-                       'aue_unlinkat' : 'EVENT_UNLINKAT',
+                       'aue_unlinkat' : 'EVENT_UNLINK',
                        'aue_unlink' : 'EVENT_UNLINK',
                        'aue_mmap' : 'EVENT_MMAP',
                        'aue_mprotect' : 'EVENT_MPROTECT',
@@ -240,7 +281,7 @@ class CDMTranslator(object):
         for key in prefix_dict:
             if call.startswith(key):
                 return prefix_dict.get(key)
-        return 'EVENT_OS_UNKNOWN'
+        return 'EVENT_OTHER'
 
 
     def create_subjects(self, event, cadets_record):
@@ -249,7 +290,7 @@ class CDMTranslator(object):
               a subject for any files that we discover via the uuids
         '''
         newRecords = []
-        if self.createFileObjects and (event["type"] in file_calls or event["properties"]["call"] in file_calls):
+        if self.createFileObjects and (event["type"] in file_calls or event["name"] in file_calls):
             # if this is a file-related event, create events for the uuids on the event.
             # TODO: Make more intelligent, not all or nothing file events
             newRecords = newRecords + self.create_file_subjects(event, cadets_record)
