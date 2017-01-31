@@ -145,9 +145,8 @@ class CDMTranslator(object):
             exec_path = cadets_record.get("upath1")
             file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
             if file_uuid is None:
-                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), exec_path, self.get_source(), None)
+                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
                 datums.append(file_record)
-                file_uuid = file_record["datum"]["uuid"]
 
         return datums
 
@@ -251,6 +250,8 @@ class CDMTranslator(object):
         '''
         newRecords = []
         if self.createFileObjects and (event["type"] in file_calls or event["properties"]["call"] in file_calls):
+            # if this is a file-related event, create events for the uuids on the event.
+            # TODO: Make more intelligent, not all or nothing file events
             newRecords = newRecords + self.create_file_subjects(event, cadets_record)
 
         # NetFlows
@@ -268,16 +269,12 @@ class CDMTranslator(object):
     def create_file_subjects(self, event, cadets_record):
         newRecords = []
         for uuid in uuid_keys:
-                etype = event["type"]
-
                 if uuid in cadets_record:
-                    file_uuid = self.instance_generator.get_file_object_id(cadets_record[uuid])
+                    if self.instance_generator.get_file_object_id(cadets_record[uuid]) is None:
+                        self.logger.debug("Creating file")
+                        fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), self.get_source())
+                        newRecords.append(fileobj)
                 else:
                     continue;
-                if file_uuid is None:
-                    self.logger.debug("Creating file")
-                    fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record.get("upath1", ""), self.get_source(), None)
-                    file_uuid = fileobj["datum"]["uuid"]
-                    newRecords.append(fileobj)
 
         return newRecords

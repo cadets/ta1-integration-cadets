@@ -178,79 +178,38 @@ class InstanceGenerator():
         record["datum"] = principal
         return record
 
-    def get_file_object_id(self, file_key, version=None):
+    def get_file_object_id(self, file_key):
         ''' Given a file path or uuid, did we create an object for the it already?
-            If version = None, return the latest version, else look for that specific version
             If found return the uuid of the object, if not return None
         '''
-        if file_key in self.created_files:
-            versions = self.created_files[file_key]
-            if version != None:
-                if version in versions:
-                    return versions[version]
-            else:
-                # In practice, there will only be one version here, since for now we only need to store the latest version
-                mversion = max(versions)
-                return versions[mversion]
+        return self.created_files.get(file_key)
 
-        return None
-
-    def get_latest_file_version(self, file_key):
-        ''' Get the latest version of a file that we created an Object for.
-            Currently, we only store the latest version
-        '''
-        if file_key in self.created_files:
-            versions = self.created_files[file_key]
-            return max(versions)
-        return None
-
-    def create_file_object(self, id, path, source, version=None):
+    def create_file_object(self, file_uuid, source):
         ''' Infer the existence of a file object, add it to the created list, and return it.
             If version = None, look for an older version, and if found, add one and create a new Object
         '''
 
-        if id != None:
-            file_key = id
-        else:
-            file_key = path
         record = {}
         fobject = {}
         abstract_object = {}
         abstract_object["source"] = source
+#         abstract_object["epoch"] = int
+#         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
 
         fobject["baseObject"] = abstract_object
-        fobject["properties"] = {}
-        fobject["url"] = str(path)
-        fobject["isPipe"] = False
+#         fobject["localPrincipal"] = uuid
+#         fobject["size"] = int
+#         fobject["fileDescriptor"] = int
+#         fobject["peInfo"] = string
+#         fobject["hashes"] = array of hashes
+        fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
 
-        if version is None:
-            # Look for an older version
-            old_version = self.get_latest_file_version(file_key)
 
-            if old_version is None: # First version then
-                version = 1
-            else:
-                version = int(old_version) + 1
+        fobject["version"] = 1
 
-        fobject["version"] = version
-
-        # Generate a uuid for this subject
-        uniq = self.create_uuid("uuid", uuid.UUID(id).int)
-
-        if file_key in self.created_files:
-            versions = self.created_files[file_key]
-            max_version = self.get_latest_file_version(file_key)
-            if version > max_version:
-                max_version = version
-            versions.clear() # Only keep the most recent
-            versions[max_version] = uniq
-        else:
-            versions = {}
-            versions[version] = uniq
-            self.created_files[file_key] = versions
-
-        fobject["uuid"] = uniq
+        # Save the uuid for this subject
+        self.created_files[file_uuid] = fobject["uuid"]
 
         record["CDMVersion"] = self.CDMVersion
         record["datum"] = fobject
