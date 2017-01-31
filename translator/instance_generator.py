@@ -137,17 +137,7 @@ class InstanceGenerator():
         subject["startTimestampMicros"] = time_micros
         subject["source"] = source
         subject["type"] = "SUBJECT_THREAD"
-        subject["pid"] = tid # TODO: Do we put the tid here in the pid field?
-        subject["ppid"] = -1 # TODO: This should be optional
-
-        # Generate a uuid for this subject
-        uniq = self.create_uuid("tid", tid)
-        self.created_threads[tid] = uniq
-        subject["uuid"] = uniq
-
-        # TODO: tid can be a property
-        # subject["properties"]["tid"] = tid
-
+        # TODO very much incomplete
         record["CDMVersion"] = self.CDMVersion
         record["datum"] = subject
         return record
