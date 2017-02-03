@@ -154,7 +154,7 @@ class EnqueueFileHandler(FileSystemEventHandler):
 def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
-    serializer = KafkaAvroGenericSerializer(p_schema)
+    serializer = KafkaAvroGenericSerializer(p_schema,skip_validate=False)
 
     # Open the output files
     base_out = os.path.splitext(os.path.basename(path))[0]
@@ -167,7 +167,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         bin_out_path = os.path.join(os.path.expanduser(output_dir), base_out+".cdm.bin")
         bin_out = open(bin_out_path, 'wb')
         # Create a file writer and serialize all provided records to it.
-        file_writer = AvroGenericSerializer(p_schema, bin_out)
+        file_writer = AvroGenericSerializer(p_schema, bin_out, skip_validate=False)
     if write_kafka:
         client = KafkaClient(kafkastring)
         # Create the topic in kafka if it doesn't already exist
