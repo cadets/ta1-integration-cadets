@@ -123,7 +123,8 @@ def main():
                         logger.info("Translating JSON file: "+cfile)
                         path = os.path.join(args.tdir, cfile)
                         translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
-                        translator.reset()
+                        if not args.wk: # don't reset if we're just writing a stream of data to kafka
+                            translator.reset()
                         logger.info("About "+str(file_queue.qsize())+" files left to translate.")
                 except queue.Empty:
                     if args.p:
