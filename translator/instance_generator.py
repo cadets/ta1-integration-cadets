@@ -71,7 +71,6 @@ class InstanceGenerator():
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
 
-        # Eventually use this
         return record_generator.Util.get_uuid_from_value(id)
 
     def get_process_subject_id(self, puuid):

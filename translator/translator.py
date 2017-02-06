@@ -148,8 +148,16 @@ class CDMTranslator(object):
 
         return datums
 
+#     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
 # TODO - use event names or the actual call info from the initial record?
+# TODO - combine like events
+        if event in ["EVENT_RECVFROM"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_SENDTO"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_RENAME"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
         if event in ["EVENT_READ", "EVENT_WRITE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("fdpath"), None, None, cadets_record.get("retval"))
         if event in ["EVENT_MMAP"]:
@@ -165,10 +173,18 @@ class CDMTranslator(object):
         if event in ["EVENT_CLOSE"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
         if event in ["EVENT_LSEEK"]:
-            return (cadets_record.get("arg_objuuid1"), None, None, None, None) # is acting on itself
+            return (cadets_record.get("arg_objuuid1"), None, None, None, None)
+        if event in ["EVENT_CHANGE_PRINCIPAL"]:
+            return (cadets_record.get("subjprocuuid"), None, None, None, None)
+        if event in ["EVENT_MODIFY_FILE_ATTRIBUTES"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, None)
         if event in ["EVENT_EXIT"]:
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
-        print("Unhandled event/call: %s/%s\n", event, call)
+        if event in ["EVENT_UNLINK"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, None, None)
+        if event in ["EVENT_OTHER"] and call == "aue_fchdir":
+            return (cadets_record.get("subjprocuuid"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
+        print("Unhandled event/call: {}/{}\n".format(event, call))
         return (None, None, None, None, None)
 
     def translate_call(self, provider, module, call, probe, cadets_record):
@@ -185,7 +201,9 @@ class CDMTranslator(object):
         if pred_obj:
             event["predicateObject"] = str(UUID(pred_obj).hex)
         else:
+# TODO - we don't want to drop all these - we want to know why they don't have one set and fix that.
             self.logger.warn("No predicate object for record: %s", cadets_record);
+            return None
 
         if pred_obj_path:
             event["predicateObjectPath"] = pred_obj_path
@@ -253,10 +271,17 @@ class CDMTranslator(object):
                        'aue_close' : 'EVENT_CLOSE',
                        'aue_lseek' : 'EVENT_LSEEK',
                        'aue_connect' : 'EVENT_CONNECT',
+                       'aue_fchdir' : 'EVENT_OTHER',
                        'aue_exit' : 'EVENT_EXIT',
                        'aue_fork' : 'EVENT_FORK',
                        'aue_vfork' : 'EVENT_FORK',
                        'aue_rfork' : 'EVENT_FORK',
+                       'aue_setuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setgid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_seteuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setegid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_fchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_fchown' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_linkat' : 'EVENT_LINK',
                        'aue_link' : 'EVENT_LINK',
                        'aue_unlinkat' : 'EVENT_UNLINK',
