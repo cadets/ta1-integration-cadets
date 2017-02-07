@@ -148,6 +148,85 @@ class CDMTranslator(object):
 
         return datums
 
+    def create_parameters(self, call, cadets_record):
+        parameters = []
+        if call in ["aue_fchmod"]:
+            parameter1 = {}
+            parameter1["size"] = 0 # 0 = primitive
+            parameter1["type"] = "VALUE_TYPE_CONTROL"
+            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
+            parameter1["isNull"] = False
+            parameter1["name"] = "mode"
+            parameter1["valueBytes"] = cadets_record["mode"]
+            parameters.append(parameter1)
+        elif call in ["aue_seteuid"]:
+            parameter1 = {}
+            parameter1["size"] = 0 # 0 = primitive
+            parameter1["type"] = "VALUE_TYPE_CONTROL"
+            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
+            parameter1["isNull"] = False
+            parameter1["name"] = "euid"
+            parameter1["valueBytes"] = cadets_record["arg_euid"]
+            parameters.append(parameter1)
+        elif call in ["aue_setegid"]:
+            parameter1 = {}
+            parameter1["size"] = 0 # 0 = primitive
+            parameter1["type"] = "VALUE_TYPE_CONTROL"
+            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
+            parameter1["isNull"] = False
+            parameter1["name"] = "egid"
+            parameter1["valueBytes"] = cadets_record["arg_egid"]
+            parameters.append(parameter1)
+        elif call in ["aue_setuid"]:
+            parameter1 = {}
+            parameter1["size"] = 0 # 0 = primitive
+            parameter1["type"] = "VALUE_TYPE_CONTROL"
+            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
+            parameter1["isNull"] = False
+            parameter1["name"] = "uid"
+            parameter1["valueBytes"] = cadets_record["arg_uid"]
+            parameters.append(parameter1)
+        elif call in ["aue_setgid"]:
+            parameter1 = {}
+            parameter1["size"] = 0 # 0 = primitive
+            parameter1["type"] = "VALUE_TYPE_CONTROL"
+            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
+            parameter1["isNull"] = False
+            parameter1["name"] = "gid"
+            parameter1["valueBytes"] = cadets_record["arg_gid"]
+            parameters.append(parameter1)
+        elif call in ["aue_open_rwtc", "aue_openat_rwtc"]:
+            parameter1 = {}
+            parameter1["size"] = 0 # 0 = primitive
+            parameter1["type"] = "VALUE_TYPE_CONTROL"
+            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
+            parameter1["isNull"] = False
+            parameter1["name"] = "flags"
+            parameter1["valueBytes"] = cadets_record["flags"]
+            parameter2 = {}
+            parameter2["size"] = 0 # 0 = primitive
+            parameter2["type"] = "VALUE_TYPE_CONTROL"
+            parameter2["valueDataType"]="VALUE_DATA_TYPE_INT"
+            parameter2["isNull"] = False
+            parameter2["name"] = "mode"
+            parameter2["valueBytes"] = cadets_record["mode"]
+            parameters.append(parameter1)
+            parameters.append(parameter2)
+
+
+#         parameters = {}
+#         parameters["size"] = int
+#         parameters["type"] = ValueType [VALUE_TYPE_SRC/VALUE_TYPE_SINK/VALUE_TYPE_CONTROL]
+#         parameters["valueDataType"] = ValueDataType [VALUE_DATA_TYPE_BYTE/VALUE_DATA_TYPE_CHAR/etc]
+#         parameters["isNull"] = bool
+#         parameters["name"] = null or string
+#         parameters["runtimeDataValue"] = null or string
+#         parameters["valueBytes"] = null or bytes
+#         parameters["tag"] = None
+#         parameters["components"] = noll or [Value]
+
+        return parameters
+
 #     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
 # TODO - use event names or the actual call info from the initial record?
@@ -212,7 +291,7 @@ class CDMTranslator(object):
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
         event["name"] = call
-#         event["parameters"] = [Values] #TODO
+        event["parameters"] = self.create_parameters(call, cadets_record) # [Values] #TODO
 #         event["location"] = long
         if size:
             event["size"] = size
