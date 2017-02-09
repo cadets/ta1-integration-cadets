@@ -65,7 +65,6 @@ class CDMTranslator(object):
         datums = []
 
         # nanos to micros
-        time_micros = cadets_record["time"] / 1000
 
         # Create a new user if necessary
         uid = cadets_record["uid"]
@@ -85,9 +84,9 @@ class CDMTranslator(object):
         if proc_uuid is None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
             # We don't know the time when this process was created, so we'll make it 0 for now
-            # Could use time_micros as an upper bound, but we'd need to specify
+            # Could use time as an upper bound, but we'd need to specify
 
-            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, cadets_record["uid"], 0, self.get_source())
+            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, self.get_source())
             process = process_record["datum"]
             proc_uuid = process["uuid"]
 
@@ -101,7 +100,7 @@ class CDMTranslator(object):
             thread_uuid = self.instance_generator.get_thread_subject_id(tid)
             if thread_uuid is None:
                 self.logger.debug("Creating new Thread Subject for {t}".format(t=tid))
-                thread = self.instance_generator.create_thread_subject(tid, time_micros, self.get_source())
+                thread = self.instance_generator.create_thread_subject(tid, cadets_record["time"], self.get_source())
                 thread_uuid = thread["datum"]["uuid"]
                 datums.append(thread)
 
@@ -116,6 +115,28 @@ class CDMTranslator(object):
         call = event_components[2]
         probe = event_components[3]
 
+        # Create related subjects before the event itself
+        if "dup" in call:
+            # dup2 doesn't provide any new information, since we aren't tracking fds
+            return datums
+
+        if "fork" in call: # link forked processes
+            new_pid = cadets_record.get("retval")
+            new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
+
+            cproc_uuid = self.instance_generator.get_process_subject_id(new_proc_uuid)
+            if cproc_uuid is None:
+                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], self.get_source())
+                cproc_uuid = proc_record["datum"]["uuid"]
+                datums.append(proc_record)
+
+        if "exec" in call: # link exec events to the file executed
+            exec_path = cadets_record.get("upath1")
+            file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
+            if file_uuid is None:
+                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
+                datums.append(file_record)
+
         # Create the Event
         self.logger.debug("Creating Event from {e} ".format(e=event_type))
         event_record = self.translate_call(provider, module, call, probe, cadets_record)
@@ -127,91 +148,49 @@ class CDMTranslator(object):
             object_records = self.create_subjects(event, cadets_record)
             if object_records != None:
                 for objr in object_records:
-                    datums.append(objr)
+                    datums.insert(0, objr)
 
-        if "fork" in call: # link forked processes
-            new_pid = cadets_record.get("retval")
-            new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
-
-            cproc_uuid = self.instance_generator.get_process_subject_id(new_proc_uuid)
-            if cproc_uuid is None:
-                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], cadets_record["uid"], cadets_record["time"], self.get_source())
-                cproc_uuid = proc_record["datum"]["uuid"]
-                datums.append(proc_record)
-
-        if "exec" in call: # link exec events to the file executed
-            exec_path = cadets_record.get("upath1")
-            file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
-            if file_uuid is None:
-                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
-                datums.append(file_record)
 
         return datums
 
+
+
     def create_parameters(self, call, cadets_record):
         parameters = []
-        if call in ["aue_fchmod"]:
-            parameter1 = {}
-            parameter1["size"] = 0 # 0 = primitive
-            parameter1["type"] = "VALUE_TYPE_CONTROL"
-            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
-            parameter1["isNull"] = False
-            parameter1["name"] = "mode"
-            parameter1["valueBytes"] = cadets_record["mode"]
-            parameters.append(parameter1)
+        if call in ["aue_fchmod", "aue_fchmodat", "aue_lchmod", "aue_chmod"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "mode", cadets_record["mode"]))
+            if call in ["aue_fchmodat"]:
+                parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "flag", cadets_record["flag"]))
+        elif call in ["aue_fchown", "aue_fchownat", "aue_lchown", "aue_chown"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "uid", cadets_record["arg_uid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "gid", cadets_record["arg_gid"]))
+#             if call in ["aue_fchownat"]:
+#                 parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "flag", cadets_record["flag"]))
+        elif call in ["aue_setresgid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "gid", cadets_record["arg_rgid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "egid", cadets_record["arg_egid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "sgid", cadets_record["arg_sgid"]))
+        elif call in ["aue_setresuid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "uid", cadets_record["arg_ruid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "euid", cadets_record["arg_euid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "suid", cadets_record["arg_suid"]))
+        elif call in ["aue_setregid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "gid", cadets_record["arg_rgid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "egid", cadets_record["arg_egid"]))
+        elif call in ["aue_setreuid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "uid", cadets_record["arg_ruid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "euid", cadets_record["arg_euid"]))
         elif call in ["aue_seteuid"]:
-            parameter1 = {}
-            parameter1["size"] = 0 # 0 = primitive
-            parameter1["type"] = "VALUE_TYPE_CONTROL"
-            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
-            parameter1["isNull"] = False
-            parameter1["name"] = "euid"
-            parameter1["valueBytes"] = cadets_record["arg_euid"]
-            parameters.append(parameter1)
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "euid", cadets_record["arg_euid"]))
         elif call in ["aue_setegid"]:
-            parameter1 = {}
-            parameter1["size"] = 0 # 0 = primitive
-            parameter1["type"] = "VALUE_TYPE_CONTROL"
-            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
-            parameter1["isNull"] = False
-            parameter1["name"] = "egid"
-            parameter1["valueBytes"] = cadets_record["arg_egid"]
-            parameters.append(parameter1)
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "egid", cadets_record["arg_egid"]))
         elif call in ["aue_setuid"]:
-            parameter1 = {}
-            parameter1["size"] = 0 # 0 = primitive
-            parameter1["type"] = "VALUE_TYPE_CONTROL"
-            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
-            parameter1["isNull"] = False
-            parameter1["name"] = "uid"
-            parameter1["valueBytes"] = cadets_record["arg_uid"]
-            parameters.append(parameter1)
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "uid", cadets_record["arg_uid"]))
         elif call in ["aue_setgid"]:
-            parameter1 = {}
-            parameter1["size"] = 0 # 0 = primitive
-            parameter1["type"] = "VALUE_TYPE_CONTROL"
-            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
-            parameter1["isNull"] = False
-            parameter1["name"] = "gid"
-            parameter1["valueBytes"] = cadets_record["arg_gid"]
-            parameters.append(parameter1)
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "gid", cadets_record["arg_gid"]))
         elif call in ["aue_open_rwtc", "aue_openat_rwtc"]:
-            parameter1 = {}
-            parameter1["size"] = 0 # 0 = primitive
-            parameter1["type"] = "VALUE_TYPE_CONTROL"
-            parameter1["valueDataType"]="VALUE_DATA_TYPE_INT"
-            parameter1["isNull"] = False
-            parameter1["name"] = "flags"
-            parameter1["valueBytes"] = cadets_record["flags"]
-            parameter2 = {}
-            parameter2["size"] = 0 # 0 = primitive
-            parameter2["type"] = "VALUE_TYPE_CONTROL"
-            parameter2["valueDataType"]="VALUE_DATA_TYPE_INT"
-            parameter2["isNull"] = False
-            parameter2["name"] = "mode"
-            parameter2["valueBytes"] = cadets_record["mode"]
-            parameters.append(parameter1)
-            parameters.append(parameter2)
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "flags", cadets_record["flags"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "mode", cadets_record["mode"]))
 
 
 #         parameters = {}
@@ -229,11 +208,8 @@ class CDMTranslator(object):
 
 #     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
-# TODO - use event names or the actual call info from the initial record?
 # TODO - combine like events
-        if event in ["EVENT_RECVFROM"]:
-            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
-        if event in ["EVENT_SENDTO"]:
+        if event in ["EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_LSEEK"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
         if event in ["EVENT_RENAME"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
@@ -241,30 +217,28 @@ class CDMTranslator(object):
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("fdpath"), None, None, cadets_record.get("retval"))
         if event in ["EVENT_MMAP"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
-        if event in ["EVENT_OTHER"] and call == "aue_pipe":
-            return (cadets_record.get("ret_objuuid1"), None, cadets_record["ret_objuuid2"], None, None)
         if event in ["EVENT_FORK"]:
             return (cadets_record.get("ret_objuuid1"), None, None, None, None) # fork has a second return uuid. The resulting thread uuid
-        if event in ["EVENT_OPEN"]:
+        if event in ["EVENT_OPEN", "EVENT_CREATE_OBJECT"]:
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
+        if event in ["EVENT_LINK"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, cadets_record.get("upath2"), None)
         if event in ["EVENT_EXECUTE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
-        if event in ["EVENT_CLOSE"]:
-            return (cadets_record.get("arg_objuuid1"), None, None, None, None)
-        if event in ["EVENT_LSEEK"]:
-            return (cadets_record.get("arg_objuuid1"), None, None, None, None)
-        if event in ["EVENT_CHANGE_PRINCIPAL"]:
-            return (cadets_record.get("subjprocuuid"), None, None, None, None)
-        if event in ["EVENT_MODIFY_FILE_ATTRIBUTES"]:
-            return (cadets_record.get("arg_objuuid1"), None, None, None, None)
-        if event in ["EVENT_EXIT"]:
-            return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
-        if event in ["EVENT_UNLINK"]:
+        if event in ["EVENT_CLOSE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_UNLINK", "EVENT_UPDATE_OBJECT", "EVENT_TRUNCATE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, None, None)
-        if event in ["EVENT_OTHER"] and call == "aue_fchdir":
+        if event in ["EVENT_CHANGE_PRINCIPAL", "EVENT_EXIT"]:
+            return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
+        if event in ["EVENT_OTHER"] and call == "aue_pipe":
+            return (cadets_record.get("ret_objuuid1"), None, cadets_record.get("ret_objuuid2"), None, None)
+        if event in ["EVENT_OTHER"] and call in ["aue_fchdir", "aue_chdir"]:
             return (cadets_record.get("subjprocuuid"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
+        if event in ["EVENT_OTHER"] and call in ["aue_symlink", "aue_symlinkat"]:
+            return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
+        if event in ["EVENT_OTHER"] and call in ["aue_umask"]:
+            return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
         print("Unhandled event/call: {}/{}\n".format(event, call))
-        return (None, None, None, None, None)
+        return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
 
     def translate_call(self, provider, module, call, probe, cadets_record):
         ''' Translate a system or function call event '''
@@ -359,13 +333,24 @@ class CDMTranslator(object):
                        'aue_setgid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_seteuid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setegid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setreuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setreuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setresgid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setresuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_chmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_fchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_lchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_chown' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_fchown' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
-                       'aue_linkat' : 'EVENT_LINK',
+                       'aue_lchown' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_futimes' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_lutimes' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_utimes' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_link' : 'EVENT_LINK',
-                       'aue_unlinkat' : 'EVENT_UNLINK',
                        'aue_unlink' : 'EVENT_UNLINK',
                        'aue_mmap' : 'EVENT_MMAP',
+                       'aue_mkdir' : 'EVENT_CREATE_OBJECT',
+                       'aue_rmdir' : 'EVENT_UPDATE_OBJECT',
                        'aue_mprotect' : 'EVENT_MPROTECT',
                        'aue_open' : 'EVENT_OPEN',
                        'aue_read' : 'EVENT_READ',
@@ -423,3 +408,13 @@ class CDMTranslator(object):
                     continue;
 
         return newRecords
+
+def create_int_parameter(value_type, name, value):
+        parameter = {}
+        parameter["size"] = 0 # 0 = primitive
+        parameter["type"] = value_type
+        parameter["valueDataType"]="VALUE_DATA_TYPE_INT"
+        parameter["isNull"] = False
+        parameter["name"] = name
+        parameter["valueBytes"] = value
+        return parameter

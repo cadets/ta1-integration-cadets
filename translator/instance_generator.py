@@ -82,7 +82,7 @@ class InstanceGenerator():
 
         return None
 
-    def create_process_subject(self, pid, puuid, ppid, principal, time_nanos, source):
+    def create_process_subject(self, pid, puuid, ppuuid, principal, time_nanos, source):
         ''' Create a process subject, add it to the created list, and return it
         '''
 
@@ -90,7 +90,11 @@ class InstanceGenerator():
         subject = {}
 
         subject["localPrincipal"] = self.create_uuid("uid", principal);
-        subject["parentSubject"] = self.create_uuid("uuid", 0)
+        if ppuuid is None:
+                subject["parentSubject"] = self.create_uuid("uuid", 0)
+        else:
+                subject["parentSubject"] = self.create_uuid("uuid", uuid.UUID(ppuuid).int)
+
         subject["cid"] = pid # relevent pid/tid/etc
 
         subject["startTimestampNanos"] = time_nanos
