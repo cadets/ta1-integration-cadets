@@ -285,7 +285,6 @@ class CDMTranslator(object):
         event["sequence"] = self.eventCounter
         self.eventCounter += 1
 
-        event["source"] = self.get_source()
 
 #         event["properties"]["call"] = call
 #         if provider != "audit":
@@ -311,6 +310,7 @@ class CDMTranslator(object):
 #             event["properties"]["path"] = cadets_record["upath1"]
 
         record["datum"] = event
+        record["source"] = self.get_source()
 
         return record
 
@@ -411,7 +411,7 @@ class CDMTranslator(object):
 
 def create_int_parameter(value_type, name, value):
         parameter = {}
-        parameter["size"] = 0 # 0 = primitive
+        parameter["size"] = -1 # -1 = primitive
         parameter["type"] = value_type
         parameter["valueDataType"]="VALUE_DATA_TYPE_INT"
         parameter["isNull"] = False

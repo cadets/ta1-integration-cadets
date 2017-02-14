@@ -98,7 +98,6 @@ class InstanceGenerator():
         subject["cid"] = pid # relevent pid/tid/etc
 
         subject["startTimestampNanos"] = time_nanos
-        subject["source"] = source
         subject["type"] = "SUBJECT_PROCESS"
 #         subject["unitId"] = int
 #         subject["interation"] = int
@@ -118,6 +117,7 @@ class InstanceGenerator():
         subject["uuid"] = uniq
 
         record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
         record["datum"] = subject
         return record
 
@@ -138,7 +138,6 @@ class InstanceGenerator():
         subject["properties"] = {}
 
         subject["startTimestampMicros"] = time_micros
-        subject["source"] = source
         subject["type"] = "SUBJECT_THREAD"
         # TODO very much incomplete
         record["CDMVersion"] = self.CDMVersion
@@ -164,13 +163,13 @@ class InstanceGenerator():
         principal["userId"] = str(uid)
 #         principal["username"] = string
         principal["groupIds"] = []
-        principal["source"] = source
         principal["properties"] = {}
 
         # Save the uuid for this user
         self.created_users[uid] = principal["uuid"]
 
         record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
         record["datum"] = principal
         return record
 
@@ -188,7 +187,6 @@ class InstanceGenerator():
         record = {}
         fobject = {}
         abstract_object = {}
-        abstract_object["source"] = source
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
@@ -208,6 +206,7 @@ class InstanceGenerator():
         self.created_files[file_uuid] = fobject["uuid"]
 
         record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
         record["datum"] = fobject
         return record
 
@@ -220,7 +219,6 @@ class InstanceGenerator():
         record = {}
         nobject = {}
         abstract_object = {}
-        abstract_object["source"] = source
         abstract_object["properties"] = {}
 
         nobject["baseObject"] = abstract_object
@@ -236,5 +234,6 @@ class InstanceGenerator():
         nobject["uuid"] = uniq
 
         record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
         record["datum"] = nobject
         return record

@@ -34,7 +34,7 @@ IN_FILE = None
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = "14"
+CDMVERSION = "15"
 KAFKASTRING = "129.55.12.59:9092"
 TOPIC = "ta1-cadets-cdm13"
 
