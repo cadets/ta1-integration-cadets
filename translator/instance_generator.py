@@ -159,7 +159,8 @@ class InstanceGenerator():
         principal["uuid"] = self.create_uuid("uid", uid);
         principal["type"] = "PRINCIPAL_LOCAL"
         principal["userId"] = str(uid)
-#         principal["username"] = string
+        if uid == 0:
+            principal["username"] = "root"
         principal["groupIds"] = []
         principal["properties"] = {}
 
@@ -176,6 +177,38 @@ class InstanceGenerator():
             If found return the uuid of the object, if not return None
         '''
         return self.created_files.get(file_key)
+
+    def create_unix_socket_object(self, file_uuid, source):
+        ''' Infer the existence of a file object, add it to the created list, and return it.
+            If version = None, look for an older version, and if found, add one and create a new Object
+        '''
+
+        record = {}
+        fobject = {}
+        abstract_object = {}
+#         abstract_object["epoch"] = int
+#         abstract_object["permission"] = SHORT
+        abstract_object["properties"] = {}
+
+        fobject["baseObject"] = abstract_object
+        fobject["type"] = "FILE_OBJECT_UNIX_SOCKET"
+#         fobject["localPrincipal"] = uuid
+#         fobject["size"] = int
+#         fobject["fileDescriptor"] = int
+#         fobject["peInfo"] = string
+#         fobject["hashes"] = array of hashes
+        fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
+
+
+        fobject["version"] = 1
+
+        # Save the uuid for this subject
+        self.created_files[file_uuid] = fobject["uuid"]
+
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
+        record["datum"] = fobject
+        return record
 
     def create_file_object(self, file_uuid, source):
         ''' Infer the existence of a file object, add it to the created list, and return it.
@@ -209,7 +242,7 @@ class InstanceGenerator():
         record["datum"] = fobject
         return record
 
-    def create_netflow_object(self, destHost, destPort, source):
+    def create_netflow_object(self, destHost, destPort, socket_uuid, source):
         ''' Infer the existence of a netflow object from a connection event with a addr and port key
             We always create a new netflow, so no need to look for an old uuid
             For now, we don't have the local host or local port, so we use "localhost" and -1
@@ -222,13 +255,13 @@ class InstanceGenerator():
 
         nobject["baseObject"] = abstract_object
         nobject["properties"] = {}
-        nobject["srcAddress"] = "localhost" # We don't know
-        nobject["srcPort"] = -1 # We don't know
-        nobject["destAddress"] = destHost
-        nobject["destPort"] = int(destPort)
+        nobject["localAddress"] = "localhost" # We don't know
+        nobject["localPort"] = -1 # We don't know
+        nobject["remoteAddress"] = destHost
+        nobject["remotePort"] = destPort
 
         # Generate a uuid for this subject
-        uniq = self.create_uuid("netflow", self.netflow_counter)
+        uniq = self.create_uuid("uuid", uuid.UUID(socket_uuid).int)
         self.netflow_counter += 1
         nobject["uuid"] = uniq
 
