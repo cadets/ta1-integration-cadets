@@ -5,6 +5,7 @@ CADETS JSON record format to TC CDM format translator
 import logging
 import uuid
 from instance_generator import InstanceGenerator
+from tc.schema.serialization import AvroBytes
 
 # These are the json keys in the CADETS record that we handle specifically in
 # the translator.  Any keys not in this list, we'll add directly to the
@@ -116,10 +117,6 @@ class CDMTranslator(object):
         probe = event_components[3]
 
         # Create related subjects before the event itself
-        if "dup" in call:
-            # dup2 doesn't provide any new information, since we aren't tracking fds
-            return datums
-
         if "fork" in call: # link forked processes
             new_pid = cadets_record.get("retval")
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
@@ -417,6 +414,7 @@ def create_int_parameter(value_type, name, value):
         parameter["valueDataType"]="VALUE_DATA_TYPE_INT"
         parameter["isNull"] = False
         parameter["name"] = name
-#         parameter["valueBytes"] = value
-#         parameter["valueBytes"] = bytes([5]) # TODO - how to represent bytes correctly
+        valueBytes = AvroBytes()
+        valueBytes.set_by_value(value, None)
+        parameter["valueBytes"] = valueBytes
         return parameter
