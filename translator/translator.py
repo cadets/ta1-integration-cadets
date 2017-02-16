@@ -381,7 +381,7 @@ class CDMTranslator(object):
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
-            pipe_obj = self.instance_generator.create_unnamed_pipe_object(pipe_uuid1, pipe_uuid2, self.get_source())
+            pipe_obj = self.instance_generator.create_unnamed_pipe_object(pipe_uuid2, pipe_uuid1, self.get_source())
             newRecords.append(pipe_obj)
         if event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
