@@ -381,14 +381,19 @@ class CDMTranslator(object):
             newRecords = newRecords + self.create_file_subjects(event, cadets_record)
 
         # NetFlows
-        if self.createNetflowObjects and "address" in event["properties"] and "port" in event["properties"]:
-            destAddr = event["properties"]["address"]
-            destPort = int(event["properties"]["port"])
+        if event["type"] in ["EVENT_CONNECT"]:
+            remoteAddr = cadets_record.get("address")
+            remotePort = cadets_record.get("port")
+            socket_uuid = cadets_record.get("arg_objuuid1")
 
-            self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=destAddr, p=destPort))
-            nf_obj = self.instance_generator.create_netflow_object(destAddr, destPort, self.get_source())
-            nf_uuid = nf_obj["datum"]["uuid"]
-            newRecords.append(nf_obj)
+            if remotePort:
+                self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remoteAddr, p=remotePort))
+                nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, socket_uuid, self.get_source())
+                newRecords.append(nf_obj)
+            else:
+                self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
+                nf_obj = self.instance_generator.create_unix_socket_object(socket_uuid, self.get_source())
+                newRecords.append(nf_obj)
 
         return newRecords
 
