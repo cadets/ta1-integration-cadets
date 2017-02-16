@@ -396,5 +396,6 @@ def create_int_parameter(value_type, name, value):
         parameter["valueDataType"]="VALUE_DATA_TYPE_INT"
         parameter["isNull"] = False
         parameter["name"] = name
-        parameter["valueBytes"] = value
+#         parameter["valueBytes"] = value
+#         parameter["valueBytes"] = bytes([5]) # TODO - how to represent bytes correctly
         return parameter
