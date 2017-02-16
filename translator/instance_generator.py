@@ -90,9 +90,7 @@ class InstanceGenerator():
         subject = {}
 
         subject["localPrincipal"] = self.create_uuid("uid", principal);
-        if ppuuid is None:
-                subject["parentSubject"] = self.create_uuid("uuid", 0)
-        else:
+        if ppuuid:
                 subject["parentSubject"] = self.create_uuid("uuid", uuid.UUID(ppuuid).int)
 
         subject["cid"] = pid # relevent pid/tid/etc
@@ -192,6 +190,7 @@ class InstanceGenerator():
         abstract_object["properties"] = {}
 
         fobject["baseObject"] = abstract_object
+        fobject["type"] = "FILE_OBJECT_FILE" # TODO: smarter file type
 #         fobject["localPrincipal"] = uuid
 #         fobject["size"] = int
 #         fobject["fileDescriptor"] = int

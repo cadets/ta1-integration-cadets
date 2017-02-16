@@ -3,7 +3,7 @@ CADETS JSON record format to TC CDM format translator
 '''
 
 import logging
-from uuid import UUID
+import uuid
 from instance_generator import InstanceGenerator
 
 # These are the json keys in the CADETS record that we handle specifically in
@@ -143,9 +143,8 @@ class CDMTranslator(object):
 
         event = None
         if event_record != None:
-            event = event_record["datum"]
             datums.append(event_record)
-            object_records = self.create_subjects(event, cadets_record)
+            object_records = self.create_subjects(event_record["datum"], cadets_record)
             if object_records != None:
                 for objr in object_records:
                     datums.insert(0, objr)
@@ -244,24 +243,21 @@ class CDMTranslator(object):
         ''' Translate a system or function call event '''
 
         record = {}
-        record["CDMVersion"] = self.CDMVersion
         event = {}
 
-        uuid = self.instance_generator.create_uuid("event", self.eventCounter)
 
-        event["subject"] = str(UUID(cadets_record["subjprocuuid"]).hex)
+        event["subject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["subjprocuuid"]).int)
+        event_uuid = self.instance_generator.create_uuid("event", self.eventCounter)
         (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(self.convert_audit_event_type(call), call, cadets_record);
         if pred_obj:
-            event["predicateObject"] = str(UUID(pred_obj).hex)
+            event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj).int)
         else:
-# TODO - we don't want to drop all these - we want to know why they don't have one set and fix that.
+            # TODO - Once we know why this is missing so much, drop the warning
             self.logger.warn("No predicate object for record: %s", cadets_record);
-            return None
-
         if pred_obj_path:
             event["predicateObjectPath"] = pred_obj_path
         if pred_obj2:
-            event["predicateObject2"] = str(UUID(pred_obj2).hex)
+            event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj2).int)
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
         event["name"] = call
@@ -271,13 +267,13 @@ class CDMTranslator(object):
             event["size"] = size
 #         event["programPoint"] = string
         event["properties"] = {}
-        event["uuid"] = uuid
+        event["uuid"] = event_uuid
         if provider == "audit":
             event["type"] = self.convert_audit_event_type(call)
         else:
-            event["type"] = "EVENT_APP_UNKNOWN"
+            self.logger.warn("Unexpected provider %s", provider)
+            return None
 
-        event["threadId"] = cadets_record["tid"]
         event["timestampNanos"] = cadets_record["time"]
 
         # Use the event counter as the seq number
@@ -285,32 +281,16 @@ class CDMTranslator(object):
         event["sequence"] = self.eventCounter
         self.eventCounter += 1
 
-
-#         event["properties"]["call"] = call
-#         if provider != "audit":
-#             event["properties"]["provider"] = provider
-#             event["properties"]["module"] = module
-#             event["properties"]["probe"] = probe
-
         if "args" in cadets_record:
             event["properties"]["args"] = cadets_record["args"]
 
         event["properties"]["exec"] = cadets_record["exec"]
 
-#         for key in cadets_record:
-#             if not key in cdm_keys: # we already handled the standard CDM keys
-#                 if key in uuid_keys:
-#                     event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
-#                 else:
-#                     event["properties"][str(key)] = str(cadets_record[key])
-#                 # for other keys, (path, fd, address, port, query, request)
-#                 # Store the value in properties
+        event["threadId"] = cadets_record["tid"]
 
-#         if "upath1" in cadets_record:
-#             event["properties"]["path"] = cadets_record["upath1"]
-
-        record["datum"] = event
+        record["CDMVersion"] = self.CDMVersion
         record["source"] = self.get_source()
+        record["datum"] = event
 
         return record
 
@@ -350,7 +330,7 @@ class CDMTranslator(object):
                        'aue_unlink' : 'EVENT_UNLINK',
                        'aue_mmap' : 'EVENT_MMAP',
                        'aue_mkdir' : 'EVENT_CREATE_OBJECT',
-                       'aue_rmdir' : 'EVENT_UPDATE_OBJECT',
+                       'aue_rmdir' : 'EVENT_UNLINK',
                        'aue_mprotect' : 'EVENT_MPROTECT',
                        'aue_open' : 'EVENT_OPEN',
                        'aue_read' : 'EVENT_READ',
