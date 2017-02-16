@@ -159,7 +159,8 @@ class InstanceGenerator():
         principal["uuid"] = self.create_uuid("uid", uid);
         principal["type"] = "PRINCIPAL_LOCAL"
         principal["userId"] = str(uid)
-#         principal["username"] = string
+        if uid == 0:
+            principal["username"] = "root"
         principal["groupIds"] = []
         principal["properties"] = {}
 
