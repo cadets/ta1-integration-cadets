@@ -71,10 +71,9 @@ class InstanceGenerator():
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
 
-        # Eventually use this
         return record_generator.Util.get_uuid_from_value(id)
 
-    def get_process_subject_id(self, pid, puuid):
+    def get_process_subject_id(self, puuid):
         ''' Given a pid, did we create a subject for the pid previously?
             If so return the uid of the subject, if not return None
         '''
@@ -83,25 +82,29 @@ class InstanceGenerator():
 
         return None
 
-    def create_process_subject(self, pid, puuid, ppid, time_micros, source):
+    def create_process_subject(self, pid, puuid, ppuuid, principal, time_nanos, source):
         ''' Create a process subject, add it to the created list, and return it
         '''
 
         record = {}
         subject = {}
-        subject["properties"] = {}
 
-        subject["pid"] = pid
-        subject["ppid"] = ppid
+        subject["localPrincipal"] = self.create_uuid("uid", principal);
+        if ppuuid:
+                subject["parentSubject"] = self.create_uuid("uuid", uuid.UUID(ppuuid).int)
 
-        # We don't really know the start time of the process, since this method
-        # is inferring the existance of a process by the fact that it performed
-        # an action.  startTimestampMicros is optional, so we'll let the caller
-        # set the value to None, meaning we don't know
-        if time_micros != None:
-            subject["startTimestampMicros"] = time_micros
-        subject["source"] = source
+        subject["cid"] = pid # relevent pid/tid/etc
+
+        subject["startTimestampNanos"] = time_nanos
         subject["type"] = "SUBJECT_PROCESS"
+#         subject["unitId"] = int
+#         subject["interation"] = int
+#         subject["count"] = int
+#         subject["cmdLine"] = string
+#         subject["privilegeLevel"] = privilege level
+#         subject["importedLibraries"] = [string]
+#         subject["exportedLibraries"] = [string]
+        subject["properties"] = {}
 
         # Generate a uuid for this subject
         if puuid == str(pid):
@@ -112,6 +115,7 @@ class InstanceGenerator():
         subject["uuid"] = uniq
 
         record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
         record["datum"] = subject
         return record
 
@@ -132,19 +136,8 @@ class InstanceGenerator():
         subject["properties"] = {}
 
         subject["startTimestampMicros"] = time_micros
-        subject["source"] = source
         subject["type"] = "SUBJECT_THREAD"
-        subject["pid"] = tid # TODO: Do we put the tid here in the pid field?
-        subject["ppid"] = -1 # TODO: This should be optional
-
-        # Generate a uuid for this subject
-        uniq = self.create_uuid("tid", tid)
-        self.created_threads[tid] = uniq
-        subject["uuid"] = uniq
-
-        # TODO: tid can be a property
-        # subject["properties"]["tid"] = tid
-
+        # TODO very much incomplete
         record["CDMVersion"] = self.CDMVersion
         record["datum"] = subject
         return record
@@ -163,96 +156,56 @@ class InstanceGenerator():
         '''
         record = {}
         principal = {}
-        principal["properties"] = {}
-        principal["userId"] = str(uid)
-        principal["source"] = source
-        principal["groupIds"] = []
+        principal["uuid"] = self.create_uuid("uid", uid);
         principal["type"] = "PRINCIPAL_LOCAL"
+        principal["userId"] = str(uid)
+#         principal["username"] = string
+        principal["groupIds"] = []
+        principal["properties"] = {}
 
-        # Generate a uuid for this user
-        uniq = self.create_uuid("uid", uid)
-        self.created_users[uid] = uniq
-        principal["uuid"] = uniq
+        # Save the uuid for this user
+        self.created_users[uid] = principal["uuid"]
 
         record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
         record["datum"] = principal
         return record
 
-    def get_file_object_id(self, file_key, version=None):
+    def get_file_object_id(self, file_key):
         ''' Given a file path or uuid, did we create an object for the it already?
-            If version = None, return the latest version, else look for that specific version
             If found return the uuid of the object, if not return None
         '''
-        if file_key in self.created_files:
-            versions = self.created_files[file_key]
-            if version != None:
-                if version in versions:
-                    return versions[version]
-            else:
-                # In practice, there will only be one version here, since for now we only need to store the latest version
-                mversion = max(versions)
-                return versions[mversion]
+        return self.created_files.get(file_key)
 
-        return None
-
-    def get_latest_file_version(self, file_key):
-        ''' Get the latest version of a file that we created an Object for.
-            Currently, we only store the latest version
-        '''
-        if file_key in self.created_files:
-            versions = self.created_files[file_key]
-            return max(versions)
-        return None
-
-    def create_file_object(self, id, path, source, version=None):
+    def create_file_object(self, file_uuid, source):
         ''' Infer the existence of a file object, add it to the created list, and return it.
             If version = None, look for an older version, and if found, add one and create a new Object
         '''
 
-        if id != None:
-            file_key = id
-        else:
-            file_key = path
         record = {}
         fobject = {}
         abstract_object = {}
-        abstract_object["source"] = source
+#         abstract_object["epoch"] = int
+#         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
 
         fobject["baseObject"] = abstract_object
-        fobject["properties"] = {}
-        fobject["url"] = str(path)
-        fobject["isPipe"] = False
+        fobject["type"] = "FILE_OBJECT_FILE" # TODO: smarter file type
+#         fobject["localPrincipal"] = uuid
+#         fobject["size"] = int
+#         fobject["fileDescriptor"] = int
+#         fobject["peInfo"] = string
+#         fobject["hashes"] = array of hashes
+        fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
 
-        if version is None:
-            # Look for an older version
-            old_version = self.get_latest_file_version(file_key)
 
-            if old_version is None: # First version then
-                version = 1
-            else:
-                version = int(old_version) + 1
+        fobject["version"] = 1
 
-        fobject["version"] = version
-
-        # Generate a uuid for this subject
-        uniq = self.create_uuid("uuid", uuid.UUID(id).int)
-
-        if file_key in self.created_files:
-            versions = self.created_files[file_key]
-            max_version = self.get_latest_file_version(file_key)
-            if version > max_version:
-                max_version = version
-            versions.clear() # Only keep the most recent
-            versions[max_version] = uniq
-        else:
-            versions = {}
-            versions[version] = uniq
-            self.created_files[file_key] = versions
-
-        fobject["uuid"] = uniq
+        # Save the uuid for this subject
+        self.created_files[file_uuid] = fobject["uuid"]
 
         record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
         record["datum"] = fobject
         return record
 
@@ -265,7 +218,6 @@ class InstanceGenerator():
         record = {}
         nobject = {}
         abstract_object = {}
-        abstract_object["source"] = source
         abstract_object["properties"] = {}
 
         nobject["baseObject"] = abstract_object
@@ -281,5 +233,6 @@ class InstanceGenerator():
         nobject["uuid"] = uniq
 
         record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
         record["datum"] = nobject
         return record

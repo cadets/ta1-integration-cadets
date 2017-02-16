@@ -34,7 +34,7 @@ IN_FILE = None
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = "13"
+CDMVERSION = "15"
 KAFKASTRING = "129.55.12.59:9092"
 TOPIC = "ta1-cadets-cdm13"
 
@@ -123,7 +123,8 @@ def main():
                         logger.info("Translating JSON file: "+cfile)
                         path = os.path.join(args.tdir, cfile)
                         translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
-                        translator.reset()
+                        if not args.wk: # don't reset if we're just writing a stream of data to kafka
+                            translator.reset()
                         logger.info("About "+str(file_queue.qsize())+" files left to translate.")
                 except queue.Empty:
                     if args.p:
@@ -154,7 +155,7 @@ class EnqueueFileHandler(FileSystemEventHandler):
 def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
-    serializer = KafkaAvroGenericSerializer(p_schema)
+    serializer = KafkaAvroGenericSerializer(p_schema,skip_validate=False)
 
     # Open the output files
     base_out = os.path.splitext(os.path.basename(path))[0]
@@ -167,7 +168,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         bin_out_path = os.path.join(os.path.expanduser(output_dir), base_out+".cdm.bin")
         bin_out = open(bin_out_path, 'wb')
         # Create a file writer and serialize all provided records to it.
-        file_writer = AvroGenericSerializer(p_schema, bin_out)
+        file_writer = AvroGenericSerializer(p_schema, bin_out, skip_validate=False)
     if write_kafka:
         client = KafkaClient(kafkastring)
         # Create the topic in kafka if it doesn't already exist

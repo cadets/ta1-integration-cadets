@@ -3,7 +3,7 @@ CADETS JSON record format to TC CDM format translator
 '''
 
 import logging
-from uuid import UUID
+import uuid
 from instance_generator import InstanceGenerator
 
 # These are the json keys in the CADETS record that we handle specifically in
@@ -27,9 +27,6 @@ class CDMTranslator(object):
 
     # If true, create a File object for any event with a path
     createFileObjects = True
-    # If true, create new versions of the File object for every write event,
-    # if False, we'll only create one File subject
-    createFileVersions = True
 
     # If true, create NetflowObject objects for each event with an address:port
     # Since we don't have the source host and port, use defaults of localhost:-1
@@ -64,11 +61,10 @@ class CDMTranslator(object):
     def translate_record(self, cadets_record):
         ''' Generate a CDM record from the passed in JSON CADETS record '''
 
-        # List of CDM vertices or edges that we created from this record
+        # List of CDM vertices
         datums = []
 
         # nanos to micros
-        time_micros = cadets_record["time"] / 1000
 
         # Create a new user if necessary
         uid = cadets_record["uid"]
@@ -84,33 +80,27 @@ class CDMTranslator(object):
         ppid = cadets_record.get("ppid", -1)
         cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]))
 
-        proc_uuid = self.instance_generator.get_process_subject_id(pid, cadets_proc_uuid)
+        proc_uuid = self.instance_generator.get_process_subject_id(cadets_proc_uuid)
         if proc_uuid is None:
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
-            # We don't know the time when this process was created, so we'll leave it blank.
-            # Could use time_micros as an upper bound, but we'd need to specify
+            # We don't know the time when this process was created, so we'll make it 0 for now
+            # Could use time as an upper bound, but we'd need to specify
 
-            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, ppid, None, self.get_source())
+            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, self.get_source())
             process = process_record["datum"]
             proc_uuid = process["uuid"]
 
             datums.append(process_record)
 
-            # Add a HASLOCALPRINCIPAL edge from the process to the user
-            if user_uuid != None:
-                self.logger.debug("Creating edge from Subject {s} to Principal {u}".format(s=pid, u=uid))
-                edge2 = self.create_edge(proc_uuid, user_uuid, time_micros, "EDGE_SUBJECT_HASLOCALPRINCIPAL")
-                datums.append(edge2)
-
 
         # Create a new Thread subject if necessary
         # TODO:  For now, we'll skip creating the Thread
+        tid = cadets_record["tid"]
         if False:
-            tid = cadets_record["tid"]
             thread_uuid = self.instance_generator.get_thread_subject_id(tid)
             if thread_uuid is None:
                 self.logger.debug("Creating new Thread Subject for {t}".format(t=tid))
-                thread = self.instance_generator.create_thread_subject(tid, time_micros, self.get_source())
+                thread = self.instance_generator.create_thread_subject(tid, cadets_record["time"], self.get_source())
                 thread_uuid = thread["datum"]["uuid"]
                 datums.append(thread)
 
@@ -125,133 +115,222 @@ class CDMTranslator(object):
         call = event_components[2]
         probe = event_components[3]
 
+        # Create related subjects before the event itself
+        if "dup" in call:
+            # dup2 doesn't provide any new information, since we aren't tracking fds
+            return datums
+
+        if "fork" in call: # link forked processes
+            new_pid = cadets_record.get("retval")
+            new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
+
+            cproc_uuid = self.instance_generator.get_process_subject_id(new_proc_uuid)
+            if cproc_uuid is None:
+                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], self.get_source())
+                cproc_uuid = proc_record["datum"]["uuid"]
+                datums.append(proc_record)
+
+        if "exec" in call: # link exec events to the file executed
+            exec_path = cadets_record.get("upath1")
+            file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
+            if file_uuid is None:
+                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
+                datums.append(file_record)
+
         # Create the Event
         self.logger.debug("Creating Event from {e} ".format(e=event_type))
         event_record = self.translate_call(provider, module, call, probe, cadets_record)
 
         event = None
         if event_record != None:
-            event = event_record["datum"]
             datums.append(event_record)
-            object_records = self.create_subjects(event, cadets_record)
+            object_records = self.create_subjects(event_record["datum"], cadets_record)
             if object_records != None:
                 for objr in object_records:
-                    datums.append(objr)
+                    datums.insert(0, objr)
 
-            # Add an edge from the event to the subject that generated it
-            self.logger.debug("Creating edge from Event {e} to Subject {s}".format(s=pid, e=event_type))
-            edge1 = self.create_edge(event["uuid"], proc_uuid, event["timestampMicros"], "EDGE_EVENT_ISGENERATEDBY_SUBJECT")
-            datums.append(edge1)
-
-        event["properties"]["subjprocuuid"] = str(UUID(cadets_record["subjprocuuid"]).hex)
-
-        if "fork" in call: # link forked processes
-            new_pid = cadets_record.get("retval")
-            new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
-
-            cproc_uuid = self.instance_generator.get_process_subject_id(new_pid, new_proc_uuid)
-            if cproc_uuid is None:
-                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["pid"], None, self.get_source())
-                cproc_uuid = proc_record["datum"]["uuid"]
-                datums.append(proc_record)
-            self.logger.debug("Creating edge from Process {s} to parent process {p}".format(s=cproc_uuid, p=proc_uuid))
-            fork_edge = self.create_edge(cproc_uuid, proc_uuid, time_micros, "EDGE_SUBJECT_HASPARENT_SUBJECT")
-            datums.append(fork_edge)
-            fork_edge2 = self.create_edge(event["uuid"], cproc_uuid, time_micros, "EDGE_EVENT_AFFECTS_SUBJECT")
-            datums.append(fork_edge2)
-
-        if "exec" in call: # link exec events to the file executed
-            exec_path = cadets_record.get("upath1")
-            self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
-
-            file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
-            if file_uuid is None:
-                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), exec_path, self.get_source(), None)
-                datums.append(file_record)
-                file_uuid = file_record["datum"]["uuid"]
-            self.logger.debug("Creating edge from File {s} to Event {p}".format(s=exec_path, p=event["uuid"]))
-            exec_file_edge = self.create_edge(file_uuid, event["uuid"], time_micros, "EDGE_FILE_AFFECTS_EVENT")
-            datums.append(exec_file_edge)
-
-            # Add a HASLOCALPRINCIPAL edge from the process to the user
-            if user_uuid != None:
-                self.logger.debug("Creating edge from Subject {s} to Principal {u}".format(s=pid, u=uid))
-                edge2 = self.create_edge(proc_uuid, user_uuid, time_micros, "EDGE_SUBJECT_HASLOCALPRINCIPAL")
-                datums.append(edge2)
 
         return datums
+
+
+
+    def create_parameters(self, call, cadets_record):
+        parameters = []
+        if call in ["aue_fchmod", "aue_fchmodat", "aue_lchmod", "aue_chmod"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "mode", cadets_record["mode"]))
+            if call in ["aue_fchmodat"]:
+                parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "flag", cadets_record["flag"]))
+        elif call in ["aue_fchown", "aue_fchownat", "aue_lchown", "aue_chown"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "uid", cadets_record["arg_uid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "gid", cadets_record["arg_gid"]))
+#             if call in ["aue_fchownat"]:
+#                 parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "flag", cadets_record["flag"]))
+        elif call in ["aue_setresgid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "gid", cadets_record["arg_rgid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "egid", cadets_record["arg_egid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "sgid", cadets_record["arg_sgid"]))
+        elif call in ["aue_setresuid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "uid", cadets_record["arg_ruid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "euid", cadets_record["arg_euid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "suid", cadets_record["arg_suid"]))
+        elif call in ["aue_setregid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "gid", cadets_record["arg_rgid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "egid", cadets_record["arg_egid"]))
+        elif call in ["aue_setreuid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "uid", cadets_record["arg_ruid"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "euid", cadets_record["arg_euid"]))
+        elif call in ["aue_seteuid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "euid", cadets_record["arg_euid"]))
+        elif call in ["aue_setegid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "egid", cadets_record["arg_egid"]))
+        elif call in ["aue_setuid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "uid", cadets_record["arg_uid"]))
+        elif call in ["aue_setgid"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "gid", cadets_record["arg_gid"]))
+        elif call in ["aue_open_rwtc", "aue_openat_rwtc"]:
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "flags", cadets_record["flags"]))
+            parameters.append(create_int_parameter("VALUE_TYPE_CONTROL", "mode", cadets_record["mode"]))
+
+
+#         parameters = {}
+#         parameters["size"] = int
+#         parameters["type"] = ValueType [VALUE_TYPE_SRC/VALUE_TYPE_SINK/VALUE_TYPE_CONTROL]
+#         parameters["valueDataType"] = ValueDataType [VALUE_DATA_TYPE_BYTE/VALUE_DATA_TYPE_CHAR/etc]
+#         parameters["isNull"] = bool
+#         parameters["name"] = null or string
+#         parameters["runtimeDataValue"] = null or string
+#         parameters["valueBytes"] = null or bytes
+#         parameters["tag"] = None
+#         parameters["components"] = noll or [Value]
+
+        return parameters
+
+#     returns (first object acted on, its path, second object acted on, its path, event size)
+    def predicates_by_event(self, event, call, cadets_record):
+# TODO - combine like events
+        if event in ["EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_LSEEK"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_RENAME"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
+        if event in ["EVENT_READ", "EVENT_WRITE"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("fdpath"), None, None, cadets_record.get("retval"))
+        if event in ["EVENT_MMAP"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_FORK"]:
+            return (cadets_record.get("ret_objuuid1"), None, None, None, None) # fork has a second return uuid. The resulting thread uuid
+        if event in ["EVENT_OPEN", "EVENT_CREATE_OBJECT"]:
+            return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
+        if event in ["EVENT_LINK"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, cadets_record.get("upath2"), None)
+        if event in ["EVENT_EXECUTE"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
+        if event in ["EVENT_CLOSE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_UNLINK", "EVENT_UPDATE_OBJECT", "EVENT_TRUNCATE"]:
+            return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, None, None)
+        if event in ["EVENT_CHANGE_PRINCIPAL", "EVENT_EXIT"]:
+            return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
+        if event in ["EVENT_OTHER"] and call == "aue_pipe":
+            return (cadets_record.get("ret_objuuid1"), None, cadets_record.get("ret_objuuid2"), None, None)
+        if event in ["EVENT_OTHER"] and call in ["aue_fchdir", "aue_chdir"]:
+            return (cadets_record.get("subjprocuuid"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
+        if event in ["EVENT_OTHER"] and call in ["aue_symlink", "aue_symlinkat"]:
+            return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
+        if event in ["EVENT_OTHER"] and call in ["aue_umask"]:
+            return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
+        print("Unhandled event/call: {}/{}\n".format(event, call))
+        return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
 
     def translate_call(self, provider, module, call, probe, cadets_record):
         ''' Translate a system or function call event '''
 
         record = {}
-        record["CDMVersion"] = self.CDMVersion
         event = {}
+
+
+        event["subject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["subjprocuuid"]).int)
+        event_uuid = self.instance_generator.create_uuid("event", self.eventCounter)
+        (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(self.convert_audit_event_type(call), call, cadets_record);
+        if pred_obj:
+            event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj).int)
+        else:
+            # TODO - Once we know why this is missing so much, drop the warning
+            self.logger.warn("No predicate object for record: %s", cadets_record);
+        if pred_obj_path:
+            event["predicateObjectPath"] = pred_obj_path
+        if pred_obj2:
+            event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj2).int)
+        if pred_obj2_path:
+            event["predicateObject2Path"] = pred_obj2_path
+        event["name"] = call
+        event["parameters"] = self.create_parameters(call, cadets_record) # [Values] #TODO
+#         event["location"] = long
+        if size:
+            event["size"] = size
+#         event["programPoint"] = string
         event["properties"] = {}
-
-        uuid = self.instance_generator.create_uuid("event", self.eventCounter)
-
-        event["uuid"] = uuid
+        event["uuid"] = event_uuid
         if provider == "audit":
             event["type"] = self.convert_audit_event_type(call)
         else:
-            event["type"] = "EVENT_APP_UNKNOWN"
+            self.logger.warn("Unexpected provider %s", provider)
+            return None
 
-        event["threadId"] = cadets_record["tid"]
-        event["timestampMicros"] = int(cadets_record["time"] / 1000) # ns to micro
+        event["timestampNanos"] = cadets_record["time"]
 
         # Use the event counter as the seq number
         # This assumes we're processing events in order
         event["sequence"] = self.eventCounter
         self.eventCounter += 1
 
-        event["source"] = self.get_source()
-
-        event["properties"]["call"] = call
-        if provider != "audit":
-            event["properties"]["provider"] = provider
-            event["properties"]["module"] = module
-            event["properties"]["probe"] = probe
-
         if "args" in cadets_record:
             event["properties"]["args"] = cadets_record["args"]
 
         event["properties"]["exec"] = cadets_record["exec"]
 
-        for key in cadets_record:
-            if not key in cdm_keys: # we already handled the standard CDM keys
-                if key in uuid_keys:
-                    event["properties"][str(key)] = str(UUID(cadets_record[key]).hex)
-                else:
-                    event["properties"][str(key)] = str(cadets_record[key])
-                # for other keys, (path, fd, address, port, query, request)
-                # Store the value in properties
+        event["threadId"] = cadets_record["tid"]
 
-#         if "upath1" in cadets_record:
-#             event["properties"]["path"] = cadets_record["upath1"]
-
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = self.get_source()
         record["datum"] = event
 
         return record
 
     def convert_audit_event_type(self, call):
         ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
-            Fallthrough default is EVENT_OS_UNKNOWN
+            Fallthrough default is EVENT_OTHER
         '''
         prefix_dict = {'aue_execve' : 'EVENT_EXECUTE',
                        'aue_accept' : 'EVENT_ACCEPT',
                        'aue_bind' : 'EVENT_BIND',
                        'aue_close' : 'EVENT_CLOSE',
+                       'aue_lseek' : 'EVENT_LSEEK',
                        'aue_connect' : 'EVENT_CONNECT',
+                       'aue_fchdir' : 'EVENT_OTHER',
                        'aue_exit' : 'EVENT_EXIT',
                        'aue_fork' : 'EVENT_FORK',
                        'aue_vfork' : 'EVENT_FORK',
                        'aue_rfork' : 'EVENT_FORK',
-                       'aue_linkat' : 'EVENT_LINK',
+                       'aue_setuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setgid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_seteuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setegid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setreuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setreuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setresgid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setresuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_chmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_fchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_lchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_chown' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_fchown' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_lchown' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_futimes' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_lutimes' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
+                       'aue_utimes' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_link' : 'EVENT_LINK',
-                       'aue_unlinkat' : 'EVENT_UNLINKAT',
                        'aue_unlink' : 'EVENT_UNLINK',
                        'aue_mmap' : 'EVENT_MMAP',
+                       'aue_mkdir' : 'EVENT_CREATE_OBJECT',
+                       'aue_rmdir' : 'EVENT_UNLINK',
                        'aue_mprotect' : 'EVENT_MPROTECT',
                        'aue_open' : 'EVENT_OPEN',
                        'aue_read' : 'EVENT_READ',
@@ -271,32 +350,18 @@ class CDMTranslator(object):
         for key in prefix_dict:
             if call.startswith(key):
                 return prefix_dict.get(key)
-        return 'EVENT_OS_UNKNOWN'
+        return 'EVENT_OTHER'
 
-
-    def create_edge(self, fromUuid, toUuid, timestamp, edge_type):
-        ''' Create a 'type' Edge from the fromUuid to the toUuid object" '''
-        edge = {}
-
-        edge["properties"] = {}
-        edge["fromUuid"] = fromUuid
-        edge["toUuid"] = toUuid
-        edge["type"] = edge_type
-        edge["timestamp"] = int(timestamp)
-
-        record = {}
-        record["CDMVersion"] = self.CDMVersion
-        record["datum"] = edge
-        return record
 
     def create_subjects(self, event, cadets_record):
-        ''' Given a CDM event that we just created, generate Subject instances and the corresponding edges
+        ''' Given a CDM event that we just created, generate Subject instances
             Currently, we create:
               a subject for any files that we discover via the uuids
-              Plus an edge from the event to the subject,  EDGE_EVENT_AFFECTS_FILE or EDGE_FILE_AFFECTS_EVENT
         '''
         newRecords = []
-        if self.createFileObjects and (event["type"] in file_calls or event["properties"]["call"] in file_calls):
+        if self.createFileObjects and (event["type"] in file_calls or event["name"] in file_calls):
+            # if this is a file-related event, create events for the uuids on the event.
+            # TODO: Make more intelligent, not all or nothing file events
             newRecords = newRecords + self.create_file_subjects(event, cadets_record)
 
         # NetFlows
@@ -309,72 +374,28 @@ class CDMTranslator(object):
             nf_uuid = nf_obj["datum"]["uuid"]
             newRecords.append(nf_obj)
 
-            # Add an EDGE_EVENT_AFFECTS_NETFLOW
-            self.logger.debug("Creating a EVENT_AFFECTS_NETFLOW edge")
-            edge3 = self.create_edge(event["uuid"], nf_uuid, event["timestampMicros"], "EDGE_EVENT_AFFECTS_NETFLOW")
-            newRecords.append(edge3)
-
         return newRecords
 
     def create_file_subjects(self, event, cadets_record):
         newRecords = []
         for uuid in uuid_keys:
-                etype = event["type"]
-
                 if uuid in cadets_record:
-                    file_uuid = self.instance_generator.get_file_object_id(cadets_record[uuid])
+                    if self.instance_generator.get_file_object_id(cadets_record[uuid]) is None:
+                        self.logger.debug("Creating file")
+                        fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), self.get_source())
+                        newRecords.append(fileobj)
                 else:
                     continue;
-                if file_uuid != None:
-                    if self.createFileVersions and etype == "EVENT_OPEN":
-                        # open event, create a new version of the file, with path info
-
-                        path = cadets_record["upath1"]
-                        if uuid == "arg_objuuid1":
-                            self.logger.debug("Creating version of file {f}".format(f=path))
-                            if self.instance_generator.get_latest_file_version(cadets_record["arg_objuuid1"]) is None:
-                                fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), None)
-                                newRecords.append(fileobj)
-                            else:
-                                fileobj = self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], path, self.get_source(), -1)
-                                newRecords.append(fileobj)
-
-                    if self.createFileVersions and etype == "EVENT_WRITE":
-                        self.logger.debug("Creating new version of file with UUID {f}".format(f=cadets_record[uuid]))
-                        # Write event, create a new version of the file
-                        old_version = self.instance_generator.get_latest_file_version(cadets_record[uuid])
-                        fileobj = self.instance_generator.create_file_object(cadets_record[uuid], "", self.get_source(), None)
-                        self.logger.debug("File version from {ov} to {nv}".format(ov=old_version, nv=fileobj["datum"]["version"]))
-                        newRecords.append(fileobj)
-
-                        # Add an EDGE_OBJECT_PREV_VERSION
-                        if old_version != None:
-                            self.logger.debug("Adding PREV_VERSION edge")
-                            edge1 = self.create_edge(file_uuid, fileobj["datum"]["uuid"], event["timestampMicros"], "EDGE_OBJECT_PREV_VERSION")
-                            newRecords.append(edge1)
-                else:
-                    self.logger.debug("Creating first version of the file")
-                    fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record.get("upath1", ""), self.get_source(), None)
-                    file_uuid = fileobj["datum"]["uuid"]
-                    newRecords.append(fileobj)
-
-                if etype == "EVENT_WRITE" or etype == "EVENT_UNLINK" or etype == "EVENT_UNLINKAT":
-                    # Writes create an edge from the event to the file object
-                    self.logger.debug("Creating EVENT_AFFECTS_FILE edge for a file write")
-                    edge2 = self.create_edge(event["uuid"], file_uuid, event["timestampMicros"], "EDGE_EVENT_AFFECTS_FILE")
-                    newRecords.append(edge2)
-                elif etype == "EVENT_OPEN":
-                    if uuid == "ret_objuuid1":
-                        # on open create an edge from the file object to the event.
-                        # open often has multiple uuids pointing to the same file.
-                        # Avoid creating multiple edges
-                        self.logger.debug("Creating FILE_AFFECTS_EVENT for open")
-                        edge2 = self.create_edge(file_uuid, event["uuid"], event["timestampMicros"], "EDGE_FILE_AFFECTS_EVENT")
-                        newRecords.append(edge2)
-                else:
-                    # anything else (read, etc) create an edge from the file object to the event
-                    self.logger.debug("Creating FILE_AFFECTS_EVENT for the read or other file operation")
-                    edge2 = self.create_edge(file_uuid, event["uuid"], event["timestampMicros"], "EDGE_FILE_AFFECTS_EVENT")
-                    newRecords.append(edge2)
 
         return newRecords
+
+def create_int_parameter(value_type, name, value):
+        parameter = {}
+        parameter["size"] = -1 # -1 = primitive
+        parameter["type"] = value_type
+        parameter["valueDataType"]="VALUE_DATA_TYPE_INT"
+        parameter["isNull"] = False
+        parameter["name"] = name
+#         parameter["valueBytes"] = value
+#         parameter["valueBytes"] = bytes([5]) # TODO - how to represent bytes correctly
+        return parameter
