@@ -13,6 +13,7 @@ from tc.schema.records import record_generator
 UID_NAMESPACE =     uuid.UUID('6ba7b813-9dad-11d1-80b4-00c04fd430c8')
 EVENT_NAMESPACE =   uuid.UUID('6ba7b815-9dad-11d1-80b4-00c04fd430c8')
 NETFLOW_NAMESPACE = uuid.UUID('6ba7b816-9dad-11d1-80b4-00c04fd430c8')
+PIPE_NAMESPACE =    uuid.UUID('6ba7b816-9dad-11d1-80b4-00c04fd430c8')
 
 class InstanceGenerator():
 
@@ -35,6 +36,8 @@ class InstanceGenerator():
     # Instead we just use a counter for the netflow uuid, since the host:port may not be unique
     #   (multiple connections to the same dest host:port)
     netflow_counter = 0
+    # Pipes are always created new
+    pipe_counter = 0
 
     CDMVersion = None
 
@@ -48,6 +51,7 @@ class InstanceGenerator():
         self.created_users.clear()
         self.created_files.clear()
         self.netflow_counter = 0
+        self.pipe_counter = 0
 
     def create_uuid(self, object_type, data):
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
@@ -63,6 +67,8 @@ class InstanceGenerator():
             id = uuid.uuid5(UID_NAMESPACE, str(data)).int
         elif object_type == "event":
             id = uuid.uuid5(EVENT_NAMESPACE, str(data)).int
+        elif object_type == "pipe":
+            id = uuid.uuid5(NETFLOW_NAMESPACE, str(data)).int
         # XXX: Use socket UUIDs eventually
         elif object_type == "netflow":
             id = uuid.uuid5(NETFLOW_NAMESPACE, str(data)).int
@@ -210,7 +216,36 @@ class InstanceGenerator():
         record["datum"] = fobject
         return record
 
-    def create_file_object(self, file_uuid, source):
+    def create_unnamed_pipe_object(self, src_uuid, sink_uuid, source):
+        ''' Infer the existence of a file object, add it to the created list, and return it.
+            If version = None, look for an older version, and if found, add one and create a new Object
+        '''
+
+        record = {}
+        fobject = {}
+        abstract_object = {}
+#         abstract_object["epoch"] = int
+#         abstract_object["permission"] = SHORT
+        abstract_object["properties"] = {}
+        abstract_object["properties"]["sourceUuid"] = str(self.create_uuid("uuid", uuid.UUID(src_uuid).int))
+        abstract_object["properties"]["sinkUuid"] = str(self.create_uuid("uuid", uuid.UUID(sink_uuid).int))
+
+        fobject["baseObject"] = abstract_object
+        fobject["sourceFileDescriptor"] = -1 # src_uuid
+        fobject["sinkFileDescriptor"] = -1 # sink_uuid
+        fobject["uuid"] = self.create_uuid("pipe", self.pipe_counter);
+        self.pipe_counter += 1
+
+        # Save the uuid for this subject
+        self.created_files[src_uuid] = src_uuid
+        self.created_files[sink_uuid] = sink_uuid
+
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
+        record["datum"] = fobject
+        return record
+
+    def create_file_object(self, file_uuid, source, is_dir = False):
         ''' Infer the existence of a file object, add it to the created list, and return it.
             If version = None, look for an older version, and if found, add one and create a new Object
         '''
@@ -223,7 +258,10 @@ class InstanceGenerator():
         abstract_object["properties"] = {}
 
         fobject["baseObject"] = abstract_object
-        fobject["type"] = "FILE_OBJECT_FILE" # TODO: smarter file type
+        if is_dir:
+            fobject["type"] = "FILE_OBJECT_DIR" # TODO: smarter file type
+        else:
+            fobject["type"] = "FILE_OBJECT_FILE" # TODO: smarter file type
 #         fobject["localPrincipal"] = uuid
 #         fobject["size"] = int
 #         fobject["fileDescriptor"] = int
@@ -268,4 +306,6 @@ class InstanceGenerator():
         record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = nobject
+
+        self.created_files[socket_uuid] = nobject["uuid"]
         return record

@@ -11,7 +11,7 @@ from tc.schema.serialization import AvroBytes
 # the translator.  Any keys not in this list, we'll add directly to the
 # properties section of the Event
 cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args", "subjprocuuid", "subjthruuid", "errno"]
-file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP", "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ", "EVENT_WRITE", "aue_chown", "aue_lchown", "aue_fchown", "aue_chmod", "aue_lchmod", "aue_fchmod", "aue_fchmodat"] # TODO not complete list
+file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP", "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ", "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK", "aue_chown", "aue_lchown", "aue_fchown", "aue_chmod", "aue_lchmod", "aue_fchmod", "aue_fchmodat", "aue_symlink", "aue_symlinkat"] # TODO not complete list
 no_uuids_calls = []
 process_calls = ["EVENT_FORK", "EVENT_EXIT", "kill"]
 network_calls = ["recvfrom", "recvmsg", "sendto", "sendmsg", "socketpair", "socket", "connect", "accept"]
@@ -25,9 +25,6 @@ class CDMTranslator(object):
 
     # Event counter, used for unique ids
     eventCounter = 0
-
-    # If true, create a File object for any event with a path
-    createFileObjects = True
 
     # If true, create NetflowObject objects for each event with an address:port
     # Since we don't have the source host and port, use defaults of localhost:-1
@@ -208,7 +205,7 @@ class CDMTranslator(object):
 #     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
 # TODO - combine like events
-        if event in ["EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_LSEEK"]:
+        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_LSEEK"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
         if event in ["EVENT_RENAME"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
@@ -372,25 +369,34 @@ class CDMTranslator(object):
               a subject for any files that we discover via the uuids
         '''
         newRecords = []
-        if self.createFileObjects and (event["type"] in file_calls or event["name"] in file_calls):
+        if event["type"] in file_calls or event["name"] in file_calls:
             # if this is a file-related event, create events for the uuids on the event.
             # TODO: Make more intelligent, not all or nothing file events
             newRecords = newRecords + self.create_file_subjects(event, cadets_record)
+        if event["name"] in ["aue_chdir", "aue_fchdir"]:
+            newRecords.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], self.get_source(), is_dir=True))
 
         # NetFlows
-        if event["type"] in ["EVENT_CONNECT"]:
-            remoteAddr = cadets_record.get("address")
-            remotePort = cadets_record.get("port")
+        if event["name"] in ["aue_pipe", "aue_pipe2"]:
+            # Create something to link the two endpoints of the pipe
+            pipe_uuid1 = cadets_record.get("ret_objuuid1")
+            pipe_uuid2 = cadets_record.get("ret_objuuid2")
+            pipe_obj = self.instance_generator.create_unnamed_pipe_object(pipe_uuid1, pipe_uuid2, self.get_source())
+            newRecords.append(pipe_obj)
+        if event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
+            if not self.instance_generator.get_file_object_id(socket_uuid):
+                remoteAddr = cadets_record.get("address")
+                remotePort = cadets_record.get("port")
 
-            if remotePort:
-                self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remoteAddr, p=remotePort))
-                nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, socket_uuid, self.get_source())
-                newRecords.append(nf_obj)
-            else:
-                self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
-                nf_obj = self.instance_generator.create_unix_socket_object(socket_uuid, self.get_source())
-                newRecords.append(nf_obj)
+                if remotePort:
+                    self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remoteAddr, p=remotePort))
+                    nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, socket_uuid, self.get_source())
+                    newRecords.append(nf_obj)
+                else:
+                    self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
+                    nf_obj = self.instance_generator.create_unix_socket_object(socket_uuid, self.get_source())
+                    newRecords.append(nf_obj)
 
         return newRecords
 
