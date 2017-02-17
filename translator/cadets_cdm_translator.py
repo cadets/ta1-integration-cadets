@@ -23,8 +23,7 @@ import sys
 from tc.schema.serialization import AvroGenericSerializer, Utils
 from tc.schema.serialization.kafka import KafkaAvroGenericSerializer
 
-from pykafka import KafkaClient
-from pykafka.partitioners import HashingPartitioner
+import confluent_kafka
 
 from translator import CDMTranslator
 
@@ -36,6 +35,7 @@ OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
 CDMVERSION = "15"
 KAFKASTRING = "129.55.12.59:9092"
+PRODUCER_ID = "cadets"
 TOPIC = "ta1-cadets-cdm13"
 
 logger = logging.getLogger("tc")
@@ -170,12 +170,13 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         # Create a file writer and serialize all provided records to it.
         file_writer = AvroGenericSerializer(p_schema, bin_out, skip_validate=False)
     if write_kafka:
-        client = KafkaClient(kafkastring)
-        # Create the topic in kafka if it doesn't already exist
-        pykafka_topic = client.topics[kafkatopic.encode("utf-8")]
-        producer = pykafka_topic.get_producer(
-            partitioner=HashingPartitioner(), sync=False,
-            linger_ms=1, ack_timeout_ms=30000, max_retries=0)
+        # Set up the config for the Kafka producer
+        config = {}
+        config["bootstrap.servers"] = kafkastring
+        config["api.version.request"] = True
+        config["client.id"] = PRODUCER_ID
+        producer = confluent_kafka.Producer(config)
+
     incount = 0
     cdmcount = 0
 
@@ -255,7 +256,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         bin_out.close()
         logger.info("Wrote binary CDM records to {bo}".format(bo=bin_out.name))
     if write_kafka:
-        producer.stop()
+        producer.flush()
         logger.info("Wrote CDM records to kafka {to}".format(to=kafkatopic))
 
 def write_cdm_json_records(cdm_records, serializer, json_out, incount):
@@ -279,7 +280,8 @@ def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic):
     for edge in cdm_records:
         # Serialize the record
         message = serializer.serialize(topic, edge)
-        producer.produce(message, str(kafka_key).encode())
+        producer.produce(topic, value=message, key=str(kafka_key).encode())
+        producer.poll(0)
 
 if __name__ == '__main__':
     main()
