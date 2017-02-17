@@ -15,7 +15,7 @@ import json
 # Default values, replace or use command line arguments
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = "13"
+CDMVERSION = "15"
 
 logger = logging.getLogger("tc")
 
@@ -99,6 +99,9 @@ def examine_record(record):
         if details["uuid"] == "00000000000000000000000000000000":
             logger.warn("Was trace run on a file system with UFS?")
             return False
+        if details.get("sourceFileDescriptor"):
+            referenced_uuids[details["baseObject"]["properties"]["sourceUuid"]] = "PIPE"
+            referenced_uuids[details["baseObject"]["properties"]["sinkUuid"]] = "PIPE"
         return True
 
     if not details.get("type"):
@@ -110,19 +113,22 @@ def examine_record(record):
 
     if record_type.startswith("EVENT"):
         referenced_uuids[details["uuid"]] = "EVENT"
-    elif record_type.startswith("EDGE"):
-        if not referenced_uuids.get(details["toUuid"]):
-            logger.warn("Edge to an unknown node")
-            referenced_uuids[details["toUuid"]] = "UNKNOWN"
+        predicate1 = details.get("predicateObject")
+        predicate2 = details.get("predicateObject2")
+        if predicate1 and not referenced_uuids.get(predicate1):
+            logger.warn("Undefined uuid: %s", predicate1)
+            referenced_uuids[predicate1] = "UNKNOWN"
             return False
-        if not referenced_uuids.get(details["fromUuid"]):
-            logger.warn("Edge from an unknown node")
-            referenced_uuids[details["fromUuid"]] = "UNKNOWN"
+        if predicate2 and not referenced_uuids.get(predicate2):
+            logger.warn("Undefined uuid: %s", predicate2)
+            referenced_uuids[predicate2] = "UNKNOWN"
             return False
     elif record_type == "SUBJECT_PROCESS":
         referenced_uuids[details["uuid"]] = "PROCESS"
     elif record_type == "PRINCIPAL_LOCAL":
         referenced_uuids[details["uuid"]] = "PRINCIPAL"
+    else:
+        referenced_uuids[details["uuid"]] = "OTHER"
 
     return True
 
