@@ -216,9 +216,8 @@ class InstanceGenerator():
         record["datum"] = fobject
         return record
 
-    def create_unnamed_pipe_object(self, src_uuid, sink_uuid, source):
-        ''' Infer the existence of a file object, add it to the created list, and return it.
-            If version = None, look for an older version, and if found, add one and create a new Object
+    def create_pipe_object(self, ipc_uuid, source):
+        ''' Create one endpoint of a pipe.
         '''
 
         record = {}
@@ -227,18 +226,13 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["properties"]["sourceUuid"] = str(self.create_uuid("uuid", uuid.UUID(src_uuid).int))
-        abstract_object["properties"]["sinkUuid"] = str(self.create_uuid("uuid", uuid.UUID(sink_uuid).int))
 
         fobject["baseObject"] = abstract_object
-        fobject["sourceFileDescriptor"] = -1 # src_uuid
-        fobject["sinkFileDescriptor"] = -1 # sink_uuid
-        fobject["uuid"] = self.create_uuid("pipe", self.pipe_counter);
-        self.pipe_counter += 1
+        fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(ipc_uuid).int)
+        fobject["type"] = "SOURCE_SINK_IPC"
 
         # Save the uuid for this subject
-        self.created_files[src_uuid] = src_uuid
-        self.created_files[sink_uuid] = sink_uuid
+        self.created_files[ipc_uuid] = fobject["uuid"]
 
         record["CDMVersion"] = self.CDMVersion
         record["source"] = source

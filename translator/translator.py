@@ -5,7 +5,6 @@ CADETS JSON record format to TC CDM format translator
 import logging
 import uuid
 from instance_generator import InstanceGenerator
-from tc.schema.serialization import AvroBytes
 
 # These are the json keys in the CADETS record that we handle specifically in
 # the translator.  Any keys not in this list, we'll add directly to the
@@ -381,8 +380,10 @@ class CDMTranslator(object):
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
-            pipe_obj = self.instance_generator.create_unnamed_pipe_object(pipe_uuid2, pipe_uuid1, self.get_source())
+            pipe_obj = self.instance_generator.create_pipe_object(pipe_uuid1, self.get_source())
+            pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, self.get_source())
             newRecords.append(pipe_obj)
+            newRecords.append(pipe_obj2)
         if event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.get_file_object_id(socket_uuid):
