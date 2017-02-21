@@ -421,7 +421,5 @@ def create_int_parameter(value_type, name, value):
         parameter["valueDataType"]="VALUE_DATA_TYPE_INT"
         parameter["isNull"] = False
         parameter["name"] = name
-        valueBytes = AvroBytes()
-        valueBytes.set_by_value(value, None)
-        parameter["valueBytes"] = valueBytes
+        parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=False) # I don't think we actually have signed ints at this point
         return parameter
