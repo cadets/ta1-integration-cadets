@@ -92,36 +92,50 @@ def examine_record(record):
         # Everything should have a datum. Why is it missing?
         return False
 
+    record_type=None
     details = record["datum"]
+    if details.get("Event"):
+        details = details.get("Event")
+    elif details.get("Subject"):
+        details = details.get("Subject")
+    elif details.get("SrcSinkObject"):
+        details = details.get("SrcSinkObject")
+    elif details.get("FileObject"):
+        details = details.get("FileObject")
+    elif details.get("Principal"):
+        details = details.get("Principal")
+    elif details.get("NetFlowObject"):
+        details = details.get("NetFlowObject")
+        record_type = "NetFlow"
 
     if details.get("baseObject"):
         referenced_uuids[details["uuid"]] = "FILE"
-        if details["uuid"] == "00000000000000000000000000000000":
+        if details["uuid"] == "00000000-0000-0000-0000-000000000000":
             logger.warn("Was trace run on a file system with UFS?")
             return False
-        if details.get("sourceFileDescriptor"):
-            referenced_uuids[details["baseObject"]["properties"]["sourceUuid"]] = "PIPE"
-            referenced_uuids[details["baseObject"]["properties"]["sinkUuid"]] = "PIPE"
+        if not record_type:
+            record_type = details["baseObject"].get("type")
         return True
 
-    if not details.get("type"):
+    if not record_type:
+        record_type = details.get("type")
+        
+    if not record_type:
         # Everything but files should have a "type"
         logger.warn("Record has no type")
         return False
-
-    record_type = details["type"]
 
     if record_type.startswith("EVENT"):
         referenced_uuids[details["uuid"]] = "EVENT"
         predicate1 = details.get("predicateObject")
         predicate2 = details.get("predicateObject2")
-        if predicate1 and not referenced_uuids.get(predicate1):
-            logger.warn("Undefined uuid: %s", predicate1)
-            referenced_uuids[predicate1] = "UNKNOWN"
+        if predicate1 and not referenced_uuids.get(predicate1.get("UUID")):
+            logger.warn("Undefined uuid: %s", predicate1.get("UUID"))
+            referenced_uuids[predicate1.get("UUID")] = "UNKNOWN"
             return False
-        if predicate2 and not referenced_uuids.get(predicate2):
-            logger.warn("Undefined uuid: %s", predicate2)
-            referenced_uuids[predicate2] = "UNKNOWN"
+        if predicate2 and not referenced_uuids.get(predicate2.get("UUID")):
+            logger.warn("Undefined uuid: %s", predicate2.get("UUID"))
+            referenced_uuids[predicate2.get("UUID")] = "UNKNOWN"
             return False
     elif record_type == "SUBJECT_PROCESS":
         referenced_uuids[details["uuid"]] = "PROCESS"
