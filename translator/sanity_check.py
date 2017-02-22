@@ -74,6 +74,10 @@ def examine_file(path):
                 logger.error("Invalid CDM entry: " + raw_record)
                 continue
 
+            if cadets_record["CDMVersion"] != CDMVERSION:
+                logger.error("File is wrong CDM Version")
+                break
+
             validated = examine_record(cadets_record)
             if not validated:
                 logger.error("Check record #" + str(incount) + ": " + raw_record.strip())
