@@ -5,7 +5,6 @@ CADETS JSON record format to TC CDM format translator
 import logging
 import uuid
 from instance_generator import InstanceGenerator
-from tc.schema.serialization import AvroBytes
 
 # These are the json keys in the CADETS record that we handle specifically in
 # the translator.  Any keys not in this list, we'll add directly to the
@@ -151,42 +150,42 @@ class CDMTranslator(object):
     def create_parameters(self, call, cadets_record):
         parameters = []
         if call in ["aue_fchmod", "aue_fchmodat", "aue_lchmod", "aue_chmod"]:
-            parameters.append(create_int_parameter("CONTROL", "mode", cadets_record["mode"]))
+            parameters.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
             if call in ["aue_fchmodat"]:
-                parameters.append(create_int_parameter("CONTROL", "flag", cadets_record["flag"]))
+                parameters.append(create_int_parameter("CONTROL", "flag", cadets_record.get("flag")))
         elif call in ["aue_fchown", "aue_fchownat", "aue_lchown", "aue_chown"]:
-            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record["arg_uid"]))
-            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record["arg_gid"]))
+            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_uid")))
+            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_gid")))
 #             if call in ["aue_fchownat"]:
-#                 parameters.append(create_int_parameter("CONTROL", "flag", cadets_record["flag"]))
+#                 parameters.append(create_int_parameter("CONTROL", "flag", cadets_record.get("flag")))
         elif call in ["aue_setresgid"]:
-            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record["arg_rgid"]))
-            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record["arg_egid"]))
-            parameters.append(create_int_parameter("CONTROL", "sgid", cadets_record["arg_sgid"]))
+            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_rgid")))
+            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
+            parameters.append(create_int_parameter("CONTROL", "sgid", cadets_record.get("arg_sgid")))
         elif call in ["aue_setresuid"]:
-            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record["arg_ruid"]))
-            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record["arg_euid"]))
-            parameters.append(create_int_parameter("CONTROL", "suid", cadets_record["arg_suid"]))
+            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_ruid")))
+            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
+            parameters.append(create_int_parameter("CONTROL", "suid", cadets_record.get("arg_suid")))
         elif call in ["aue_setregid"]:
-            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record["arg_rgid"]))
-            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record["arg_egid"]))
+            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_rgid")))
+            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
         elif call in ["aue_setreuid"]:
-            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record["arg_ruid"]))
-            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record["arg_euid"]))
+            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_ruid")))
+            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
         elif call in ["aue_seteuid"]:
-            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record["arg_euid"]))
+            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
         elif call in ["aue_setegid"]:
-            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record["arg_egid"]))
+            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
         elif call in ["aue_setuid"]:
-            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record["arg_uid"]))
+            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_uid")))
         elif call in ["aue_setgid"]:
-            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record["arg_gid"]))
+            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_gid")))
         elif call in ["aue_kill"]:
-            parameters.append(create_int_parameter("CONTROL", "pid", cadets_record["arg_pid"]))
-            parameters.append(create_int_parameter("CONTROL", "signum", cadets_record["signum"]))
+            parameters.append(create_int_parameter("CONTROL", "pid", cadets_record.get("arg_pid")))
+            parameters.append(create_int_parameter("CONTROL", "signum", cadets_record.get("signum")))
         elif call in ["aue_open_rwtc", "aue_openat_rwtc"]:
-            parameters.append(create_int_parameter("CONTROL", "flags", cadets_record["flags"]))
-            parameters.append(create_int_parameter("CONTROL", "mode", cadets_record["mode"]))
+            parameters.append(create_int_parameter("CONTROL", "flags", cadets_record.get("flags")))
+            parameters.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
 
 
 #         parameters = {}
@@ -381,8 +380,10 @@ class CDMTranslator(object):
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
-            pipe_obj = self.instance_generator.create_unnamed_pipe_object(pipe_uuid2, pipe_uuid1, self.get_source())
+            pipe_obj = self.instance_generator.create_pipe_object(pipe_uuid1, self.get_source())
+            pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, self.get_source())
             newRecords.append(pipe_obj)
+            newRecords.append(pipe_obj2)
         if event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.get_file_object_id(socket_uuid):
@@ -418,9 +419,8 @@ def create_int_parameter(value_type, name, value):
         parameter["size"] = -1 # -1 = primitive
         parameter["type"] = "VALUE_TYPE_" + value_type
         parameter["valueDataType"]="VALUE_DATA_TYPE_INT"
-        parameter["isNull"] = False
+        parameter["isNull"] = value is None
         parameter["name"] = name
-        valueBytes = AvroBytes()
-        valueBytes.set_by_value(value, None)
-        parameter["valueBytes"] = valueBytes
+        if not value is None:
+            parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=False) # I don't think we actually have signed ints at this point
         return parameter
