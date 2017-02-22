@@ -374,6 +374,8 @@ class CDMTranslator(object):
             newRecords = newRecords + self.create_file_subjects(event, cadets_record)
         if event["name"] in ["aue_chdir", "aue_fchdir"]:
             newRecords.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], self.get_source(), is_dir=True))
+        if event["name"] in ["aue_mkdir"]:
+            newRecords.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], self.get_source(), is_dir=True))
 
         # NetFlows
         if event["name"] in ["aue_pipe", "aue_pipe2"]:
