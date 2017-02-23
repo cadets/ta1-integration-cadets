@@ -44,6 +44,10 @@ class InstanceGenerator():
     def __init__(self, version):
         self.CDMVersion = version
         self.logger = logging.getLogger("tc")
+        self.created_processes = set()
+        self.created_threads = set()
+        self.created_users = set()
+        self.created_files = set()
 
     def reset(self):
         self.created_processes.clear()
@@ -81,12 +85,9 @@ class InstanceGenerator():
 
     def get_process_subject_id(self, puuid):
         ''' Given a pid, did we create a subject for the pid previously?
-            If so return the uid of the subject, if not return None
+            Return true if so.
         '''
-        if puuid in self.created_processes:
-            return self.created_processes[puuid]
-
-        return None
+        return puuid in self.created_processes
 
     def create_process_subject(self, pid, puuid, ppuuid, principal, time_nanos, source):
         ''' Create a process subject, add it to the created list, and return it
@@ -113,11 +114,8 @@ class InstanceGenerator():
         subject["properties"] = {}
 
         # Generate a uuid for this subject
-        if puuid == str(pid):
-            uniq = self.create_uuid("pid", puuid)
-        else:
-            uniq = self.create_uuid("uuid", uuid.UUID(puuid).int)
-        self.created_processes[puuid] = uniq
+        uniq = self.create_uuid("uuid", uuid.UUID(puuid).int)
+        self.created_processes.add(puuid)
         subject["uuid"] = uniq
 
         record["CDMVersion"] = self.CDMVersion
@@ -127,12 +125,9 @@ class InstanceGenerator():
 
     def get_thread_subject_id(self, tid):
         ''' Given a tid, did we create a subject for tid?
-            If so, return the uid of the subject, if not return None
+            If so, return true
         '''
-        if tid in self.created_threads:
-            return self.created_threads[tid]
-
-        return None
+        return tid in self.created_threads
 
     def create_thread_subject(self, tid, time_micros, source):
         ''' Create a thread subject, add it to the created list, and return it
@@ -150,12 +145,9 @@ class InstanceGenerator():
 
     def get_user_id(self, uid):
         ''' Given a uid, did we create a Principal for that uid?
-            If so, return the uid of the Principal, if not return None
+            If so, return true
         '''
-        if uid in self.created_users:
-            return self.created_users[uid]
-
-        return None
+        return uid in self.created_users
 
     def create_user_principal(self, uid, source):
         ''' Create a user principal, add it to the created list, and return it
@@ -171,7 +163,7 @@ class InstanceGenerator():
         principal["properties"] = {}
 
         # Save the uuid for this user
-        self.created_users[uid] = principal["uuid"]
+        self.created_users.add(uid)
 
         record["CDMVersion"] = self.CDMVersion
         record["source"] = source
@@ -179,10 +171,10 @@ class InstanceGenerator():
         return record
 
     def get_file_object_id(self, file_key):
-        ''' Given a file path or uuid, did we create an object for the it already?
-            If found return the uuid of the object, if not return None
+        ''' Given a file uuid, did we create an object for the it already?
+            If found, return true
         '''
-        return self.created_files.get(file_key)
+        return file_key in self.created_files
 
     def create_unix_socket_object(self, file_uuid, source):
         ''' Infer the existence of a file object, add it to the created list, and return it.
@@ -209,7 +201,7 @@ class InstanceGenerator():
         fobject["version"] = 1
 
         # Save the uuid for this subject
-        self.created_files[file_uuid] = fobject["uuid"]
+        self.created_files.add(file_uuid)
 
         record["CDMVersion"] = self.CDMVersion
         record["source"] = source
@@ -232,7 +224,7 @@ class InstanceGenerator():
         fobject["type"] = "SOURCE_SINK_IPC"
 
         # Save the uuid for this subject
-        self.created_files[ipc_uuid] = fobject["uuid"]
+        self.created_files.add(ipc_uuid)
 
         record["CDMVersion"] = self.CDMVersion
         record["source"] = source
@@ -253,9 +245,9 @@ class InstanceGenerator():
 
         fobject["baseObject"] = abstract_object
         if is_dir:
-            fobject["type"] = "FILE_OBJECT_DIR" # TODO: smarter file type
+            fobject["type"] = "FILE_OBJECT_DIR"
         else:
-            fobject["type"] = "FILE_OBJECT_FILE" # TODO: smarter file type
+            fobject["type"] = "FILE_OBJECT_FILE"
 #         fobject["localPrincipal"] = uuid
 #         fobject["size"] = int
 #         fobject["fileDescriptor"] = int
@@ -267,7 +259,7 @@ class InstanceGenerator():
         fobject["version"] = 1
 
         # Save the uuid for this subject
-        self.created_files[file_uuid] = fobject["uuid"]
+        self.created_files.add(file_uuid)
 
         record["CDMVersion"] = self.CDMVersion
         record["source"] = source
@@ -301,5 +293,5 @@ class InstanceGenerator():
         record["source"] = source
         record["datum"] = nobject
 
-        self.created_files[socket_uuid] = nobject["uuid"]
+        self.created_files.add(socket_uuid)
         return record

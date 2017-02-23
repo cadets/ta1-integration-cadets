@@ -6,14 +6,12 @@ import logging
 import uuid
 from instance_generator import InstanceGenerator
 
-# These are the json keys in the CADETS record that we handle specifically in
-# the translator.  Any keys not in this list, we'll add directly to the
-# properties section of the Event
-cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args", "subjprocuuid", "subjthruuid", "errno"]
-file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP", "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ", "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK", "aue_chown", "aue_lchown", "aue_fchown", "aue_chmod", "aue_lchmod", "aue_fchmod", "aue_fchmodat", "aue_symlink", "aue_symlinkat"] # TODO not complete list
-no_uuids_calls = []
-process_calls = ["EVENT_FORK", "EVENT_EXIT", "kill"]
-network_calls = ["recvfrom", "recvmsg", "sendto", "sendmsg", "socketpair", "socket", "connect", "accept"]
+# These calls will have files as their parameters
+file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP",
+  "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ",
+  "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK",
+  "aue_symlink", "aue_symlinkat"] # TODO not complete list
+# these are the keys that may contain interesting UUIDs
 uuid_keys = ["arg_objuuid1", "arg_objuuid2", "ret_objuuid1", "ret_objuuid2"]
 
 class CDMTranslator(object):
@@ -65,11 +63,9 @@ class CDMTranslator(object):
 
         # Create a new user if necessary
         uid = cadets_record["uid"]
-        user_uuid = self.instance_generator.get_user_id(uid)
-        if user_uuid is None:
+        if not self.instance_generator.get_user_id(uid):
             self.logger.debug("Creating new User Principal for {u}".format(u=uid))
             principal = self.instance_generator.create_user_principal(uid, self.get_source())
-            user_uuid = principal["datum"]["uuid"]
             datums.append(principal)
 
         # Create a new Process subject if necessary
@@ -77,15 +73,13 @@ class CDMTranslator(object):
         ppid = cadets_record.get("ppid", -1)
         cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]))
 
-        proc_uuid = self.instance_generator.get_process_subject_id(cadets_proc_uuid)
-        if proc_uuid is None:
+        if not self.instance_generator.get_process_subject_id(cadets_proc_uuid):
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
             # We don't know the time when this process was created, so we'll make it 0 for now
             # Could use time as an upper bound, but we'd need to specify
 
             process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, self.get_source())
             process = process_record["datum"]
-            proc_uuid = process["uuid"]
 
             datums.append(process_record)
 
@@ -94,11 +88,9 @@ class CDMTranslator(object):
         # TODO:  For now, we'll skip creating the Thread
         tid = cadets_record["tid"]
         if False:
-            thread_uuid = self.instance_generator.get_thread_subject_id(tid)
-            if thread_uuid is None:
+            if not self.instance_generator.get_thread_subject_id(tid):
                 self.logger.debug("Creating new Thread Subject for {t}".format(t=tid))
                 thread = self.instance_generator.create_thread_subject(tid, cadets_record["time"], self.get_source())
-                thread_uuid = thread["datum"]["uuid"]
                 datums.append(thread)
 
         # dispatch based on type
@@ -114,19 +106,17 @@ class CDMTranslator(object):
 
         # Create related subjects before the event itself
         if "fork" in call: # link forked processes
+            # TODO - in the case of vfork, should we wait to get the commandline from the following execve?
             new_pid = cadets_record.get("retval")
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
 
-            cproc_uuid = self.instance_generator.get_process_subject_id(new_proc_uuid)
-            if cproc_uuid is None:
+            if not self.instance_generator.get_process_subject_id(new_proc_uuid):
                 proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], self.get_source())
-                cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
 
         if "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("upath1")
-            file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
-            if file_uuid is None:
+            if not self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"]):
                 file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
                 datums.append(file_record)
 
@@ -203,15 +193,12 @@ class CDMTranslator(object):
 
 #     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
-# TODO - combine like events
-        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK"]:
+        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK", "EVENT_MMAP"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
         if event in ["EVENT_RENAME"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
         if event in ["EVENT_READ", "EVENT_WRITE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("fdpath"), None, None, cadets_record.get("retval"))
-        if event in ["EVENT_MMAP"]:
-            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
         if event in ["EVENT_FORK"]:
             return (cadets_record.get("ret_objuuid1"), None, None, None, None) # fork has a second return uuid. The resulting thread uuid
         if event in ["EVENT_OPEN", "EVENT_CREATE_OBJECT"]:
@@ -226,11 +213,11 @@ class CDMTranslator(object):
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
         if event in ["EVENT_SIGNAL"] and call == "aue_kill":
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
-        if event in ["EVENT_OTHER"] and call == "aue_pipe":
+        if event in ["EVENT_CREATE_OBJECT"] and call == "aue_pipe":
             return (cadets_record.get("ret_objuuid1"), None, cadets_record.get("ret_objuuid2"), None, None)
         if event in ["EVENT_OTHER"] and call in ["aue_fchdir", "aue_chdir"]:
             return (cadets_record.get("subjprocuuid"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
-        if event in ["EVENT_OTHER"] and call in ["aue_symlink", "aue_symlinkat"]:
+        if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_symlink", "aue_symlinkat"]:
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
         if event in ["EVENT_OTHER"] and call in ["aue_umask"]:
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
@@ -259,8 +246,9 @@ class CDMTranslator(object):
         (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(event["type"], call, cadets_record);
         if pred_obj:
             event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj).int)
-        elif call == "aue_close":
-            # This is often missing a predicate, and is thus useless
+        elif call in ["aue_close", "aue_closefrom"]:
+            # Close is often missing a predicate, and is thus useless
+            # Closefrom doesn't specify everything it closes
             return None
         else:
             # TODO - Once we know why this is missing so much, drop the warning
@@ -273,7 +261,7 @@ class CDMTranslator(object):
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
         event["name"] = call
-        event["parameters"] = self.create_parameters(call, cadets_record) # [Values] #TODO
+        event["parameters"] = self.create_parameters(call, cadets_record) # [Values]
 #         event["location"] = long
         if size:
             event["size"] = size
@@ -341,6 +329,7 @@ class CDMTranslator(object):
                        'aue_rmdir' : 'EVENT_UNLINK',
                        'aue_mprotect' : 'EVENT_MPROTECT',
                        'aue_open' : 'EVENT_OPEN',
+                       'aue_pipe' : 'EVENT_CREATE_OBJECT',
                        'aue_read' : 'EVENT_READ',
                        'aue_pread' : 'EVENT_READ',
                        'aue_write' : 'EVENT_WRITE',
@@ -348,6 +337,7 @@ class CDMTranslator(object):
                        'aue_rename' : 'EVENT_RENAME',
                        'aue_sendto' : 'EVENT_SENDTO',
                        'aue_sendmsg' : 'EVENT_SENDMSG',
+                       'aue_symlink' : 'EVENT_CREATE_OBJECT',
                        'aue_recvfrom' : 'EVENT_RECVFROM',
                        'aue_recvmsg' : 'EVENT_RECVMSG',
                        'aue_kill' : 'EVENT_SIGNAL',
@@ -408,8 +398,9 @@ class CDMTranslator(object):
         newRecords = []
         for uuid in uuid_keys:
                 if uuid in cadets_record:
-                    if self.instance_generator.get_file_object_id(cadets_record[uuid]) is None:
+                    if not self.instance_generator.get_file_object_id(cadets_record[uuid]):
                         self.logger.debug("Creating file")
+                        # TODO determine if it's a directory first
                         fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), self.get_source())
                         newRecords.append(fileobj)
                 else:

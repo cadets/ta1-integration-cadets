@@ -100,6 +100,7 @@ def examine_record(record):
     details = record["datum"]
     if details.get("Event"):
         details = details.get("Event")
+        record_type = "Event"
     elif details.get("Subject"):
         details = details.get("Subject")
     elif details.get("SrcSinkObject"):
@@ -129,7 +130,7 @@ def examine_record(record):
         logger.warn("Record has no type")
         return False
 
-    if record_type.startswith("EVENT"):
+    if record_type == "Event":
         referenced_uuids[details["uuid"]] = "EVENT"
         predicate1 = details.get("predicateObject")
         predicate2 = details.get("predicateObject2")
