@@ -204,7 +204,7 @@ class CDMTranslator(object):
 #     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
 # TODO - combine like events
-        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_LSEEK"]:
+        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
         if event in ["EVENT_RENAME"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
@@ -234,7 +234,7 @@ class CDMTranslator(object):
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
         if event in ["EVENT_OTHER"] and call in ["aue_umask"]:
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
-        if event in ["EVENT_CONNECT"]:
+        if event in ["EVENT_CONNECT", "EVENT_FNCTL"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
         self.logger.warn("Unhandled event/call: %s/%s\n", event, call)
         return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
@@ -324,6 +324,7 @@ class CDMTranslator(object):
                        'aue_setreuid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresgid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_fcntl' : 'EVENT_FNCTL',
                        'aue_chmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_fchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_lchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
