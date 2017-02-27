@@ -219,7 +219,7 @@ class CDMTranslator(object):
             return (cadets_record.get("subjprocuuid"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
         if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_symlink", "aue_symlinkat"]:
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
-        if event in ["EVENT_OTHER"] and call in ["aue_umask"]:
+        if event in ["EVENT_MODIFY_PROCESS"] and call in ["aue_umask"]:
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
         if event in ["EVENT_CONNECT", "EVENT_FNCTL"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
@@ -299,7 +299,8 @@ class CDMTranslator(object):
                        'aue_close' : 'EVENT_CLOSE',
                        'aue_lseek' : 'EVENT_LSEEK',
                        'aue_connect' : 'EVENT_CONNECT',
-                       'aue_fchdir' : 'EVENT_OTHER',
+                       'aue_fchdir' : 'EVENT_MODIFY_PROCESS',
+                       'aue_umask' : 'EVENT_MODIFY_PROCESS',
                        'aue_exit' : 'EVENT_EXIT',
                        'aue_fork' : 'EVENT_FORK',
                        'aue_vfork' : 'EVENT_FORK',
