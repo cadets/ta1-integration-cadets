@@ -15,7 +15,7 @@ import json
 # Default values, replace or use command line arguments
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = "15"
+CDMVERSION = ["15", "16"]
 
 logger = logging.getLogger("tc")
 
@@ -74,7 +74,7 @@ def examine_file(path):
                 logger.error("Invalid CDM entry: " + raw_record)
                 continue
 
-            if cadets_record["CDMVersion"] != CDMVERSION:
+            if cadets_record["CDMVersion"] not in CDMVERSION:
                 logger.error("File is wrong CDM Version")
                 break
 
