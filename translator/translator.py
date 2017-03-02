@@ -195,6 +195,8 @@ class CDMTranslator(object):
     def predicates_by_event(self, event, call, cadets_record):
         if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK", "EVENT_MMAP"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_ACCEPT"]:
+            return (cadets_record.get("arg_objuuid1"), None, cadets_record.get("arg_objuuid2"), None, None)
         if event in ["EVENT_RENAME"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
         if event in ["EVENT_READ", "EVENT_WRITE"]:
@@ -215,7 +217,7 @@ class CDMTranslator(object):
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
         if event in ["EVENT_CREATE_OBJECT"] and call == "aue_pipe":
             return (cadets_record.get("ret_objuuid1"), None, cadets_record.get("ret_objuuid2"), None, None)
-        if event in ["EVENT_OTHER"] and call in ["aue_fchdir", "aue_chdir"]:
+        if event in ["EVENT_MODIFY_PROCESS"] and call in ["aue_fchdir", "aue_chdir"]:
             return (cadets_record.get("subjprocuuid"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
         if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_symlink", "aue_symlinkat"]:
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
@@ -223,6 +225,8 @@ class CDMTranslator(object):
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
         if event in ["EVENT_CONNECT", "EVENT_FNCTL"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
+        if event in ["EVENT_LOGIN"]:
+            return (None, None, None, None, None)
         self.logger.warn("Unhandled event/call: %s/%s\n", event, call)
         return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
 
@@ -265,6 +269,8 @@ class CDMTranslator(object):
 #         event["location"] = long
         if size:
             event["size"] = size
+        elif "len" in cadets_record:
+            event["size"] = cadets_record["len"]
 #         event["programPoint"] = string
         event["properties"] = {}
         event["uuid"] = event_uuid
@@ -278,6 +284,10 @@ class CDMTranslator(object):
 
         if "args" in cadets_record:
             event["properties"]["args"] = cadets_record["args"]
+        if "ret_msgid" in cadets_record:
+            event["properties"]["msgid"] = str(cadets_record["ret_msgid"])
+        if "login" in cadets_record:
+            event["properties"]["login"] = str(cadets_record["login"])
 
         event["properties"]["exec"] = cadets_record["exec"]
 
@@ -300,6 +310,7 @@ class CDMTranslator(object):
                        'aue_lseek' : 'EVENT_LSEEK',
                        'aue_connect' : 'EVENT_CONNECT',
                        'aue_fchdir' : 'EVENT_MODIFY_PROCESS',
+                       'aue_chdir' : 'EVENT_MODIFY_PROCESS',
                        'aue_umask' : 'EVENT_MODIFY_PROCESS',
                        'aue_exit' : 'EVENT_EXIT',
                        'aue_fork' : 'EVENT_FORK',
@@ -345,6 +356,7 @@ class CDMTranslator(object):
                        'aue_truncate' : 'EVENT_TRUNCATE',
                        'aue_ftruncate' : 'EVENT_TRUNCATE',
                        'aue_wait' : 'EVENT_WAIT',
+                       'aue_setlogin' : 'EVENT_LOGIN',
                        'aue_dup' : None,
                        'aue_socket' : None
                       }
@@ -378,7 +390,7 @@ class CDMTranslator(object):
             pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, self.get_source())
             newRecords.append(pipe_obj)
             newRecords.append(pipe_obj2)
-        if event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
+        if event["type"] in ["EVENT_ACCEPT", "EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.get_file_object_id(socket_uuid):
                 remoteAddr = cadets_record.get("address")
