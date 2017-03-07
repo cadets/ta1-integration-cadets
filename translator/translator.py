@@ -267,7 +267,7 @@ class CDMTranslator(object):
         event["name"] = call
         event["parameters"] = self.create_parameters(call, cadets_record) # [Values]
 #         event["location"] = long
-        if size:
+        if size is not None:
             event["size"] = size
         elif "len" in cadets_record:
             event["size"] = cadets_record["len"]
