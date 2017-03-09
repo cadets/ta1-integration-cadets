@@ -73,7 +73,7 @@ class CDMTranslator(object):
         ppid = cadets_record.get("ppid", -1)
         cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]))
 
-        if not self.instance_generator.get_process_subject_id(cadets_proc_uuid):
+        if not self.instance_generator.is_known_object(cadets_proc_uuid):
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
             # We don't know the time when this process was created, so we'll make it 0 for now
             # Could use time as an upper bound, but we'd need to specify
@@ -110,13 +110,13 @@ class CDMTranslator(object):
             new_pid = cadets_record.get("retval")
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
 
-            if not self.instance_generator.get_process_subject_id(new_proc_uuid):
+            if not self.instance_generator.is_known_object(new_proc_uuid):
                 proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], self.get_source())
                 datums.append(proc_record)
 
         if "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("upath1")
-            if not self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"]):
+            if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
                 file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
                 datums.append(file_record)
 
@@ -392,7 +392,7 @@ class CDMTranslator(object):
             newRecords.append(pipe_obj2)
         if event["type"] in ["EVENT_ACCEPT", "EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
-            if not self.instance_generator.get_file_object_id(socket_uuid):
+            if not self.instance_generator.is_known_object(socket_uuid):
                 remoteAddr = cadets_record.get("address")
                 remotePort = cadets_record.get("port")
 
@@ -411,7 +411,7 @@ class CDMTranslator(object):
         newRecords = []
         for uuid in uuid_keys:
                 if uuid in cadets_record:
-                    if not self.instance_generator.get_file_object_id(cadets_record[uuid]):
+                    if not self.instance_generator.is_known_object(cadets_record[uuid]):
                         self.logger.debug("Creating file")
                         # TODO determine if it's a directory first
                         fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), self.get_source())
