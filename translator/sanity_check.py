@@ -85,6 +85,12 @@ def examine_file(path):
         cadets_in.close()
 #         logger.info("referenced_uuids size: " + str(len(referenced_uuids)))
 
+def check_uuid_is_new(uuid, object_type):
+    uuid_type = referenced_uuids.get(uuid)
+    if uuid_type:
+        logger.warn("UUID " + str(uuid) + " was already defined as a " + uuid_type + " not a " + object_type)
+        return False
+    return True
 
 def examine_record(record):
     '''
@@ -114,6 +120,8 @@ def examine_record(record):
         record_type = "NetFlow"
 
     if details.get("baseObject"):
+        if not check_uuid_is_new(details["uuid"], "FILE"):
+            return False
         referenced_uuids[details["uuid"]] = "FILE"
         if details["uuid"] == "00000000-0000-0000-0000-000000000000":
             logger.warn("Was trace run on a file system with UFS?")
@@ -131,6 +139,8 @@ def examine_record(record):
         return False
 
     if record_type == "Event":
+        if not check_uuid_is_new(details["uuid"], "EVENT"):
+            return False
         referenced_uuids[details["uuid"]] = "EVENT"
         predicate1 = details.get("predicateObject")
         predicate2 = details.get("predicateObject2")
@@ -143,10 +153,16 @@ def examine_record(record):
             referenced_uuids[predicate2.get("UUID")] = "UNKNOWN"
             return False
     elif record_type == "SUBJECT_PROCESS":
+        if not check_uuid_is_new(details["uuid"], "PROCESS"):
+            return False
         referenced_uuids[details["uuid"]] = "PROCESS"
     elif record_type == "PRINCIPAL_LOCAL":
+        if not check_uuid_is_new(details["uuid"], "PRINCIPAL"):
+            return False
         referenced_uuids[details["uuid"]] = "PRINCIPAL"
     else:
+        if not check_uuid_is_new(details["uuid"], "OTHER"):
+            return False
         referenced_uuids[details["uuid"]] = "OTHER"
 
     return True
