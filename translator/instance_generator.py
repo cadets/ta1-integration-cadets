@@ -206,7 +206,7 @@ class InstanceGenerator():
 
         fobject["baseObject"] = abstract_object
         fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(ipc_uuid).int)
-        fobject["type"] = "SOURCE_SINK_IPC"
+        fobject["type"] = "SRCSINK_IPC"
 
         # Save the uuid for this subject
         self.created_objects.add(ipc_uuid)

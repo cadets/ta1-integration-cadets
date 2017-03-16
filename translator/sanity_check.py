@@ -15,7 +15,7 @@ import json
 # Default values, replace or use command line arguments
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = ["15", "16"]
+CDMVERSION = ["17"]
 
 logger = logging.getLogger("tc")
 
