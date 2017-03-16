@@ -15,7 +15,7 @@ import json
 # Default values, replace or use command line arguments
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = "15"
+CDMVERSION = ["17"]
 
 logger = logging.getLogger("tc")
 
@@ -74,6 +74,10 @@ def examine_file(path):
                 logger.error("Invalid CDM entry: " + raw_record)
                 continue
 
+            if cadets_record["CDMVersion"] not in CDMVERSION:
+                logger.error("File is wrong CDM Version")
+                break
+
             validated = examine_record(cadets_record)
             if not validated:
                 logger.error("Check record #" + str(incount) + ": " + raw_record.strip())
@@ -81,6 +85,12 @@ def examine_file(path):
         cadets_in.close()
 #         logger.info("referenced_uuids size: " + str(len(referenced_uuids)))
 
+def check_uuid_is_new(uuid, object_type):
+    uuid_type = referenced_uuids.get(uuid)
+    if uuid_type:
+        logger.warn("UUID " + str(uuid) + " was already defined as a " + uuid_type + " not a " + object_type)
+        return False
+    return True
 
 def examine_record(record):
     '''
@@ -96,6 +106,7 @@ def examine_record(record):
     details = record["datum"]
     if details.get("Event"):
         details = details.get("Event")
+        record_type = "Event"
     elif details.get("Subject"):
         details = details.get("Subject")
     elif details.get("SrcSinkObject"):
@@ -109,6 +120,8 @@ def examine_record(record):
         record_type = "NetFlow"
 
     if details.get("baseObject"):
+        if not check_uuid_is_new(details["uuid"], "FILE"):
+            return False
         referenced_uuids[details["uuid"]] = "FILE"
         if details["uuid"] == "00000000-0000-0000-0000-000000000000":
             logger.warn("Was trace run on a file system with UFS?")
@@ -125,7 +138,9 @@ def examine_record(record):
         logger.warn("Record has no type")
         return False
 
-    if record_type.startswith("EVENT"):
+    if record_type == "Event":
+        if not check_uuid_is_new(details["uuid"], "EVENT"):
+            return False
         referenced_uuids[details["uuid"]] = "EVENT"
         predicate1 = details.get("predicateObject")
         predicate2 = details.get("predicateObject2")
@@ -138,10 +153,16 @@ def examine_record(record):
             referenced_uuids[predicate2.get("UUID")] = "UNKNOWN"
             return False
     elif record_type == "SUBJECT_PROCESS":
+        if not check_uuid_is_new(details["uuid"], "PROCESS"):
+            return False
         referenced_uuids[details["uuid"]] = "PROCESS"
     elif record_type == "PRINCIPAL_LOCAL":
+        if not check_uuid_is_new(details["uuid"], "PRINCIPAL"):
+            return False
         referenced_uuids[details["uuid"]] = "PRINCIPAL"
     else:
+        if not check_uuid_is_new(details["uuid"], "OTHER"):
+            return False
         referenced_uuids[details["uuid"]] = "OTHER"
 
     return True

@@ -6,14 +6,12 @@ import logging
 import uuid
 from instance_generator import InstanceGenerator
 
-# These are the json keys in the CADETS record that we handle specifically in
-# the translator.  Any keys not in this list, we'll add directly to the
-# properties section of the Event
-cdm_keys = ["event", "time", "pid", "ppid", "tid", "uid", "exec", "args", "subjprocuuid", "subjthruuid", "errno"]
-file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP", "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ", "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK", "aue_chown", "aue_lchown", "aue_fchown", "aue_chmod", "aue_lchmod", "aue_fchmod", "aue_fchmodat", "aue_symlink", "aue_symlinkat"] # TODO not complete list
-no_uuids_calls = []
-process_calls = ["EVENT_FORK", "EVENT_EXIT", "kill"]
-network_calls = ["recvfrom", "recvmsg", "sendto", "sendmsg", "socketpair", "socket", "connect", "accept"]
+# These calls will have files as their parameters
+file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP",
+  "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ",
+  "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK",
+  "aue_symlink", "aue_symlinkat"] # TODO not complete list
+# these are the keys that may contain interesting UUIDs
 uuid_keys = ["arg_objuuid1", "arg_objuuid2", "ret_objuuid1", "ret_objuuid2"]
 
 class CDMTranslator(object):
@@ -65,11 +63,9 @@ class CDMTranslator(object):
 
         # Create a new user if necessary
         uid = cadets_record["uid"]
-        user_uuid = self.instance_generator.get_user_id(uid)
-        if user_uuid is None:
+        if not self.instance_generator.get_user_id(uid):
             self.logger.debug("Creating new User Principal for {u}".format(u=uid))
             principal = self.instance_generator.create_user_principal(uid, self.get_source())
-            user_uuid = principal["datum"]["uuid"]
             datums.append(principal)
 
         # Create a new Process subject if necessary
@@ -77,15 +73,13 @@ class CDMTranslator(object):
         ppid = cadets_record.get("ppid", -1)
         cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]))
 
-        proc_uuid = self.instance_generator.get_process_subject_id(cadets_proc_uuid)
-        if proc_uuid is None:
+        if not self.instance_generator.is_known_object(cadets_proc_uuid):
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
             # We don't know the time when this process was created, so we'll make it 0 for now
             # Could use time as an upper bound, but we'd need to specify
 
             process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, self.get_source())
             process = process_record["datum"]
-            proc_uuid = process["uuid"]
 
             datums.append(process_record)
 
@@ -94,11 +88,9 @@ class CDMTranslator(object):
         # TODO:  For now, we'll skip creating the Thread
         tid = cadets_record["tid"]
         if False:
-            thread_uuid = self.instance_generator.get_thread_subject_id(tid)
-            if thread_uuid is None:
+            if not self.instance_generator.get_thread_subject_id(tid):
                 self.logger.debug("Creating new Thread Subject for {t}".format(t=tid))
                 thread = self.instance_generator.create_thread_subject(tid, cadets_record["time"], self.get_source())
-                thread_uuid = thread["datum"]["uuid"]
                 datums.append(thread)
 
         # dispatch based on type
@@ -114,19 +106,17 @@ class CDMTranslator(object):
 
         # Create related subjects before the event itself
         if "fork" in call: # link forked processes
+            # TODO - in the case of vfork, should we wait to get the commandline from the following execve?
             new_pid = cadets_record.get("retval")
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
 
-            cproc_uuid = self.instance_generator.get_process_subject_id(new_proc_uuid)
-            if cproc_uuid is None:
+            if not self.instance_generator.is_known_object(new_proc_uuid):
                 proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], self.get_source())
-                cproc_uuid = proc_record["datum"]["uuid"]
                 datums.append(proc_record)
 
         if "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("upath1")
-            file_uuid = self.instance_generator.get_file_object_id(cadets_record["arg_objuuid1"])
-            if file_uuid is None:
+            if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
                 file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
                 datums.append(file_record)
 
@@ -203,15 +193,14 @@ class CDMTranslator(object):
 
 #     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
-# TODO - combine like events
-        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_LSEEK"]:
+        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK", "EVENT_MMAP"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_ACCEPT"]:
+            return (cadets_record.get("arg_objuuid1"), None, cadets_record.get("arg_objuuid2"), None, None)
         if event in ["EVENT_RENAME"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
         if event in ["EVENT_READ", "EVENT_WRITE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("fdpath"), None, None, cadets_record.get("retval"))
-        if event in ["EVENT_MMAP"]:
-            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
         if event in ["EVENT_FORK"]:
             return (cadets_record.get("ret_objuuid1"), None, None, None, None) # fork has a second return uuid. The resulting thread uuid
         if event in ["EVENT_OPEN", "EVENT_CREATE_OBJECT"]:
@@ -226,16 +215,18 @@ class CDMTranslator(object):
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
         if event in ["EVENT_SIGNAL"] and call == "aue_kill":
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
-        if event in ["EVENT_OTHER"] and call == "aue_pipe":
+        if event in ["EVENT_CREATE_OBJECT"] and call == "aue_pipe":
             return (cadets_record.get("ret_objuuid1"), None, cadets_record.get("ret_objuuid2"), None, None)
-        if event in ["EVENT_OTHER"] and call in ["aue_fchdir", "aue_chdir"]:
+        if event in ["EVENT_MODIFY_PROCESS"] and call in ["aue_fchdir", "aue_chdir"]:
             return (cadets_record.get("subjprocuuid"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
-        if event in ["EVENT_OTHER"] and call in ["aue_symlink", "aue_symlinkat"]:
+        if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_symlink", "aue_symlinkat"]:
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
-        if event in ["EVENT_OTHER"] and call in ["aue_umask"]:
+        if event in ["EVENT_MODIFY_PROCESS"] and call in ["aue_umask"]:
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
-        if event in ["EVENT_CONNECT"]:
+        if event in ["EVENT_CONNECT", "EVENT_FNCTL"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
+        if event in ["EVENT_LOGIN"]:
+            return (None, None, None, None, None)
         self.logger.warn("Unhandled event/call: %s/%s\n", event, call)
         return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
 
@@ -259,8 +250,9 @@ class CDMTranslator(object):
         (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(event["type"], call, cadets_record);
         if pred_obj:
             event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj).int)
-        elif call == "aue_close":
-            # This is often missing a predicate, and is thus useless
+        elif call in ["aue_close", "aue_closefrom"]:
+            # Close is often missing a predicate, and is thus useless
+            # Closefrom doesn't specify everything it closes
             return None
         else:
             # TODO - Once we know why this is missing so much, drop the warning
@@ -273,10 +265,12 @@ class CDMTranslator(object):
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
         event["name"] = call
-        event["parameters"] = self.create_parameters(call, cadets_record) # [Values] #TODO
+        event["parameters"] = self.create_parameters(call, cadets_record) # [Values]
 #         event["location"] = long
-        if size:
+        if size is not None:
             event["size"] = size
+        elif "len" in cadets_record:
+            event["size"] = cadets_record["len"]
 #         event["programPoint"] = string
         event["properties"] = {}
         event["uuid"] = event_uuid
@@ -290,6 +284,10 @@ class CDMTranslator(object):
 
         if "args" in cadets_record:
             event["properties"]["args"] = cadets_record["args"]
+        if "ret_msgid" in cadets_record:
+            event["properties"]["msgid"] = str(cadets_record["ret_msgid"])
+        if "login" in cadets_record:
+            event["properties"]["login"] = str(cadets_record["login"])
 
         event["properties"]["exec"] = cadets_record["exec"]
 
@@ -311,8 +309,11 @@ class CDMTranslator(object):
                        'aue_close' : 'EVENT_CLOSE',
                        'aue_lseek' : 'EVENT_LSEEK',
                        'aue_connect' : 'EVENT_CONNECT',
-                       'aue_fchdir' : 'EVENT_OTHER',
+                       'aue_fchdir' : 'EVENT_MODIFY_PROCESS',
+                       'aue_chdir' : 'EVENT_MODIFY_PROCESS',
+                       'aue_umask' : 'EVENT_MODIFY_PROCESS',
                        'aue_exit' : 'EVENT_EXIT',
+                       'aue_pdfork' : 'EVENT_FORK',
                        'aue_fork' : 'EVENT_FORK',
                        'aue_vfork' : 'EVENT_FORK',
                        'aue_rfork' : 'EVENT_FORK',
@@ -324,6 +325,7 @@ class CDMTranslator(object):
                        'aue_setreuid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresgid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_fcntl' : 'EVENT_FNCTL',
                        'aue_chmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_fchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_lchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
@@ -340,6 +342,7 @@ class CDMTranslator(object):
                        'aue_rmdir' : 'EVENT_UNLINK',
                        'aue_mprotect' : 'EVENT_MPROTECT',
                        'aue_open' : 'EVENT_OPEN',
+                       'aue_pipe' : 'EVENT_CREATE_OBJECT',
                        'aue_read' : 'EVENT_READ',
                        'aue_pread' : 'EVENT_READ',
                        'aue_write' : 'EVENT_WRITE',
@@ -347,12 +350,15 @@ class CDMTranslator(object):
                        'aue_rename' : 'EVENT_RENAME',
                        'aue_sendto' : 'EVENT_SENDTO',
                        'aue_sendmsg' : 'EVENT_SENDMSG',
+                       'aue_symlink' : 'EVENT_CREATE_OBJECT',
                        'aue_recvfrom' : 'EVENT_RECVFROM',
                        'aue_recvmsg' : 'EVENT_RECVMSG',
+                       'aue_pdkill' : 'EVENT_SIGNAL',
                        'aue_kill' : 'EVENT_SIGNAL',
                        'aue_truncate' : 'EVENT_TRUNCATE',
                        'aue_ftruncate' : 'EVENT_TRUNCATE',
                        'aue_wait' : 'EVENT_WAIT',
+                       'aue_setlogin' : 'EVENT_LOGIN',
                        'aue_dup' : None,
                        'aue_socket' : None
                       }
@@ -373,7 +379,11 @@ class CDMTranslator(object):
             # TODO: Make more intelligent, not all or nothing file events
             newRecords = newRecords + self.create_file_subjects(event, cadets_record)
         if event["name"] in ["aue_chdir", "aue_fchdir"]:
-            newRecords.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], self.get_source(), is_dir=True))
+            if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
+                newRecords.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], self.get_source(), is_dir=True))
+        if event["name"] in ["aue_mkdir"]:
+            if not self.instance_generator.is_known_object(cadets_record["ret_objuuid1"]):
+                newRecords.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], self.get_source(), is_dir=True))
 
         # NetFlows
         if event["name"] in ["aue_pipe", "aue_pipe2"]:
@@ -384,9 +394,9 @@ class CDMTranslator(object):
             pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, self.get_source())
             newRecords.append(pipe_obj)
             newRecords.append(pipe_obj2)
-        if event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
+        if event["type"] in ["EVENT_ACCEPT", "EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
-            if not self.instance_generator.get_file_object_id(socket_uuid):
+            if not self.instance_generator.is_known_object(socket_uuid):
                 remoteAddr = cadets_record.get("address")
                 remotePort = cadets_record.get("port")
 
@@ -405,8 +415,9 @@ class CDMTranslator(object):
         newRecords = []
         for uuid in uuid_keys:
                 if uuid in cadets_record:
-                    if self.instance_generator.get_file_object_id(cadets_record[uuid]) is None:
+                    if not self.instance_generator.is_known_object(cadets_record[uuid]):
                         self.logger.debug("Creating file")
+                        # TODO determine if it's a directory first
                         fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), self.get_source())
                         newRecords.append(fileobj)
                 else:

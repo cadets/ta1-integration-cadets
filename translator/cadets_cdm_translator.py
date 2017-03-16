@@ -33,7 +33,7 @@ IN_FILE = None
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 OUTPUT_DIR = "../../trace-data"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = "15"
+CDMVERSION = "17"
 KAFKASTRING = "129.55.12.59:9092"
 PRODUCER_ID = "cadets"
 TOPIC = "ta1-cadets-cdm13"
@@ -60,6 +60,8 @@ def get_arg_parser():
     parser.add_argument("-wb", action="store_true", default=False, help="Write binary output file")
     parser.add_argument("-wk", action="store_true", default=False, help="Write to Kafka")
     parser.add_argument("-ks", action="store", default=KAFKASTRING, help="Kafka connection string")
+    parser.add_argument("-punctuate", action="store", type=int, default=0,
+                        help="Generate time markers, given the number of CPUs in the machine")
     parser.add_argument("-ktopic", action="store", type=str, default=TOPIC,
                         help="Kafka topic to publish to")
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
@@ -122,7 +124,7 @@ def main():
                     else:
                         logger.info("Translating JSON file: "+cfile)
                         path = os.path.join(args.tdir, cfile)
-                        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
+                        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch, args.punctuate)
                         if not args.wk: # don't reset if we're just writing a stream of data to kafka
                             translator.reset()
                         logger.info("About "+str(file_queue.qsize())+" files left to translate.")
@@ -140,7 +142,7 @@ def main():
 
     else:
         path = os.path.join(args.tdir, args.f)
-        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch)
+        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch, args.punctuate)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):
@@ -152,7 +154,7 @@ class EnqueueFileHandler(FileSystemEventHandler):
             new_file = event.src_path
             self.file_queue.put(new_file)
 
-def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch):
+def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch, punctuate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema,skip_validate=False)
@@ -186,6 +188,10 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         # Iterate through the records, translating each to a CDM record
         previous_record = ""
         waiting = False # are we already waiting to find another value record?
+        cpu_times={}
+        for i in range(1, punctuate):
+            cpu_times[i] = 0
+        last_time_marker = 0
         while 1:
             current_location = cadets_in.tell()
             # XXX: Strip null from json record
@@ -193,6 +199,8 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
             if raw_cadets_record and len(raw_cadets_record) > 3 and raw_cadets_record != previous_record:
                 try:
                     cadets_record = json.loads(raw_cadets_record[2:])
+                    record_cpu = cadets_record.get("cpu_id")
+                    record_time = cadets_record.get("time")
                 except ValueError as err:
                     # if we expect the file to be added to, try again
                     # otherwise, give up on the line and continue
@@ -208,6 +216,21 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
                 cdm_records = translator.translate_record(cadets_record)
                 logger.debug("{i} translated to {t1} records".format(i=incount, t1=len(cdm_records)))
+
+                if punctuate:
+                    if  record_cpu is not None and record_time is not None:
+                        cpu_times[record_cpu] = record_time
+                    if record_time > last_time_marker + 1000001:
+                        oldest_times = min(cpu_times.values())
+                        if oldest_times > last_time_marker + 1000001:
+                            time_marker = {}
+                            time_marker["tsNanos"] = oldest_times - 1
+                            record_wrapper = {}
+                            record_wrapper["source"] = "SOURCE_FREEBSD_DTRACE_CADETS"
+                            record_wrapper["CDMVersion"] = CDMVERSION
+                            record_wrapper["datum"] = time_marker
+                            cdm_records.append(record_wrapper)
+                            last_time_marker = oldest_times
 
                 cdmcount += len(cdm_records)
 
