@@ -288,6 +288,14 @@ class CDMTranslator(object):
             event["properties"]["msgid"] = str(cadets_record["ret_msgid"])
         if "login" in cadets_record:
             event["properties"]["login"] = str(cadets_record["login"])
+        if "fdpath" in cadets_record:
+            event["properties"]["partial_path"] = str(cadets_record["fdpath"])
+        if "ret_miouuid" in cadets_record:
+            event["properties"]["meta_io_uuid"] = str(cadets_record["ret_miouuid"])
+        if "fd" in cadets_record:
+            event["properties"]["fd"] = str(cadets_record["fd"])
+        if "retval" in cadets_record and "size" not in event:
+            event["properties"]["return_value"] = str(cadets_record["retval"])
 
         event["properties"]["exec"] = cadets_record["exec"]
 
