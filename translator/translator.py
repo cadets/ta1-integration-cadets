@@ -296,6 +296,8 @@ class CDMTranslator(object):
             event["properties"]["fd"] = str(cadets_record["fd"])
         if "retval" in cadets_record and "size" not in event:
             event["properties"]["return_value"] = str(cadets_record["retval"])
+        if "cmdline" in cadets_record and "size" not in event:
+            event["properties"]["cmdLine"] = str(cadets_record["cmdline"])
 
         event["properties"]["exec"] = cadets_record["exec"]
 
