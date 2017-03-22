@@ -288,6 +288,14 @@ class CDMTranslator(object):
             event["properties"]["msgid"] = str(cadets_record["ret_msgid"])
         if "login" in cadets_record:
             event["properties"]["login"] = str(cadets_record["login"])
+        if "fdpath" in cadets_record:
+            event["properties"]["partial_path"] = str(cadets_record["fdpath"])
+        if "ret_miouuid" in cadets_record:
+            event["properties"]["meta_io_uuid"] = str(cadets_record["ret_miouuid"])
+        if "fd" in cadets_record:
+            event["properties"]["fd"] = str(cadets_record["fd"])
+        if "retval" in cadets_record and "size" not in event:
+            event["properties"]["return_value"] = str(cadets_record["retval"])
 
         event["properties"]["exec"] = cadets_record["exec"]
 
@@ -433,5 +441,6 @@ def create_int_parameter(value_type, name, value):
         parameter["isNull"] = value is None
         parameter["name"] = name
         if not value is None:
-            parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=False) # I don't think we actually have signed ints at this point
+            # encodes, and uses 2s complement if needed.
+            parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=True)
         return parameter
