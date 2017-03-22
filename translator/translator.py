@@ -441,5 +441,6 @@ def create_int_parameter(value_type, name, value):
         parameter["isNull"] = value is None
         parameter["name"] = name
         if not value is None:
-            parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=False) # I don't think we actually have signed ints at this point
+            # encodes, and uses 2s complement if needed.
+            parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=True)
         return parameter
