@@ -256,9 +256,6 @@ class CDMTranslator(object):
             # Close is often missing a predicate, and is thus useless
             # Closefrom doesn't specify everything it closes
             return None
-        else:
-            # TODO - Once we know why this is missing so much, drop the warning
-            self.logger.warn("No predicate object for record: %s", cadets_record);
 
         if pred_obj_path:
             event["predicateObjectPath"] = pred_obj_path
