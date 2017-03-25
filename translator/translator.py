@@ -176,6 +176,8 @@ class CDMTranslator(object):
         elif call in ["aue_open_rwtc", "aue_openat_rwtc"]:
             parameters.append(create_int_parameter("CONTROL", "flags", cadets_record.get("flags")))
             parameters.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
+        elif call in ["aue_fcntl"]:
+            parameters.append(create_int_parameter("CONTROL", "cmd", cadets_record.get("fcntl_cmd")))
 
 
 #         parameters = {}
@@ -254,9 +256,6 @@ class CDMTranslator(object):
             # Close is often missing a predicate, and is thus useless
             # Closefrom doesn't specify everything it closes
             return None
-        else:
-            # TODO - Once we know why this is missing so much, drop the warning
-            self.logger.warn("No predicate object for record: %s", cadets_record);
 
         if pred_obj_path:
             event["predicateObjectPath"] = pred_obj_path
@@ -282,20 +281,26 @@ class CDMTranslator(object):
         event["sequence"] = self.eventCounter
         self.eventCounter += 1
 
+        # Put these possibly interesting thing in properties
+        for key, val in cadets_record.items():
+            if (key not in uuid_keys
+                and (key.startswith("ret_")
+                    or key.startswith("arg_"))):
+                event["properties"][key] = str(val)
         if "args" in cadets_record:
             event["properties"]["args"] = cadets_record["args"]
-        if "ret_msgid" in cadets_record:
-            event["properties"]["msgid"] = str(cadets_record["ret_msgid"])
         if "login" in cadets_record:
             event["properties"]["login"] = str(cadets_record["login"])
         if "fdpath" in cadets_record:
             event["properties"]["partial_path"] = str(cadets_record["fdpath"])
-        if "ret_miouuid" in cadets_record:
-            event["properties"]["meta_io_uuid"] = str(cadets_record["ret_miouuid"])
         if "fd" in cadets_record:
             event["properties"]["fd"] = str(cadets_record["fd"])
         if "retval" in cadets_record and "size" not in event:
             event["properties"]["return_value"] = str(cadets_record["retval"])
+        if "cmdline" in cadets_record:
+            event["properties"]["cmdLine"] = str(cadets_record["cmdline"])
+        if "ppid" in cadets_record:
+            event["properties"]["ppid"] = str(cadets_record["ppid"])
 
         event["properties"]["exec"] = cadets_record["exec"]
 
