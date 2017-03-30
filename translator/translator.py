@@ -106,15 +106,22 @@ class CDMTranslator(object):
 
         # Create related subjects before the event itself
         if "fork" in call: # link forked processes
-            # TODO - in the case of vfork, should we wait to get the commandline from the following execve?
             new_pid = cadets_record.get("retval")
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
 
             if not self.instance_generator.is_known_object(new_proc_uuid):
                 proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], self.get_source())
                 datums.append(proc_record)
+        elif "kill" in call:
+            killed_pid = cadets_record.get("arg_pid")
+            killed_uuid = cadets_record.get("arg_objuuid1")
 
-        if "exec" in call: # link exec events to the file executed
+            if not self.instance_generator.is_known_object(killed_uuid):
+                # We only discovered the process when it was killed, so our
+                # info is limited.
+                proc_record = self.instance_generator.create_process_subject(killed_pid, killed_uuid, None, -1, 0, self.get_source())
+                datums.append(proc_record)
+        elif "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("upath1")
             if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
                 file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
@@ -372,8 +379,9 @@ class CDMTranslator(object):
                        'aue_ftruncate' : 'EVENT_TRUNCATE',
                        'aue_wait' : 'EVENT_WAIT',
                        'aue_setlogin' : 'EVENT_LOGIN',
-                       'aue_dup' : None,
-                       'aue_socket' : None
+                       'aue_shm' : 'EVENT_SHM',
+                       'aue_socket' : 'EVENT_CREATE_OBJECT',
+                       'aue_dup' : None
                       }
         for key in prefix_dict:
             if call.startswith(key):
@@ -398,7 +406,7 @@ class CDMTranslator(object):
             if not self.instance_generator.is_known_object(cadets_record["ret_objuuid1"]):
                 newRecords.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], self.get_source(), is_dir=True))
 
-        # NetFlows
+        # NetFlows and sockets
         if event["name"] in ["aue_pipe", "aue_pipe2"]:
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
@@ -407,7 +415,36 @@ class CDMTranslator(object):
             pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, self.get_source())
             newRecords.append(pipe_obj)
             newRecords.append(pipe_obj2)
-        if event["type"] in ["EVENT_ACCEPT", "EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
+        elif event["name"] in ["aue_socket", "aue_socketpair"]:
+            socket = cadets_record.get("ret_objuuid1")
+            if not self.instance_generator.is_known_object(socket):
+                self.logger.debug("Creating a UnixSocket from socket call")
+                nf_obj = self.instance_generator.create_unix_socket_object(socket, self.get_source())
+                newRecords.append(nf_obj)
+            socket2 = cadets_record.get("ret_objuuid2")
+            if socket2 and not self.instance_generator.is_known_object(socket2):
+                self.logger.debug("Creating a UnixSocket from socket call")
+                nf_obj = self.instance_generator.create_unix_socket_object(socket2, self.get_source())
+                newRecords.append(nf_obj)
+        elif event["type"] in ["EVENT_ACCEPT"]:
+            remoteAddr = cadets_record.get("address")
+            remotePort = cadets_record.get("port")
+            listening_socket = cadets_record.get("arg_objuuid1") # listening socket
+            if not self.instance_generator.is_known_object(listening_socket):
+                self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
+                nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, self.get_source())
+                newRecords.append(nf_obj)
+            accepted_socket = cadets_record.get("ret_objuuid1") # accepted socket
+            if not self.instance_generator.is_known_object(accepted_socket):
+                if remotePort:
+                    self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remoteAddr, p=remotePort))
+                    nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, accepted_socket, self.get_source())
+                    newRecords.append(nf_obj)
+                else:
+                    self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
+                    nf_obj = self.instance_generator.create_unix_socket_object(accepted_socket, self.get_source())
+                    newRecords.append(nf_obj)
+        elif event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(socket_uuid):
                 remoteAddr = cadets_record.get("address")
