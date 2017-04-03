@@ -12,8 +12,7 @@ elif [[ "${IP}" == "10.0.6.15" ]]; then
 	KS="10.0.50.19:9092"
 # ADAPT
 elif [[ "${IP}" == "10.0.6.54" ]]; then
-	# FIXME
-	KS="128.55.12.74:9092"
+	KS="10.0.50.24:9092"
 else
 	echo "Invalid IP"
 	exit 1
