@@ -232,10 +232,12 @@ class CDMTranslator(object):
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
         if event in ["EVENT_MODIFY_PROCESS"] and call in ["aue_umask"]:
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
-        if event in ["EVENT_CONNECT", "EVENT_FNCTL"]:
+        if event in ["EVENT_CONNECT", "EVENT_FNCTL", "EVENT_BIND"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
         if event in ["EVENT_LOGIN"]:
             return (None, None, None, None, None)
+        if event in ["EVENT_OTHER"] and call in ["aue_listen"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, None)
         self.logger.warn("Unhandled event/call: %s/%s\n", event, call)
         return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
 
@@ -426,10 +428,20 @@ class CDMTranslator(object):
                 self.logger.debug("Creating a UnixSocket from socket call")
                 nf_obj = self.instance_generator.create_unix_socket_object(socket2, self.get_source())
                 newRecords.append(nf_obj)
+        elif event["type"] in ["EVENT_BIND"]:
+            localAddr = cadets_record.get("address")
+            localPort = cadets_record.get("port")
+            listening_socket = cadets_record.get("arg_objuuid1")
+            if not self.instance_generator.is_known_object(listening_socket):
+                self.logger.debug("Creating a UnixSocket from {h}".format(h=localAddr))
+                nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, self.get_source())
+                nf_obj["baseObject"]["properties"]["port"] = localPort
+                nf_obj["baseObject"]["properties"]["address"] = localAddr
+                newRecords.append(nf_obj)
         elif event["type"] in ["EVENT_ACCEPT"]:
             remoteAddr = cadets_record.get("address")
             remotePort = cadets_record.get("port")
-            listening_socket = cadets_record.get("arg_objuuid1") # listening socket
+            listening_socket = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(listening_socket):
                 self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
                 nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, self.get_source())
@@ -443,6 +455,8 @@ class CDMTranslator(object):
                 else:
                     self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
                     nf_obj = self.instance_generator.create_unix_socket_object(accepted_socket, self.get_source())
+                    nf_obj["baseObject"]["properties"]["port"] = remotePort
+                    nf_obj["baseObject"]["properties"]["address"] = remoteAddr
                     newRecords.append(nf_obj)
         elif event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
@@ -457,6 +471,7 @@ class CDMTranslator(object):
                 else:
                     self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
                     nf_obj = self.instance_generator.create_unix_socket_object(socket_uuid, self.get_source())
+                    nf_obj["baseObject"]["properties"]["address"] = remoteAddr
                     newRecords.append(nf_obj)
 
         return newRecords
