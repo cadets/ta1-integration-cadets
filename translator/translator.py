@@ -310,6 +310,10 @@ class CDMTranslator(object):
             event["properties"]["cmdLine"] = str(cadets_record["cmdline"])
         if "ppid" in cadets_record:
             event["properties"]["ppid"] = str(cadets_record["ppid"])
+        if "address" in cadets_record:
+            event["properties"]["address"] = str(cadets_record["address"])
+        if "port" in cadets_record:
+            event["properties"]["port"] = str(cadets_record["port"])
 
         event["properties"]["exec"] = cadets_record["exec"]
 
