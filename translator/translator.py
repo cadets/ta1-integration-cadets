@@ -116,7 +116,7 @@ class CDMTranslator(object):
             killed_pid = cadets_record.get("arg_pid")
             killed_uuid = cadets_record.get("arg_objuuid1")
 
-            if not self.instance_generator.is_known_object(killed_uuid):
+            if killed_uuid and not self.instance_generator.is_known_object(killed_uuid):
                 # We only discovered the process when it was killed, so our
                 # info is limited.
                 proc_record = self.instance_generator.create_process_subject(killed_pid, killed_uuid, None, -1, 0, self.get_source())
