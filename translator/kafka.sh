@@ -13,6 +13,7 @@ elif [[ "${IP}" == "10.0.6.15" ]]; then
 # ADAPT
 elif [[ "${IP}" == "10.0.6.54" ]]; then
 	KS="10.0.50.24:9092"
+	PUNCTUATE="-punctuate 6"
 else
 	echo "Invalid IP"
 	exit 1
@@ -22,4 +23,4 @@ echo "**************************************************************************
 echo "On ${IP}, so using -ks ${KS}"
 echo "************************************************************************************************"
 
-cd /opt/starc/ta1-integration-cadets/translator && sudo -u lariat ./cadets_cdm_translator.py -watch -tdir /data -wk -p -ks ${KS} -ktopic ta1-cadets-cdm17
+cd /opt/starc/ta1-integration-cadets/translator && sudo -u lariat ./cadets_cdm_translator.py -watch -tdir /data -wk -p -ks ${KS} -ktopic ta1-cadets-cdm17 ${PUNCTUATE}

@@ -201,8 +201,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         last_time_marker = 0
         while 1:
             current_location = cadets_in.tell()
-            # XXX: Strip null from json record
-            raw_cadets_record = cadets_in.readline().replace("\\0", "")
+            raw_cadets_record = cadets_in.readline()
             if raw_cadets_record and len(raw_cadets_record) > 3 and raw_cadets_record != previous_record:
                 try:
                     cadets_record = json.loads(raw_cadets_record[2:])
