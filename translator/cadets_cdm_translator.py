@@ -44,6 +44,7 @@ CDMVERSION = "17"
 KAFKASTRING = "129.55.12.59:9092"
 PRODUCER_ID = "cadets"
 TOPIC = "ta1-cadets-cdm13"
+DISABLE_METRICS = None
 
 logger = logging.getLogger("tc")
 
@@ -312,6 +313,7 @@ def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic):
     '''
     Write an array of CDM records to Kafka
     '''
+    global DISABLE_METRICS
     for edge in cdm_records:
         # Serialize the record
         message = serializer.serialize(topic, edge)
@@ -320,7 +322,14 @@ def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic):
         producer.produce(topic, value=message, key=str(kafka_key).encode())
         producer.poll(0)
     # TODO: Parameters
-    push_to_gateway('prometheus:3332', job='ta1-cadets', registry=registry)
+    try:
+        if not DISABLE_METRICS:
+            push_to_gateway('prometheus:3332', job='ta1-cadets', registry=registry)
+    except Exception as ex:
+        DISABLE_METRICS = True
+        logger.warn(str(ex))
+        logger.warn("Unable to connect to prometheus, disabling metrics push 2")
+    
 
 if __name__ == '__main__':
     main()
