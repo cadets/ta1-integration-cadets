@@ -25,6 +25,13 @@ from tc.schema.serialization.kafka import KafkaAvroGenericSerializer
 
 import confluent_kafka
 
+from prometheus_client import CollectorRegistry, Gauge, Counter, push_to_gateway
+
+# Get my IP address that we publish to kafka from
+# TODO: A more general way to get this instead of having vtnet1 hardcoded, maybe a parameter
+import netifaces as ni
+myip = ni.ifaddresses('vtnet1')[2][0]['addr']
+
 from translator import CDMTranslator
 
 # Default values, replace or use command line arguments
@@ -37,6 +44,7 @@ CDMVERSION = "17"
 KAFKASTRING = "129.55.12.59:9092"
 PRODUCER_ID = "cadets"
 TOPIC = "ta1-cadets-cdm13"
+DISABLE_METRICS = None
 
 logger = logging.getLogger("tc")
 
@@ -295,15 +303,33 @@ def write_cdm_binary_records(cdm_records, file_writer):
         if cdm_record != None:
             file_writer.serialize_to_file(cdm_record)
 
+
+# Prometheus metric for generated records published to kafka
+registry = CollectorRegistry()
+ta1_send = Counter('ta1_send_total', 'Count of records sent', ['topic','host'], registry=registry)
+ta1_last = Gauge('ta1_last_send_time', 'Last publish time', ['topic','host'], registry=registry)
+
 def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic):
     '''
     Write an array of CDM records to Kafka
     '''
+    global DISABLE_METRICS
     for edge in cdm_records:
         # Serialize the record
         message = serializer.serialize(topic, edge)
+        ta1_send.labels(topic, myip).inc()
+        ta1_last.labels(topic, myip).set_to_current_time()
         producer.produce(topic, value=message, key=str(kafka_key).encode())
         producer.poll(0)
+    # TODO: Parameters
+    try:
+        if not DISABLE_METRICS:
+            push_to_gateway('prometheus:3332', job='ta1-cadets', registry=registry)
+    except Exception as ex:
+        DISABLE_METRICS = True
+        logger.warn(str(ex))
+        logger.warn("Unable to connect to prometheus, disabling metrics push 2")
+    
 
 if __name__ == '__main__':
     main()
