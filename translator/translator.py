@@ -205,13 +205,15 @@ class CDMTranslator(object):
         if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK", "EVENT_MMAP"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
         if event in ["EVENT_ACCEPT"]:
-            return (cadets_record.get("arg_objuuid1"), None, cadets_record.get("arg_objuuid2"), None, None)
+            return (cadets_record.get("arg_objuuid1"), None, cadets_record.get("ret_objuuid1"), None, None)
         if event in ["EVENT_RENAME"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid1"), cadets_record.get("upath2"), None)
         if event in ["EVENT_READ", "EVENT_WRITE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("fdpath"), None, None, cadets_record.get("retval"))
         if event in ["EVENT_FORK"]:
             return (cadets_record.get("ret_objuuid1"), None, None, None, None) # fork has a second return uuid. The resulting thread uuid
+        if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_pipe", "aue_socketpair"]:
+            return (cadets_record.get("ret_objuuid1"), None, cadets_record.get("ret_objuuid2"), None, None)
         if event in ["EVENT_OPEN", "EVENT_CREATE_OBJECT"]:
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
         if event in ["EVENT_LINK"]:
@@ -224,8 +226,6 @@ class CDMTranslator(object):
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
         if event in ["EVENT_SIGNAL"] and call == "aue_kill":
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
-        if event in ["EVENT_CREATE_OBJECT"] and call == "aue_pipe":
-            return (cadets_record.get("ret_objuuid1"), None, cadets_record.get("ret_objuuid2"), None, None)
         if event in ["EVENT_MODIFY_PROCESS"] and call in ["aue_fchdir", "aue_chdir"]:
             return (cadets_record.get("subjprocuuid"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
         if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_symlink", "aue_symlinkat"]:
@@ -348,7 +348,7 @@ class CDMTranslator(object):
                        'aue_seteuid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setegid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setreuid' : 'EVENT_CHANGE_PRINCIPAL',
-                       'aue_setreuid' : 'EVENT_CHANGE_PRINCIPAL',
+                       'aue_setregid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresgid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresuid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_fcntl' : 'EVENT_FNCTL',
