@@ -20,7 +20,7 @@ IP=$(ifconfig vtnet0|grep -E 'inet '|awk '{print $2}')
 #fi
 
 # For RIPE experiment
-KS="10.0.6.24:9092"
+KS="10.0.50.24:9092"
 
 echo "************************************************************************************************"
 echo "On ${IP}, so using -ks ${KS}"
