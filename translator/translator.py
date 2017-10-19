@@ -59,8 +59,22 @@ class CDMTranslator(object):
         # List of CDM vertices
         datums = []
 
-        # nanos to micros
+        # dispatch based on type
+        event_type = cadets_record["event"]
+        event_components = event_type.split(":")
+        if len(event_components) < 4:
+            self.handle_error("Expecting 4 elements in the event type: provider:module:function:probe. Got: "+event_type)
 
+        provider = event_components[0]
+        module = event_components[1]
+        call = event_components[2]
+        probe = event_components[3]
+
+        # Handle socket info - the CADETS record is missing most normal record info
+        if provider == "fbt" and call == "cc_conn_init":
+            nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
+            datums.append(nf_obj)
+            return datums
         # Create a new user if necessary
         uid = cadets_record["uid"]
         if not self.instance_generator.get_user_id(uid):
@@ -93,16 +107,6 @@ class CDMTranslator(object):
                 thread = self.instance_generator.create_thread_subject(tid, cadets_record["time"], self.get_source())
                 datums.append(thread)
 
-        # dispatch based on type
-        event_type = cadets_record["event"]
-        event_components = event_type.split(":")
-        if len(event_components) < 4:
-            self.handle_error("Expecting 4 elements in the event type: provider:module:function:probe. Got: "+event_type)
-
-        provider = event_components[0]
-        module = event_components[1]
-        call = event_components[2]
-        probe = event_components[3]
 
         # Create related subjects before the event itself
         if "fork" in call: # link forked processes
@@ -251,6 +255,9 @@ class CDMTranslator(object):
             event["type"] = self.convert_audit_event_type(call)
         else:
             self.logger.warn("Unexpected provider %s", provider)
+            return None
+        if call in ["aue_socket"]:
+            self.logger.debug("Skipping socket call")
             return None
         if event["type"] is None:
             self.logger.debug("Skipping event %s", call)
