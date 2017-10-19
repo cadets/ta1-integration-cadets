@@ -303,6 +303,8 @@ class CDMTranslator(object):
                 and (key.startswith("ret_")
                     or key.startswith("arg_"))):
                 event["properties"][key] = str(val)
+        if "host" in cadets_record:
+            event["properties"]["host"] = cadets_record["host"]
         if "args" in cadets_record:
             event["properties"]["args"] = cadets_record["args"]
         if "login" in cadets_record:
