@@ -30,7 +30,7 @@ from prometheus_client import CollectorRegistry, Gauge, Counter, push_to_gateway
 # Get my IP address that we publish to kafka from
 # TODO: A more general way to get this instead of having vtnet1 hardcoded, maybe a parameter
 import netifaces as ni
-myip = ni.ifaddresses('vtnet1')[2][0]['addr']
+myip = ni.ifaddresses('vtnet2')[2][0]['addr']
 
 from translator import CDMTranslator
 
