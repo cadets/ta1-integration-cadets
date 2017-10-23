@@ -74,14 +74,14 @@ class InstanceGenerator():
 
         return record_generator.Util.get_uuid_from_value(id)
 
-    def create_process_subject(self, pid, puuid, ppuuid, principal, time_nanos, source):
+    def create_process_subject(self, pid, puuid, ppuuid, principal, time_nanos, host, source):
         ''' Create a process subject, add it to the created list, and return it
         '''
 
         record = {}
         subject = {}
 
-        subject["localPrincipal"] = self.create_uuid("uid", principal);
+        subject["localPrincipal"] = self.create_uuid("uid", str(principal)+host);
         if ppuuid:
                 subject["parentSubject"] = self.create_uuid("uuid", uuid.UUID(ppuuid).int)
 
@@ -97,6 +97,7 @@ class InstanceGenerator():
 #         subject["importedLibraries"] = [string]
 #         subject["exportedLibraries"] = [string]
         subject["properties"] = {}
+        subject["properties"]["host"] = host
 
         # Generate a uuid for this subject
         uniq = self.create_uuid("uuid", uuid.UUID(puuid).int)
@@ -134,18 +135,19 @@ class InstanceGenerator():
         '''
         return uid in self.created_users
 
-    def create_user_principal(self, uid, source):
+    def create_user_principal(self, uid, host, source): # TODO add HOST!
         ''' Create a user principal, add it to the created list, and return it
         '''
         record = {}
         principal = {}
-        principal["uuid"] = self.create_uuid("uid", uid);
+        principal["uuid"] = self.create_uuid("uid", str(uid)+host);
         principal["type"] = "PRINCIPAL_LOCAL"
         principal["userId"] = str(uid)
         if uid == 0:
             principal["username"] = "root"
         principal["groupIds"] = []
         principal["properties"] = {}
+        principal["properties"]["host"] = host
 
         # Save the uuid for this user
         self.created_users.add(uid)
@@ -161,7 +163,7 @@ class InstanceGenerator():
         '''
         return file_key in self.created_objects
 
-    def create_unix_socket_object(self, file_uuid, source):
+    def create_unix_socket_object(self, file_uuid, host, source):
         ''' Infer the existence of a file object, add it to the created list, and return it.
             If version = None, look for an older version, and if found, add one and create a new Object
         '''
@@ -172,6 +174,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
+        abstract_object["properties"]["host"] = host
 
         fobject["baseObject"] = abstract_object
         fobject["type"] = "FILE_OBJECT_UNIX_SOCKET"
@@ -193,7 +196,7 @@ class InstanceGenerator():
         record["datum"] = fobject
         return record
 
-    def create_pipe_object(self, ipc_uuid, source):
+    def create_pipe_object(self, ipc_uuid, host, source):
         ''' Create one endpoint of a pipe.
         '''
 
@@ -203,6 +206,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
+        abstract_object["properties"]["host"] = host
 
         fobject["baseObject"] = abstract_object
         fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(ipc_uuid).int)
@@ -216,7 +220,7 @@ class InstanceGenerator():
         record["datum"] = fobject
         return record
 
-    def create_file_object(self, file_uuid, source, is_dir = False):
+    def create_file_object(self, file_uuid, host, source, is_dir = False):
         ''' Infer the existence of a file object, add it to the created list, and return it.
             If version = None, look for an older version, and if found, add one and create a new Object
         '''
@@ -227,6 +231,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
+        abstract_object["properties"]["host"] = host
 
         fobject["baseObject"] = abstract_object
         if is_dir:
@@ -251,7 +256,7 @@ class InstanceGenerator():
         record["datum"] = fobject
         return record
 
-    def create_netflow_object(self, destHost, destPort, socket_uuid, source, localHost="localhost", localPort=-1):
+    def create_netflow_object(self, destHost, destPort, socket_uuid, host, source, localHost="localhost", localPort=-1):
         ''' Infer the existence of a netflow object from a connection event with a addr and port key
             We always create a new netflow, so no need to look for an old uuid
             For now, we don't have the local host or local port, so we use "localhost" and -1
@@ -261,6 +266,7 @@ class InstanceGenerator():
         nobject = {}
         abstract_object = {}
         abstract_object["properties"] = {}
+        abstract_object["properties"]["host"] = host
 
         nobject["baseObject"] = abstract_object
         nobject["properties"] = {}

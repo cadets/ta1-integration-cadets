@@ -71,15 +71,15 @@ class CDMTranslator(object):
         probe = event_components[3]
 
         # Handle socket info - the CADETS record is missing most normal record info
-        if provider == "fbt" and call == "cc_conn_init":
-            nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
+        if provider == "fbt" and call in ["cc_conn_init", "syncache_expand"]:
+            nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
             datums.append(nf_obj)
             return datums
         # Create a new user if necessary
         uid = cadets_record["uid"]
         if not self.instance_generator.get_user_id(uid):
             self.logger.debug("Creating new User Principal for {u}".format(u=uid))
-            principal = self.instance_generator.create_user_principal(uid, self.get_source())
+            principal = self.instance_generator.create_user_principal(uid, cadets_record["host"], self.get_source())
             datums.append(principal)
 
         # Create a new Process subject if necessary
@@ -92,7 +92,7 @@ class CDMTranslator(object):
             # We don't know the time when this process was created, so we'll make it 0 for now
             # Could use time as an upper bound, but we'd need to specify
 
-            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, self.get_source())
+            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, cadets_record["host"], self.get_source())
             process = process_record["datum"]
 
             datums.append(process_record)
@@ -114,7 +114,7 @@ class CDMTranslator(object):
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
 
             if not self.instance_generator.is_known_object(new_proc_uuid):
-                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], self.get_source())
+                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], cadets_record["host"], self.get_source())
                 datums.append(proc_record)
         elif "kill" in call:
             killed_pid = cadets_record.get("arg_pid")
@@ -123,12 +123,12 @@ class CDMTranslator(object):
             if killed_uuid and not self.instance_generator.is_known_object(killed_uuid):
                 # We only discovered the process when it was killed, so our
                 # info is limited.
-                proc_record = self.instance_generator.create_process_subject(killed_pid, killed_uuid, None, -1, 0, self.get_source())
+                proc_record = self.instance_generator.create_process_subject(killed_pid, killed_uuid, None, -1, 0, cadets_record["host"], self.get_source())
                 datums.append(proc_record)
         elif "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("upath1")
             if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
-                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), self.get_source())
+                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), cadets_record["host"], self.get_source())
                 datums.append(file_record)
 
         # Create the Event
@@ -416,30 +416,30 @@ class CDMTranslator(object):
             newRecords = newRecords + self.create_file_subjects(event, cadets_record)
         if event["name"] in ["aue_chdir", "aue_fchdir"]:
             if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
-                newRecords.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], self.get_source(), is_dir=True))
+                newRecords.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
         if event["name"] in ["aue_mkdir"]:
             if not self.instance_generator.is_known_object(cadets_record["ret_objuuid1"]):
-                newRecords.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], self.get_source(), is_dir=True))
+                newRecords.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
 
         # NetFlows and sockets
         if event["name"] in ["aue_pipe", "aue_pipe2"]:
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
-            pipe_obj = self.instance_generator.create_pipe_object(pipe_uuid1, self.get_source())
-            pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, self.get_source())
+            pipe_obj = self.instance_generator.create_pipe_object(pipe_uuid1, cadets_record["host"], self.get_source())
+            pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, cadets_record["host"], self.get_source())
             newRecords.append(pipe_obj)
             newRecords.append(pipe_obj2)
         elif event["name"] in ["aue_socket", "aue_socketpair"]:
             socket = cadets_record.get("ret_objuuid1")
             if not self.instance_generator.is_known_object(socket):
                 self.logger.debug("Creating a UnixSocket from socket call")
-                nf_obj = self.instance_generator.create_unix_socket_object(socket, self.get_source())
+                nf_obj = self.instance_generator.create_unix_socket_object(socket, cadets_record["host"], self.get_source())
                 newRecords.append(nf_obj)
             socket2 = cadets_record.get("ret_objuuid2")
             if socket2 and not self.instance_generator.is_known_object(socket2):
                 self.logger.debug("Creating a UnixSocket from socket call")
-                nf_obj = self.instance_generator.create_unix_socket_object(socket2, self.get_source())
+                nf_obj = self.instance_generator.create_unix_socket_object(socket2, cadets_record["host"], self.get_source())
                 newRecords.append(nf_obj)
         elif event["type"] in ["EVENT_BIND"]:
             localAddr = cadets_record.get("address")
@@ -447,7 +447,7 @@ class CDMTranslator(object):
             listening_socket = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(listening_socket):
                 self.logger.debug("Creating a UnixSocket from {h}".format(h=localAddr))
-                nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, self.get_source())
+                nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
                 newRecords.append(nf_obj)
         elif event["type"] in ["EVENT_ACCEPT"]:
             remoteAddr = cadets_record.get("address")
@@ -455,17 +455,17 @@ class CDMTranslator(object):
             listening_socket = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(listening_socket):
                 self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
-                nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, self.get_source())
+                nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
                 newRecords.append(nf_obj)
             accepted_socket = cadets_record.get("ret_objuuid1") # accepted socket
             if not self.instance_generator.is_known_object(accepted_socket):
                 if remotePort:
                     self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remoteAddr, p=remotePort))
-                    nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, accepted_socket, self.get_source())
+                    nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, accepted_socket, cadets_record["host"], self.get_source())
                     newRecords.append(nf_obj)
                 else:
                     self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
-                    nf_obj = self.instance_generator.create_unix_socket_object(accepted_socket, self.get_source())
+                    nf_obj = self.instance_generator.create_unix_socket_object(accepted_socket, cadets_record["host"], self.get_source())
                     newRecords.append(nf_obj)
         elif event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             socket_uuid = cadets_record.get("arg_objuuid1")
@@ -475,11 +475,11 @@ class CDMTranslator(object):
 
                 if remotePort:
                     self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remoteAddr, p=remotePort))
-                    nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, socket_uuid, self.get_source())
+                    nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, socket_uuid, cadets_record["host"], self.get_source())
                     newRecords.append(nf_obj)
                 else:
                     self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
-                    nf_obj = self.instance_generator.create_unix_socket_object(socket_uuid, self.get_source())
+                    nf_obj = self.instance_generator.create_unix_socket_object(socket_uuid, cadets_record["host"], self.get_source())
                     newRecords.append(nf_obj)
 
         return newRecords
@@ -491,7 +491,7 @@ class CDMTranslator(object):
                     if not self.instance_generator.is_known_object(cadets_record[uuid]):
                         self.logger.debug("Creating file")
                         # TODO determine if it's a directory first
-                        fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), self.get_source())
+                        fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record["host"], self.get_source())
                         newRecords.append(fileobj)
                 else:
                     continue;
