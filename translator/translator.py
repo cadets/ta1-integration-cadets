@@ -281,6 +281,7 @@ class CDMTranslator(object):
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
         event["name"] = call
+        event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
         event["parameters"] = self.create_parameters(call, cadets_record) # [Values]
 #         event["location"] = long
         if size is not None:
@@ -361,7 +362,7 @@ class CDMTranslator(object):
                        'aue_setregid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresgid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresuid' : 'EVENT_CHANGE_PRINCIPAL',
-                       'aue_fcntl' : 'EVENT_FNCTL',
+                       'aue_fcntl' : 'EVENT_FCNTL',
                        'aue_chmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_fchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_lchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',

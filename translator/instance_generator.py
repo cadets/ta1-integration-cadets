@@ -89,6 +89,7 @@ class InstanceGenerator():
 
         subject["startTimestampNanos"] = time_nanos
         subject["type"] = "SUBJECT_PROCESS"
+        subject["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 #         subject["unitId"] = int
 #         subject["interation"] = int
 #         subject["count"] = int
@@ -147,7 +148,7 @@ class InstanceGenerator():
             principal["username"] = "root"
         principal["groupIds"] = []
         principal["properties"] = {}
-        principal["properties"]["host"] = host
+        principal["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         # Save the uuid for this user
         self.created_users.add(uid)
@@ -174,7 +175,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["properties"]["host"] = host
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         fobject["baseObject"] = abstract_object
         fobject["type"] = "FILE_OBJECT_UNIX_SOCKET"
@@ -206,7 +207,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["properties"]["host"] = host
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         fobject["baseObject"] = abstract_object
         fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(ipc_uuid).int)
@@ -231,7 +232,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["properties"]["host"] = host
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         fobject["baseObject"] = abstract_object
         if is_dir:
@@ -266,7 +267,7 @@ class InstanceGenerator():
         nobject = {}
         abstract_object = {}
         abstract_object["properties"] = {}
-        abstract_object["properties"]["host"] = host
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         nobject["baseObject"] = abstract_object
         nobject["properties"] = {}
