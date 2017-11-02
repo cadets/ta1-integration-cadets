@@ -209,6 +209,9 @@ class CDMTranslator(object):
     def predicates_by_event(self, event, call, cadets_record):
         if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK", "EVENT_MMAP"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_SEND"] and call in ["aue_sendfile"]:
+            # obj1 is file, obj2 is where it's sent, but all the other sends have predicateObject1 as the socket, so reverse these to keep predicateObject1 consistent.
+            return (cadets_record.get("arg_objuuid2"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
         if event in ["EVENT_ACCEPT"]:
             return (cadets_record.get("arg_objuuid1"), None, cadets_record.get("ret_objuuid1"), None, None)
         if event in ["EVENT_RENAME"]:
@@ -387,6 +390,7 @@ class CDMTranslator(object):
                        'aue_rename' : 'EVENT_RENAME',
                        'aue_sendto' : 'EVENT_SENDTO',
                        'aue_sendmsg' : 'EVENT_SENDMSG',
+                       'aue_sendfile' : 'EVENT_SEND',
                        'aue_symlink' : 'EVENT_CREATE_OBJECT',
                        'aue_recvfrom' : 'EVENT_RECVFROM',
                        'aue_recvmsg' : 'EVENT_RECVMSG',
