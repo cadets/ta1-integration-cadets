@@ -511,3 +511,10 @@ def create_int_parameter(value_type, name, value):
             # encodes, and uses 2s complement if needed.
             parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=True)
         return parameter
+
+def create_provenance_assertion(asserter, sources, provenance):
+        assertion = {}
+        assertion["asserter"] = asserter # UUID
+        assertion["sources"] = sources # Optional: [UUID]
+        assertion["provenance"] = provenance # Optional: [ProvenanceAssertion]
+        return assertion
