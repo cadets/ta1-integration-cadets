@@ -287,3 +287,32 @@ class InstanceGenerator():
 
         self.created_objects.add(socket_uuid)
         return record
+
+    def create_host_object(self, uuid, hostname, identifiers, os, host_type, interfaces, source):
+        ''' Create a host object, add it to the created list, and return it
+        '''
+# Host
+        record = {}
+        host = {}
+
+        host["uuid"] = self.create_uuid("uuid", uuid.UUID(uuid).int)
+        host["hostName"] = hostname # `hostname`
+        host["hostIdentifiers"] = identifiers # values from `sysctl`?
+# hostIdentifiers : array<HostIdentifier>
+# HostIdentifier:
+#   idType : string
+#   idValue : string
+        host["osDetails"] = os # `uname -m -r -s -v`
+        host["hostType"] = host_type # "HOST_MOBILE", "HOST_SERVER", "HOST_DESKTOP"
+        host["interfaces"] = interfaces # `ifconfig` has the info, but how to parse it into this?
+# interfaces : array<Interface>
+# Interface:
+#   name : string
+#   macAddress : string
+#   ipAddresses : array<string>
+
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
+        record["datum"] = host
+        return record
+
