@@ -116,20 +116,6 @@ class InstanceGenerator():
         '''
         return tid in self.created_threads
 
-    def create_thread_subject(self, tid, time_micros, source):
-        ''' Create a thread subject, add it to the created list, and return it
-        '''
-        record = {}
-        subject = {}
-        subject["properties"] = {}
-
-        subject["startTimestampMicros"] = time_micros
-        subject["type"] = "SUBJECT_THREAD"
-        # TODO very much incomplete
-        record["CDMVersion"] = self.CDMVersion
-        record["datum"] = subject
-        return record
-
     def get_user_id(self, uid):
         ''' Given a uid, did we create a Principal for that uid?
             If so, return true

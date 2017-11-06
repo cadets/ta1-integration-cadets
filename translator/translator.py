@@ -99,16 +99,6 @@ class CDMTranslator(object):
             datums.append(process_record)
 
 
-        # Create a new Thread subject if necessary
-        # TODO:  For now, we'll skip creating the Thread
-        tid = cadets_record["tid"]
-        if False:
-            if not self.instance_generator.get_thread_subject_id(tid):
-                self.logger.debug("Creating new Thread Subject for {t}".format(t=tid))
-                thread = self.instance_generator.create_thread_subject(tid, cadets_record["time"], self.get_source())
-                datums.append(thread)
-
-
         # Create related subjects before the event itself
         if "fork" in call: # link forked processes
             new_pid = cadets_record.get("retval")
