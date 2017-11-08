@@ -264,7 +264,7 @@ class CDMTranslator(object):
             return None
 
         event["subject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["subjprocuuid"]).int)
-        event_uuid = self.instance_generator.create_uuid("event", self.eventCounter)
+        event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
         (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(event["type"], call, cadets_record);
         if pred_obj:
             event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj).int)
