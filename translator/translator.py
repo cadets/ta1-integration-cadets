@@ -72,8 +72,9 @@ class CDMTranslator(object):
 
         # Handle socket info - the CADETS record is missing most normal record info
         if provider == "fbt" and call in ["cc_conn_init", "syncache_expand"]:
-            nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
-            datums.append(nf_obj)
+            if not self.instance_generator.is_known_object(cadets_record["so_uuid"]):
+                nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
+                datums.append(nf_obj)
             return datums
         # Create a new user if necessary
         uid = cadets_record["uid"]
