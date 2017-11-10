@@ -6,6 +6,7 @@ for that record)
 '''
 
 import logging
+import subprocess
 import uuid
 
 from tc.schema.records import record_generator
@@ -40,6 +41,7 @@ class InstanceGenerator():
         self.created_threads = set()
         self.created_users = set()
         self.created_objects = set()
+        self.host_created = False
 
     def reset(self):
         self.created_threads.clear()
@@ -47,6 +49,7 @@ class InstanceGenerator():
         self.created_objects.clear()
         self.netflow_counter = 0
         self.pipe_counter = 0
+        self.host_created = False
 
     def create_uuid(self, object_type, data):
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
@@ -274,31 +277,35 @@ class InstanceGenerator():
         self.created_objects.add(socket_uuid)
         return record
 
-    def create_host_object(self, uuid, hostname, identifiers, os, host_type, interfaces, source):
+    def create_host_object(self, host_uuid, host_type, source):
         ''' Create a host object, add it to the created list, and return it
         '''
-# Host
         record = {}
         host = {}
 
-        host["uuid"] = self.create_uuid("uuid", uuid.UUID(uuid).int)
-        host["hostName"] = hostname # `hostname`
-        host["hostIdentifiers"] = identifiers # values from `sysctl`?
+        host["uuid"] = self.create_uuid("uuid", uuid.UUID(host_uuid).int)
+        host["hostName"] = subprocess.getoutput(['hostname'])
+        host["hostIdentifiers"] = [] # values from `sysctl`?
 # hostIdentifiers : array<HostIdentifier>
 # HostIdentifier:
 #   idType : string
 #   idValue : string
-        host["osDetails"] = os # `uname -m -r -s -v`
-        host["hostType"] = host_type # "HOST_MOBILE", "HOST_SERVER", "HOST_DESKTOP"
-        host["interfaces"] = interfaces # `ifconfig` has the info, but how to parse it into this?
-# interfaces : array<Interface>
-# Interface:
-#   name : string
-#   macAddress : string
-#   ipAddresses : array<string>
-
+        host["osDetails"] = subprocess.getoutput(['uname -m -r -s -v'])
+        host["hostType"] = host_type
+        host["interfaces"] = []
+        for interface_name in subprocess.getoutput(['ifconfig -l']).split():
+            interface = {}
+            interface["name"] = interface_name
+            interface["macAddress"] = subprocess.getoutput(['ifconfig '+interface_name+' | grep ether | awk \'{print $2}\''])
+            if not interface["macAddress"]:
+                continue
+            interface["ipAddresses"] = []
+            for ip_address in subprocess.getoutput(['ifconfig '+interface_name+' | grep \'\<inet.*\>\' | awk \'{print $2}\'']).split():
+                interface["ipAddresses"].append(ip_address)
+            host["interfaces"].append(interface)
         record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = host
+        self.host_created = True
         return record
 

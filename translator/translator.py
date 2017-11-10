@@ -31,9 +31,12 @@ class CDMTranslator(object):
 
     instance_generator = None
 
-    def __init__(self, schema, version):
+    host_type = None
+
+    def __init__(self, schema, version, host_type):
         self.schema = schema
         self.CDMVersion = version
+        self.host_type = host_type
         self.instance_generator = InstanceGenerator(version)
         self.logger = logging.getLogger("tc")
 
@@ -72,6 +75,10 @@ class CDMTranslator(object):
 
         # Handle socket info - the CADETS record is missing most normal record info
         if provider == "fbt" and call in ["cc_conn_init", "syncache_expand"]:
+            if not self.instance_generator.host_created:
+                host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
+                datums.append(host_object)
+            # a socket can be reused. We should only create it once.
             if not self.instance_generator.is_known_object(cadets_record["so_uuid"]):
                 nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
                 datums.append(nf_obj)
@@ -133,6 +140,9 @@ class CDMTranslator(object):
             if object_records != None:
                 for objr in object_records:
                     datums.insert(0, objr)
+        if not self.instance_generator.host_created:
+            host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
+            datums.insert(0,host_object)
 
 
         return datums
