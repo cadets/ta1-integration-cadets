@@ -309,3 +309,20 @@ class InstanceGenerator():
         self.host_created = True
         return record
 
+
+    def create_metaio_object(self, asserter, sources, priors):
+        ''' Create a ProvenanceAssertion object to represent metaio
+        '''
+        record = {}
+        assertion = {}
+        assertion["sources"] = {}
+
+        assertion["asserter"] = self.create_uuid("uuid", uuid.UUID(asserter).int) # what should this be?
+        for source in sources:
+            assertion["sources"].append(self.create_uuid("uuid", uuid.UUID(source).int)) # from mio_uuid
+        assertion["provenance"] = priors
+
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
+        record["datum"] = assertion
+        return record

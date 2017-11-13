@@ -190,6 +190,7 @@ class CDMTranslator(object):
             parameters.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
         elif call in ["aue_fcntl"]:
             parameters.append(create_int_parameter("CONTROL", "cmd", cadets_record.get("fcntl_cmd")))
+#TODO add read write parameters for metaio info?
 
 
 #         parameters = {}
