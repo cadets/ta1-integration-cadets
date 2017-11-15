@@ -60,13 +60,15 @@ def get_arg_parser():
                         help="Directory to load CADETS record files from")
     parser.add_argument("-odir", action="store", type=str, default=OUTPUT_DIR,
                         help="Directory to write CDM records files to")
-    parser.add_argument("-f", action="store", type=str, default=IN_FILE,
+    file_group = parser.add_mutually_exclusive_group(required=False)
+    file_group.add_argument("-f", action="store", type=str, default=IN_FILE,
                         help="File to translate, default is to translate every file in the directory that ends with .json")
     parser.add_argument("-lc", action="store", type=str, default=LOGGING_CONF,
                         help="Logging configuration file")
-    parser.add_argument("-wj", action="store_true", default=False, help="Write JSON output file")
-    parser.add_argument("-wb", action="store_true", default=False, help="Write binary output file")
-    parser.add_argument("-wk", action="store_true", default=False, help="Write to Kafka")
+    output_group = parser.add_argument_group('output formats')
+    output_group.add_argument("-wj", action="store_true", default=False, help="Write JSON output file")
+    output_group.add_argument("-wb", action="store_true", default=False, help="Write binary output file")
+    output_group.add_argument("-wk", action="store_true", default=False, help="Write to Kafka")
     parser.add_argument("-ks", action="store", default=KAFKASTRING, help="Kafka connection string")
     parser.add_argument("-punctuate", action="store", type=int, default=0,
                         help="Generate time markers, given the number of CPUs in the machine")
@@ -75,7 +77,7 @@ def get_arg_parser():
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
                         help="CDM Version number, make sure this matches the schema file you set with psf")
     parser.add_argument("-p", action="store_true", default=False, help="Print progress message for longer translations")
-    parser.add_argument("-watch", action="store_true", default=False, help="Watch for new files in source tdir - not compatible with -f")
+    file_group.add_argument("-watch", action="store_true", default=False, help="Watch for new files in source tdir")
 
     host_group = parser.add_mutually_exclusive_group(required=True)
     host_group.add_argument("-hs", action="store_true", default=False,
