@@ -133,8 +133,7 @@ class InstanceGenerator():
         principal["uuid"] = self.create_uuid("uid", str(uid)+host);
         principal["type"] = "PRINCIPAL_LOCAL"
         principal["userId"] = str(uid)
-        if uid == 0:
-            principal["username"] = "root"
+        principal["username"] = subprocess.getoutput(['id -un '+str(uid)])
         principal["groupIds"] = []
         principal["properties"] = {}
         principal["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
