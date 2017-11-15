@@ -15,7 +15,7 @@ import json
 # Default values, replace or use command line arguments
 SCHEMA = "../../ta3-serialization-schema/avro/TCCDMDatum.avsc"
 LOGGING_CONF = "logging.conf"
-CDMVERSION = ["17"]
+CDMVERSION = ["18"]
 
 logger = logging.getLogger("tc")
 
@@ -118,6 +118,12 @@ def examine_record(record):
     elif details.get("NetFlowObject"):
         details = details.get("NetFlowObject")
         record_type = "NetFlow"
+    elif details.get("Host"):
+        details = details.get("Host")
+        record_type = "Host"
+    elif details.get("UnnamedPipeObject"):
+        details = details.get("UnnamedPipeObject")
+        record_type = "Pipe"
 
     if details.get("baseObject"):
         if not check_uuid_is_new(details["uuid"], "FILE"):
