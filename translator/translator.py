@@ -191,6 +191,26 @@ class CDMTranslator(object):
         elif call in ["aue_fcntl"]:
             parameters.append(create_int_parameter("CONTROL", "cmd", cadets_record.get("fcntl_cmd")))
 #TODO add read write parameters for metaio info?
+        elif call in ["aue_read", "aue_readv", "aue_pread", "aue_readl", "aue_readvl", "aue_preadv"]:
+            if cadets_record.get("arg_metaio.mio_uuid"):
+                source_assertion = {}
+                source_assertion["asserter"]=self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+                source_assertion["sources"]=[]
+                source_assertion["sources"].append(self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record.get("arg_metaio.mio_uuid")).int))
+                source_assertion = [source_assertion]
+            else:
+                source_assertion = None
+            parameters.append(create_int_parameter("SINK", "size", cadets_record.get("retval"), source_assertion))
+        elif call in ["aue_write", "aue_pwrite", "aue_writev", "aue_pwritev"]:
+            if cadets_record.get("ret_metaio.mio_uuid"):
+                source_assertion = {}
+                source_assertion["asserter"]=self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+                source_assertion["sources"]=[]
+                source_assertion["sources"].append(self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record.get("ret_metaio.mio_uuid")).int))
+                source_assertion = [source_assertion]
+            else:
+                source_assertion = None
+            parameters.append(create_int_parameter("SINK", "size", cadets_record.get("retval"), source_assertion))
 
 
 #         parameters = {}
@@ -505,7 +525,7 @@ class CDMTranslator(object):
 
         return newRecords
 
-def create_int_parameter(value_type, name, value):
+def create_int_parameter(value_type, name, value, assertions=None):
         parameter = {}
         parameter["size"] = -1 # -1 = primitive
         parameter["type"] = "VALUE_TYPE_" + value_type
@@ -515,6 +535,8 @@ def create_int_parameter(value_type, name, value):
         if not value is None:
             # encodes, and uses 2s complement if needed.
             parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=True)
+        if assertions:
+            parameter["provenance"] = assertions
         return parameter
 
 def create_provenance_assertion(asserter, sources, provenance):
