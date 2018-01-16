@@ -200,7 +200,7 @@ class CDMTranslator(object):
                 source_assertion = [source_assertion]
             else:
                 source_assertion = None
-            parameters.append(create_int_parameter("SINK", "size", cadets_record.get("retval"), source_assertion))
+            parameters.append(create_uuid_parameter("SRC", "source_uuid", self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["arg_objuuid1"]).int), source_assertion))
         elif call in ["aue_write", "aue_pwrite", "aue_writev", "aue_pwritev"]:
             if cadets_record.get("ret_metaio.mio_uuid"):
                 source_assertion = {}
@@ -210,7 +210,7 @@ class CDMTranslator(object):
                 source_assertion = [source_assertion]
             else:
                 source_assertion = None
-            parameters.append(create_int_parameter("SINK", "size", cadets_record.get("retval"), source_assertion))
+            parameters.append(create_uuid_parameter("SINK", "dest_uuid", self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["arg_objuuid1"]).int), source_assertion))
 
 
 #         parameters = {}
@@ -524,6 +524,19 @@ class CDMTranslator(object):
                     continue;
 
         return newRecords
+
+def create_uuid_parameter(value_type, name, value, assertions=None):
+        parameter = {}
+        parameter["size"] = -1 # -1 = primitive
+        parameter["type"] = "VALUE_TYPE_" + value_type
+        parameter["valueDataType"]="VALUE_DATA_TYPE_BYTE"
+        parameter["isNull"] = value is None
+        parameter["name"] = name
+        if not value is None:
+            parameter["valueBytes"] = value
+        if assertions:
+            parameter["provenance"] = assertions
+        return parameter
 
 def create_int_parameter(value_type, name, value, assertions=None):
         parameter = {}
