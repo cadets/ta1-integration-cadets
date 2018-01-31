@@ -74,13 +74,21 @@ class CDMTranslator(object):
         probe = event_components[3]
 
         # Handle socket info - the CADETS record is missing most normal record info
-        if provider == "fbt" and call in ["cc_conn_init", "syncache_expand"]:
+        if provider == "fbt" and call in ["cc_conn_init", "syncache_expand"] or provider == "udp":
             if not self.instance_generator.host_created:
                 host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
                 datums.append(host_object)
             # a socket can be reused. We should only create it once.
             if not self.instance_generator.is_known_object(cadets_record["so_uuid"]):
                 nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
+                datums.append(nf_obj)
+            elif cadets_record["so_uuid"] not in self.instance_generator.updated_objects:
+                alt_uuid = self.instance_generator.create_uuid("netflow", cadets_record["so_uuid"])
+                alt_uuid = str(uuid.UUID(bytes=alt_uuid))
+                nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], alt_uuid, cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
+                update_obj = self.add_updated_object(cadets_record, cadets_record["so_uuid"], alt_uuid)
+                self.instance_generator.updated_objects.add(cadets_record["so_uuid"])
+                datums.append(update_obj)
                 datums.append(nf_obj)
             return datums
         # Create a new user if necessary
@@ -524,6 +532,36 @@ class CDMTranslator(object):
                     continue;
 
         return newRecords
+
+    def add_updated_object(self, cadets_record, orig_uuid, temp_uuid):
+            ''' Create an event to add information to an existing object '''
+
+            record = {}
+            event = {}
+
+            event["type"] = "EVENT_UPDATE"
+            event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+            event["uuid"] = event_uuid
+            event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+            event["timestampNanos"] = cadets_record["time"]
+            event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(orig_uuid).int)
+            event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(temp_uuid).int)
+
+            event["threadId"] = cadets_record["tid"]
+
+            event["properties"] = {}
+
+
+            # Use the event counter as the seq number
+            # This assumes we're processing events in order
+            event["sequence"] = self.eventCounter
+            self.eventCounter += 1
+
+            record["CDMVersion"] = self.CDMVersion
+            record["source"] = self.get_source()
+            record["datum"] = event
+
+            return record
 
 def create_uuid_parameter(value_type, name, value, assertions=None):
         parameter = {}

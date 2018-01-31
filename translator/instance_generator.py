@@ -25,6 +25,10 @@ class InstanceGenerator():
     # Meaning normal files, but also processes
     created_objects = {}
 
+    # Set of object UUIDs
+    # Once in this set, we've filled out the object as best as we can - don't resend info
+    updated_objects = {}
+
     # Netflows are always created new, we don't refer to a previously created netflow object
     # So no need to store the uuids
     # Instead we just use a counter for the netflow uuid, since the host:port may not be unique
@@ -41,12 +45,14 @@ class InstanceGenerator():
         self.created_threads = set()
         self.created_users = set()
         self.created_objects = set()
+        self.updated_objects = set()
         self.host_created = False
 
     def reset(self):
         self.created_threads.clear()
         self.created_users.clear()
         self.created_objects.clear()
+        self.updated_objects.clear()
         self.netflow_counter = 0
         self.pipe_counter = 0
         self.host_created = False
