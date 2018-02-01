@@ -267,7 +267,7 @@ class CDMTranslator(object):
             return (None, None, None, None, None)
         if event in ["EVENT_OTHER"] and call in ["aue_listen"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
-        self.logger.warn("Unhandled event/call: %s/%s\n", event, call)
+        self.logger.debug("Unhandled event/call: %s/%s\n", event, call)
         return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
 
     def translate_call(self, provider, module, call, probe, cadets_record):
