@@ -154,7 +154,6 @@ class InstanceGenerator():
 
     def create_unix_socket_object(self, file_uuid, host, source):
         ''' Infer the existence of a file object, add it to the created list, and return it.
-            If version = None, look for an older version, and if found, add one and create a new Object
         '''
 
         record = {}
@@ -174,8 +173,6 @@ class InstanceGenerator():
 #         fobject["hashes"] = array of hashes
         fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
 
-
-        fobject["version"] = 1
 
         # Save the uuid for this subject
         self.created_objects.add(file_uuid)
@@ -211,7 +208,6 @@ class InstanceGenerator():
 
     def create_file_object(self, file_uuid, host, source, is_dir = False):
         ''' Infer the existence of a file object, add it to the created list, and return it.
-            If version = None, look for an older version, and if found, add one and create a new Object
         '''
 
         record = {}
@@ -234,9 +230,6 @@ class InstanceGenerator():
 #         fobject["hashes"] = array of hashes
         fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
 
-
-        fobject["version"] = 1
-
         # Save the uuid for this subject
         self.created_objects.add(file_uuid)
 
@@ -258,7 +251,6 @@ class InstanceGenerator():
         abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         nobject["baseObject"] = abstract_object
-        nobject["properties"] = {}
         nobject["localAddress"] = localHost
         nobject["localPort"] = localPort
         nobject["remoteAddress"] = destHost
