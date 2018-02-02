@@ -88,8 +88,8 @@ class CDMTranslator(object):
                 nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], alt_uuid, cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
                 update_obj = self.add_updated_object(cadets_record, cadets_record["so_uuid"], alt_uuid)
                 self.instance_generator.updated_objects.add(cadets_record["so_uuid"])
-                datums.append(update_obj)
                 datums.append(nf_obj)
+                datums.append(update_obj)
             return datums
         # Create a new user if necessary
         uid = cadets_record["uid"]
