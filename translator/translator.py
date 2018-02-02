@@ -141,6 +141,13 @@ class CDMTranslator(object):
         self.logger.debug("Creating Event from {e} ".format(e=event_type))
         event_record = self.translate_call(provider, module, call, probe, cadets_record)
 
+        if "arg_metaio.mio_uuid" in cadets_record:
+            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_metaio.mio_uuid"], cadets_record["arg_objuuid1"])
+            datums.append(flow_obj)
+        elif "ret_metaio.mio_uuid" in cadets_record:
+            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_objuuid1"], cadets_record["ret_metaio.mio_uuid"]) 
+            datums.append(flow_obj)
+
         event = None
         if event_record != None:
             datums.append(event_record)
@@ -198,28 +205,6 @@ class CDMTranslator(object):
             parameters.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
         elif call in ["aue_fcntl"]:
             parameters.append(create_int_parameter("CONTROL", "cmd", cadets_record.get("fcntl_cmd")))
-#TODO add read write parameters for metaio info?
-        elif call in ["aue_read", "aue_readv", "aue_pread", "aue_readl", "aue_readvl", "aue_preadv"]:
-            if cadets_record.get("arg_metaio.mio_uuid"):
-                source_assertion = {}
-                source_assertion["asserter"]=self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
-                source_assertion["sources"]=[]
-                source_assertion["sources"].append(self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record.get("arg_metaio.mio_uuid")).int))
-                source_assertion = [source_assertion]
-            else:
-                source_assertion = None
-            parameters.append(create_uuid_parameter("SRC", "source_uuid", self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["arg_objuuid1"]).int), source_assertion))
-        elif call in ["aue_write", "aue_pwrite", "aue_writev", "aue_pwritev"]:
-            if cadets_record.get("ret_metaio.mio_uuid"):
-                source_assertion = {}
-                source_assertion["asserter"]=self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
-                source_assertion["sources"]=[]
-                source_assertion["sources"].append(self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record.get("ret_metaio.mio_uuid")).int))
-                source_assertion = [source_assertion]
-            else:
-                source_assertion = None
-            parameters.append(create_uuid_parameter("SINK", "dest_uuid", self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["arg_objuuid1"]).int), source_assertion))
-
 
 #         parameters = {}
 #         parameters["size"] = int
@@ -257,7 +242,7 @@ class CDMTranslator(object):
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, cadets_record.get("upath2"), None)
         if event in ["EVENT_EXECUTE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
-        if event in ["EVENT_CLOSE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_UNLINK", "EVENT_UPDATE_OBJECT", "EVENT_TRUNCATE"]:
+        if event in ["EVENT_CLOSE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_UNLINK", "EVENT_UPDATE", "EVENT_TRUNCATE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, None, None)
         if event in ["EVENT_CHANGE_PRINCIPAL", "EVENT_EXIT"]:
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
@@ -359,6 +344,41 @@ class CDMTranslator(object):
             event["properties"]["port"] = str(cadets_record["port"])
 
         event["properties"]["exec"] = cadets_record["exec"]
+
+        event["threadId"] = cadets_record["tid"]
+
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = self.get_source()
+        record["datum"] = event
+
+        return record
+
+    def create_flows_to(self, cadets_record, source, dest):
+        ''' Translate a system or function call event '''
+
+        record = {}
+        event = {}
+
+        event["type"] = "EVENT_FLOWS_TO"
+
+        event["subject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["subjprocuuid"]).int)
+        event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+
+        event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(source).int)
+        event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(dest).int)
+        event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+        event["parameters"] = []
+        event["properties"] = {}
+        event["uuid"] = event_uuid
+
+        event["timestampNanos"] = cadets_record["time"]
+
+        # Use the event counter as the seq number
+        # This assumes we're processing events in order
+        event["sequence"] = self.eventCounter
+        self.eventCounter += 1
+
+        # Put these possibly interesting thing in properties
 
         event["threadId"] = cadets_record["tid"]
 
@@ -539,7 +559,7 @@ class CDMTranslator(object):
             record = {}
             event = {}
 
-            event["type"] = "EVENT_UPDATE"
+            event["type"] = "EVENT_ADD_OBJECT_ATTRIBUTE"
             event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
             event["uuid"] = event_uuid
             event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
