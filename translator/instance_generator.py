@@ -6,6 +6,7 @@ for that record)
 '''
 
 import logging
+import subprocess
 import uuid
 
 from tc.schema.records import record_generator
@@ -24,6 +25,10 @@ class InstanceGenerator():
     # Meaning normal files, but also processes
     created_objects = {}
 
+    # Set of object UUIDs
+    # Once in this set, we've filled out the object as best as we can - don't resend info
+    updated_objects = {}
+
     # Netflows are always created new, we don't refer to a previously created netflow object
     # So no need to store the uuids
     # Instead we just use a counter for the netflow uuid, since the host:port may not be unique
@@ -40,13 +45,17 @@ class InstanceGenerator():
         self.created_threads = set()
         self.created_users = set()
         self.created_objects = set()
+        self.updated_objects = set()
+        self.host_created = False
 
     def reset(self):
         self.created_threads.clear()
         self.created_users.clear()
         self.created_objects.clear()
+        self.updated_objects.clear()
         self.netflow_counter = 0
         self.pipe_counter = 0
+        self.host_created = False
 
     def create_uuid(self, object_type, data):
         ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
@@ -89,6 +98,7 @@ class InstanceGenerator():
 
         subject["startTimestampNanos"] = time_nanos
         subject["type"] = "SUBJECT_PROCESS"
+        subject["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 #         subject["unitId"] = int
 #         subject["interation"] = int
 #         subject["count"] = int
@@ -115,20 +125,6 @@ class InstanceGenerator():
         '''
         return tid in self.created_threads
 
-    def create_thread_subject(self, tid, time_micros, source):
-        ''' Create a thread subject, add it to the created list, and return it
-        '''
-        record = {}
-        subject = {}
-        subject["properties"] = {}
-
-        subject["startTimestampMicros"] = time_micros
-        subject["type"] = "SUBJECT_THREAD"
-        # TODO very much incomplete
-        record["CDMVersion"] = self.CDMVersion
-        record["datum"] = subject
-        return record
-
     def get_user_id(self, uid):
         ''' Given a uid, did we create a Principal for that uid?
             If so, return true
@@ -143,11 +139,10 @@ class InstanceGenerator():
         principal["uuid"] = self.create_uuid("uid", str(uid)+host);
         principal["type"] = "PRINCIPAL_LOCAL"
         principal["userId"] = str(uid)
-        if uid == 0:
-            principal["username"] = "root"
+        principal["username"] = subprocess.getoutput(['id -un '+str(uid)])
         principal["groupIds"] = []
         principal["properties"] = {}
-        principal["properties"]["host"] = host
+        principal["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         # Save the uuid for this user
         self.created_users.add(uid)
@@ -165,7 +160,6 @@ class InstanceGenerator():
 
     def create_unix_socket_object(self, file_uuid, host, source):
         ''' Infer the existence of a file object, add it to the created list, and return it.
-            If version = None, look for an older version, and if found, add one and create a new Object
         '''
 
         record = {}
@@ -174,7 +168,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["properties"]["host"] = host
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         fobject["baseObject"] = abstract_object
         fobject["type"] = "FILE_OBJECT_UNIX_SOCKET"
@@ -185,8 +179,6 @@ class InstanceGenerator():
 #         fobject["hashes"] = array of hashes
         fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
 
-
-        fobject["version"] = 1
 
         # Save the uuid for this subject
         self.created_objects.add(file_uuid)
@@ -206,7 +198,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["properties"]["host"] = host
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         fobject["baseObject"] = abstract_object
         fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(ipc_uuid).int)
@@ -222,7 +214,6 @@ class InstanceGenerator():
 
     def create_file_object(self, file_uuid, host, source, is_dir = False):
         ''' Infer the existence of a file object, add it to the created list, and return it.
-            If version = None, look for an older version, and if found, add one and create a new Object
         '''
 
         record = {}
@@ -231,7 +222,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["properties"]["host"] = host
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         fobject["baseObject"] = abstract_object
         if is_dir:
@@ -244,9 +235,6 @@ class InstanceGenerator():
 #         fobject["peInfo"] = string
 #         fobject["hashes"] = array of hashes
         fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
-
-
-        fobject["version"] = 1
 
         # Save the uuid for this subject
         self.created_objects.add(file_uuid)
@@ -266,10 +254,9 @@ class InstanceGenerator():
         nobject = {}
         abstract_object = {}
         abstract_object["properties"] = {}
-        abstract_object["properties"]["host"] = host
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
 
         nobject["baseObject"] = abstract_object
-        nobject["properties"] = {}
         nobject["localAddress"] = localHost
         nobject["localPort"] = localPort
         nobject["remoteAddress"] = destHost
@@ -285,4 +272,54 @@ class InstanceGenerator():
         record["datum"] = nobject
 
         self.created_objects.add(socket_uuid)
+        return record
+
+    def create_host_object(self, host_uuid, host_type, source):
+        ''' Create a host object, add it to the created list, and return it
+        '''
+        record = {}
+        host = {}
+
+        host["uuid"] = self.create_uuid("uuid", uuid.UUID(host_uuid).int)
+        host["hostName"] = subprocess.getoutput(['hostname'])
+        host["hostIdentifiers"] = [] # values from `sysctl`?
+# hostIdentifiers : array<HostIdentifier>
+# HostIdentifier:
+#   idType : string
+#   idValue : string
+        host["osDetails"] = subprocess.getoutput(['uname -m -r -s -v'])
+        host["hostType"] = host_type
+        host["interfaces"] = []
+        for interface_name in subprocess.getoutput(['ifconfig -l']).split():
+            interface = {}
+            interface["name"] = interface_name
+            interface["macAddress"] = subprocess.getoutput(['ifconfig '+interface_name+' | grep ether | awk \'{print $2}\''])
+            if not interface["macAddress"]:
+                continue
+            interface["ipAddresses"] = []
+            for ip_address in subprocess.getoutput(['ifconfig '+interface_name+' | grep \'\<inet.*\>\' | awk \'{print $2}\'']).split():
+                interface["ipAddresses"].append(ip_address)
+            host["interfaces"].append(interface)
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
+        record["datum"] = host
+        self.host_created = True
+        return record
+
+
+    def create_metaio_object(self, asserter, sources, priors):
+        ''' Create a ProvenanceAssertion object to represent metaio
+        '''
+        record = {}
+        assertion = {}
+        assertion["sources"] = {}
+
+        assertion["asserter"] = self.create_uuid("uuid", uuid.UUID(asserter).int) # what should this be?
+        for source in sources:
+            assertion["sources"].append(self.create_uuid("uuid", uuid.UUID(source).int)) # from mio_uuid
+        assertion["provenance"] = priors
+
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
+        record["datum"] = assertion
         return record

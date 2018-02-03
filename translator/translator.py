@@ -31,9 +31,12 @@ class CDMTranslator(object):
 
     instance_generator = None
 
-    def __init__(self, schema, version):
+    host_type = None
+
+    def __init__(self, schema, version, host_type):
         self.schema = schema
         self.CDMVersion = version
+        self.host_type = host_type
         self.instance_generator = InstanceGenerator(version)
         self.logger = logging.getLogger("tc")
 
@@ -71,10 +74,22 @@ class CDMTranslator(object):
         probe = event_components[3]
 
         # Handle socket info - the CADETS record is missing most normal record info
-        if provider == "fbt" and call in ["cc_conn_init", "syncache_expand"]:
+        if provider == "fbt" and call in ["cc_conn_init", "syncache_expand"] or provider == "udp":
+            if not self.instance_generator.host_created:
+                host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
+                datums.append(host_object)
+            # a socket can be reused. We should only create it once.
             if not self.instance_generator.is_known_object(cadets_record["so_uuid"]):
                 nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
                 datums.append(nf_obj)
+            elif cadets_record["so_uuid"] not in self.instance_generator.updated_objects:
+                alt_uuid = self.instance_generator.create_uuid("netflow", cadets_record["so_uuid"])
+                alt_uuid = str(uuid.UUID(bytes=alt_uuid))
+                nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], alt_uuid, cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
+                update_obj = self.add_updated_object(cadets_record, cadets_record["so_uuid"], alt_uuid)
+                self.instance_generator.updated_objects.add(cadets_record["so_uuid"])
+                datums.append(nf_obj)
+                datums.append(update_obj)
             return datums
         # Create a new user if necessary
         uid = cadets_record["uid"]
@@ -97,16 +112,6 @@ class CDMTranslator(object):
             process = process_record["datum"]
 
             datums.append(process_record)
-
-
-        # Create a new Thread subject if necessary
-        # TODO:  For now, we'll skip creating the Thread
-        tid = cadets_record["tid"]
-        if False:
-            if not self.instance_generator.get_thread_subject_id(tid):
-                self.logger.debug("Creating new Thread Subject for {t}".format(t=tid))
-                thread = self.instance_generator.create_thread_subject(tid, cadets_record["time"], self.get_source())
-                datums.append(thread)
 
 
         # Create related subjects before the event itself
@@ -136,6 +141,13 @@ class CDMTranslator(object):
         self.logger.debug("Creating Event from {e} ".format(e=event_type))
         event_record = self.translate_call(provider, module, call, probe, cadets_record)
 
+        if "arg_metaio.mio_uuid" in cadets_record:
+            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_metaio.mio_uuid"], cadets_record["arg_objuuid1"])
+            datums.append(flow_obj)
+        elif "ret_metaio.mio_uuid" in cadets_record:
+            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_objuuid1"], cadets_record["ret_metaio.mio_uuid"]) 
+            datums.append(flow_obj)
+
         event = None
         if event_record != None:
             datums.append(event_record)
@@ -143,6 +155,9 @@ class CDMTranslator(object):
             if object_records != None:
                 for objr in object_records:
                     datums.insert(0, objr)
+        if not self.instance_generator.host_created:
+            host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
+            datums.insert(0,host_object)
 
 
         return datums
@@ -191,7 +206,6 @@ class CDMTranslator(object):
         elif call in ["aue_fcntl"]:
             parameters.append(create_int_parameter("CONTROL", "cmd", cadets_record.get("fcntl_cmd")))
 
-
 #         parameters = {}
 #         parameters["size"] = int
 #         parameters["type"] = ValueType [VALUE_TYPE_SRC/VALUE_TYPE_SINK/VALUE_TYPE_CONTROL]
@@ -209,6 +223,9 @@ class CDMTranslator(object):
     def predicates_by_event(self, event, call, cadets_record):
         if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK", "EVENT_MMAP"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
+        if event in ["EVENT_SEND"] and call in ["aue_sendfile"]:
+            # obj1 is file, obj2 is where it's sent, but all the other sends have predicateObject1 as the socket, so reverse these to keep predicateObject1 consistent.
+            return (cadets_record.get("arg_objuuid2"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
         if event in ["EVENT_ACCEPT"]:
             return (cadets_record.get("arg_objuuid1"), None, cadets_record.get("ret_objuuid1"), None, None)
         if event in ["EVENT_RENAME"]:
@@ -225,7 +242,7 @@ class CDMTranslator(object):
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, cadets_record.get("upath2"), None)
         if event in ["EVENT_EXECUTE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
-        if event in ["EVENT_CLOSE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_UNLINK", "EVENT_UPDATE_OBJECT", "EVENT_TRUNCATE"]:
+        if event in ["EVENT_CLOSE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_UNLINK", "EVENT_UPDATE", "EVENT_TRUNCATE"]:
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None, None, None)
         if event in ["EVENT_CHANGE_PRINCIPAL", "EVENT_EXIT"]:
             return (cadets_record.get("subjprocuuid"), None, None, None, None) # is acting on itself
@@ -243,7 +260,7 @@ class CDMTranslator(object):
             return (None, None, None, None, None)
         if event in ["EVENT_OTHER"] and call in ["aue_listen"]:
             return (cadets_record.get("arg_objuuid1"), None, None, None, None)
-        self.logger.warn("Unhandled event/call: %s/%s\n", event, call)
+        self.logger.debug("Unhandled event/call: %s/%s\n", event, call)
         return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
 
     def translate_call(self, provider, module, call, probe, cadets_record):
@@ -281,6 +298,7 @@ class CDMTranslator(object):
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
         event["name"] = call
+        event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
         event["parameters"] = self.create_parameters(call, cadets_record) # [Values]
 #         event["location"] = long
         if size is not None:
@@ -335,6 +353,41 @@ class CDMTranslator(object):
 
         return record
 
+    def create_flows_to(self, cadets_record, source, dest):
+        ''' Translate a system or function call event '''
+
+        record = {}
+        event = {}
+
+        event["type"] = "EVENT_FLOWS_TO"
+
+        event["subject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["subjprocuuid"]).int)
+        event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+
+        event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(source).int)
+        event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(dest).int)
+        event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+        event["parameters"] = []
+        event["properties"] = {}
+        event["uuid"] = event_uuid
+
+        event["timestampNanos"] = cadets_record["time"]
+
+        # Use the event counter as the seq number
+        # This assumes we're processing events in order
+        event["sequence"] = self.eventCounter
+        self.eventCounter += 1
+
+        # Put these possibly interesting thing in properties
+
+        event["threadId"] = cadets_record["tid"]
+
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = self.get_source()
+        record["datum"] = event
+
+        return record
+
     def convert_audit_event_type(self, call):
         ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
             Fallthrough default is EVENT_OTHER
@@ -361,7 +414,7 @@ class CDMTranslator(object):
                        'aue_setregid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresgid' : 'EVENT_CHANGE_PRINCIPAL',
                        'aue_setresuid' : 'EVENT_CHANGE_PRINCIPAL',
-                       'aue_fcntl' : 'EVENT_FNCTL',
+                       'aue_fcntl' : 'EVENT_FCNTL',
                        'aue_chmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_fchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
                        'aue_lchmod' : 'EVENT_MODIFY_FILE_ATTRIBUTES',
@@ -386,6 +439,7 @@ class CDMTranslator(object):
                        'aue_rename' : 'EVENT_RENAME',
                        'aue_sendto' : 'EVENT_SENDTO',
                        'aue_sendmsg' : 'EVENT_SENDMSG',
+                       'aue_sendfile' : 'EVENT_SEND',
                        'aue_symlink' : 'EVENT_CREATE_OBJECT',
                        'aue_recvfrom' : 'EVENT_RECVFROM',
                        'aue_recvmsg' : 'EVENT_RECVMSG',
@@ -499,7 +553,50 @@ class CDMTranslator(object):
 
         return newRecords
 
-def create_int_parameter(value_type, name, value):
+    def add_updated_object(self, cadets_record, orig_uuid, temp_uuid):
+            ''' Create an event to add information to an existing object '''
+
+            record = {}
+            event = {}
+
+            event["type"] = "EVENT_ADD_OBJECT_ATTRIBUTE"
+            event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+            event["uuid"] = event_uuid
+            event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+            event["timestampNanos"] = cadets_record["time"]
+            event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(orig_uuid).int)
+            event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(temp_uuid).int)
+
+            event["threadId"] = cadets_record["tid"]
+
+            event["properties"] = {}
+
+
+            # Use the event counter as the seq number
+            # This assumes we're processing events in order
+            event["sequence"] = self.eventCounter
+            self.eventCounter += 1
+
+            record["CDMVersion"] = self.CDMVersion
+            record["source"] = self.get_source()
+            record["datum"] = event
+
+            return record
+
+def create_uuid_parameter(value_type, name, value, assertions=None):
+        parameter = {}
+        parameter["size"] = -1 # -1 = primitive
+        parameter["type"] = "VALUE_TYPE_" + value_type
+        parameter["valueDataType"]="VALUE_DATA_TYPE_BYTE"
+        parameter["isNull"] = value is None
+        parameter["name"] = name
+        if not value is None:
+            parameter["valueBytes"] = value
+        if assertions:
+            parameter["provenance"] = assertions
+        return parameter
+
+def create_int_parameter(value_type, name, value, assertions=None):
         parameter = {}
         parameter["size"] = -1 # -1 = primitive
         parameter["type"] = "VALUE_TYPE_" + value_type
@@ -509,4 +606,13 @@ def create_int_parameter(value_type, name, value):
         if not value is None:
             # encodes, and uses 2s complement if needed.
             parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=True)
+        if assertions:
+            parameter["provenance"] = assertions
         return parameter
+
+def create_provenance_assertion(asserter, sources, provenance):
+        assertion = {}
+        assertion["asserter"] = asserter # UUID
+        assertion["sources"] = sources # Optional: [UUID]
+        assertion["provenance"] = provenance # Optional: [ProvenanceAssertion]
+        return assertion
