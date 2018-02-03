@@ -29,6 +29,8 @@ class InstanceGenerator():
     # Once in this set, we've filled out the object as best as we can - don't resend info
     updated_objects = {}
 
+    remapped_objects = {}
+
     # Netflows are always created new, we don't refer to a previously created netflow object
     # So no need to store the uuids
     # Instead we just use a counter for the netflow uuid, since the host:port may not be unique
@@ -53,6 +55,7 @@ class InstanceGenerator():
         self.created_users.clear()
         self.created_objects.clear()
         self.updated_objects.clear()
+        self.remapped_objects.clear()
         self.netflow_counter = 0
         self.pipe_counter = 0
         self.host_created = False
@@ -66,6 +69,9 @@ class InstanceGenerator():
             For "uid", "event", "netflow", generate an RFC4122 v5 UUID
             for "uuid", we use given uuid (on pid, tid, file)
         '''
+        if data in self.remapped_objects:
+            return self.remapped_objects[data]
+
         id = 0
         if object_type == "uid":
             id = uuid.uuid5(UID_NAMESPACE, str(data)).int
@@ -272,6 +278,32 @@ class InstanceGenerator():
         record["datum"] = nobject
 
         self.created_objects.add(socket_uuid)
+        return record
+
+    def create_unnamed_pipe_object(self, host, endpoint1, endpoint2, source):
+        ''' Create a host object, add it to the created list, and return it
+        '''
+        record = {}
+        pipe = {}
+        abstract_object = {}
+        abstract_object["properties"] = {}
+        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
+
+        pipe["baseObject"] = abstract_object
+        pipe["sourceUUID"] = self.create_uuid("uuid", uuid.UUID(endpoint1).int)
+        pipe["sinkUUID"] = self.create_uuid("uuid", uuid.UUID(endpoint2).int)
+        pipe["uuid"] = self.create_uuid("netflow", endpoint1+endpoint2)
+
+        self.remapped_objects[uuid.UUID(endpoint1).int] = pipe["uuid"]
+        self.remapped_objects[uuid.UUID(endpoint2).int] = pipe["uuid"]
+        self.created_objects.add(str(uuid.UUID(bytes=pipe["uuid"])))
+        self.created_objects.add(endpoint1)
+        self.created_objects.add(endpoint2)
+
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = source
+        record["datum"] = pipe
+        self.host_created = True
         return record
 
     def create_host_object(self, host_uuid, host_type, source):
