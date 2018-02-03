@@ -324,7 +324,7 @@ def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic):
     # TODO: Parameters
     try:
         if not DISABLE_METRICS:
-            push_to_gateway('prometheus:3332', job='ta1-cadets', registry=registry)
+            push_to_gateway('ta3-prometheus-1.tc.bbn.com:3332', job='ta1-cadets', registry=registry)
     except Exception as ex:
         DISABLE_METRICS = True
         logger.warn(str(ex))
