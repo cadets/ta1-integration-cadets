@@ -234,8 +234,10 @@ class CDMTranslator(object):
             return (cadets_record.get("arg_objuuid1"), cadets_record.get("fdpath"), None, None, cadets_record.get("retval"))
         if event in ["EVENT_FORK"]:
             return (cadets_record.get("ret_objuuid1"), None, None, None, None) # fork has a second return uuid. The resulting thread uuid
-        if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_pipe", "aue_socketpair"]:
+        if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_socketpair"]:
             return (cadets_record.get("ret_objuuid1"), None, cadets_record.get("ret_objuuid2"), None, None)
+        if event in ["EVENT_CREATE_OBJECT"] and call in ["aue_pipe", "aue_pipe2"]:
+            return (None, None, None, None, None)
         if event in ["EVENT_OPEN", "EVENT_CREATE_OBJECT"]:
             return (cadets_record.get("ret_objuuid1"), cadets_record.get("upath1"), None, None, None)
         if event in ["EVENT_LINK"]:
@@ -483,6 +485,9 @@ class CDMTranslator(object):
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
             pipe_obj = self.instance_generator.create_pipe_object(pipe_uuid1, cadets_record["host"], self.get_source())
             pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, cadets_record["host"], self.get_source())
+            nf_obj = self.instance_generator.create_unnamed_pipe_object(cadets_record["host"], pipe_uuid1, pipe_uuid2, self.get_source())
+            event["predicateObject"] = nf_obj["datum"]["uuid"]
+            newRecords.append(nf_obj)
             newRecords.append(pipe_obj)
             newRecords.append(pipe_obj2)
         elif event["name"] in ["aue_socket", "aue_socketpair"]:
