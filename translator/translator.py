@@ -141,11 +141,11 @@ class CDMTranslator(object):
         self.logger.debug("Creating Event from {e} ".format(e=event_type))
         event_record = self.translate_call(provider, module, call, probe, cadets_record)
 
-        if "arg_metaio.mio_uuid" in cadets_record:
-            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_metaio.mio_uuid"], cadets_record["arg_objuuid1"])
+        if "arg_miouuid" in cadets_record:
+            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_miouuid"], cadets_record["arg_objuuid1"])
             datums.append(flow_obj)
-        elif "ret_metaio.mio_uuid" in cadets_record:
-            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_objuuid1"], cadets_record["ret_metaio.mio_uuid"]) 
+        elif "ret_miouuid" in cadets_record:
+            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_objuuid1"], cadets_record["ret_miouuid"])
             datums.append(flow_obj)
 
         event = None
