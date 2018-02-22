@@ -82,7 +82,7 @@ class CDMTranslator(object):
             if not self.instance_generator.is_known_object(cadets_record["so_uuid"]):
                 nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
                 datums.append(nf_obj)
-            elif cadets_record["so_uuid"] not in self.instance_generator.updated_objects:
+            elif cadets_record["so_uuid"] not in self.instance_generator.updated_objects and "tid" in cadets_record:
                 alt_uuid = self.instance_generator.create_uuid("netflow", cadets_record["so_uuid"])
                 alt_uuid = str(uuid.UUID(bytes=alt_uuid))
                 nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], alt_uuid, cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
