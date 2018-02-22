@@ -43,6 +43,10 @@ LOGGING_CONF = "logging.conf"
 CDMVERSION = "18"
 KAFKASTRING = "129.55.12.59:9092"
 PRODUCER_ID = "cadets"
+CA_CERT_LOCATION = "/var/private/ssl/ca-cert"
+CERT_LOCATION = "/var/private/ssl/kafka.client.pem"
+KEY_LOCATION = "/var/private/ssl/kafka.client.key"
+KEY_PASSWORD = "TransparentComputing"
 TOPIC = "ta1-cadets-cdm13"
 DISABLE_METRICS = None
 
@@ -198,6 +202,10 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         config["bootstrap.servers"] = kafkastring
         config["api.version.request"] = True
         config["client.id"] = PRODUCER_ID
+        config["ssl.ca.location"] = CA_CERT_LOCATION
+        config["ssl.certificate.location"] = CERT_LOCATION
+        config["ssl.key.location"] = KEY_LOCATION
+        config["ssl.key.password"] = KEY_PASSWORD
         producer = confluent_kafka.Producer(config)
 
     incount = 0

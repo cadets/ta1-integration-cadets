@@ -82,7 +82,7 @@ class CDMTranslator(object):
             if not self.instance_generator.is_known_object(cadets_record["so_uuid"]):
                 nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
                 datums.append(nf_obj)
-            elif cadets_record["so_uuid"] not in self.instance_generator.updated_objects:
+            elif cadets_record["so_uuid"] not in self.instance_generator.updated_objects and "tid" in cadets_record:
                 alt_uuid = self.instance_generator.create_uuid("netflow", cadets_record["so_uuid"])
                 alt_uuid = str(uuid.UUID(bytes=alt_uuid))
                 nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], alt_uuid, cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
@@ -129,7 +129,14 @@ class CDMTranslator(object):
             if killed_uuid and not self.instance_generator.is_known_object(killed_uuid):
                 # We only discovered the process when it was killed, so our
                 # info is limited.
-                proc_record = self.instance_generator.create_process_subject(killed_pid, killed_uuid, None, -1, 0, cadets_record["host"], self.get_source())
+                unknown_uid = -1
+                if not self.instance_generator.get_user_id(unknown_uid):
+                    self.logger.debug("Creating new User Principal for {u}".format(u=unknown_uid))
+                    principal = self.instance_generator.create_user_principal(unknown_uid, cadets_record["host"], self.get_source())
+                    principal["datum"]["username"] = "UNKNOWN"
+                    datums.append(principal)
+
+                proc_record = self.instance_generator.create_process_subject(killed_pid, killed_uuid, None, unknown_uid, 0, cadets_record["host"], self.get_source())
                 datums.append(proc_record)
         elif "exec" in call: # link exec events to the file executed
             exec_path = cadets_record.get("upath1")
