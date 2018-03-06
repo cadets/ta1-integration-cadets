@@ -228,11 +228,11 @@ class CDMTranslator(object):
 
 #     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
-        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK", "EVENT_MMAP"]:
-            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
-        if event in ["EVENT_SEND"] and call in ["aue_sendfile"]:
+        if event in ["EVENT_SENDTO"] and call in ["aue_sendfile"]:
             # obj1 is file, obj2 is where it's sent, but all the other sends have predicateObject1 as the socket, so reverse these to keep predicateObject1 consistent.
             return (cadets_record.get("arg_objuuid2"), None, cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), None)
+        if event in ["EVENT_RECVMSG", "EVENT_RECVFROM", "EVENT_SENDTO", "EVENT_SENDMSG", "EVENT_LSEEK", "EVENT_MMAP"]:
+            return (cadets_record.get("arg_objuuid1"), None, None, None, cadets_record.get("retval"))
         if event in ["EVENT_ACCEPT"]:
             return (cadets_record.get("arg_objuuid1"), None, cadets_record.get("ret_objuuid1"), None, None)
         if event in ["EVENT_RENAME"]:
@@ -448,7 +448,7 @@ class CDMTranslator(object):
                        'aue_rename' : 'EVENT_RENAME',
                        'aue_sendto' : 'EVENT_SENDTO',
                        'aue_sendmsg' : 'EVENT_SENDMSG',
-                       'aue_sendfile' : 'EVENT_SEND',
+                       'aue_sendfile' : 'EVENT_SENDTO',
                        'aue_symlink' : 'EVENT_CREATE_OBJECT',
                        'aue_recvfrom' : 'EVENT_RECVFROM',
                        'aue_recvmsg' : 'EVENT_RECVMSG',
@@ -535,7 +535,10 @@ class CDMTranslator(object):
                     nf_obj = self.instance_generator.create_unix_socket_object(accepted_socket, cadets_record["host"], self.get_source())
                     newRecords.append(nf_obj)
         elif event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
-            socket_uuid = cadets_record.get("arg_objuuid1")
+            if event["name"] is "aue_sendfile":
+                socket_uuid = cadets_record.get("arg_objuuid2")
+            else:
+                socket_uuid = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(socket_uuid):
                 remoteAddr = cadets_record.get("address")
                 remotePort = cadets_record.get("port")
