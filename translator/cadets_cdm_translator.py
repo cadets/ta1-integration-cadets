@@ -131,7 +131,7 @@ def main():
 
         if args.watch:
             observer = Observer()
-            observer.schedule(EnqueueFileHandler(file_queue), path=os.path.expanduser(args.tdir), recursive=True)
+            observer.schedule(EnqueueFileHandler(file_queue), path=os.path.expanduser(args.tdir), recursive=False)
             observer.start()
         minutes_since_last_file = 0
         try:
@@ -158,7 +158,7 @@ def main():
                         minutes_since_last_file += 1
                         sys.stdout.write("\r%d minute(s) without a file to translate." % minutes_since_last_file )
                         sys.stdout.flush()
-                    time.sleep(1)
+                    time.sleep(10)
 
         except KeyboardInterrupt: # handle ctrl+c
             if args.watch:
@@ -206,13 +206,14 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         config["ssl.certificate.location"] = CERT_LOCATION
         config["ssl.key.location"] = KEY_LOCATION
         config["ssl.key.password"] = KEY_PASSWORD
+        config["security.protocol"] = "ssl"
         producer = confluent_kafka.Producer(config)
 
     incount = 0
     cdmcount = 0
 
     # Read the JSON CADETS records
-    with open(path, 'r') as cadets_in:
+    with open(file=path, mode='r', buffering=1, errors='ignore') as cadets_in:
         logger.info("Loading records from "+cadets_in.name)
         # Iterate through the records, translating each to a CDM record
         previous_record = ""
@@ -221,9 +222,15 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         for i in range(1, punctuate):
             cpu_times[i] = 0
         last_time_marker = 0
+        last_error_location = -1
         while 1:
             current_location = cadets_in.tell()
-            raw_cadets_record = cadets_in.readline()
+            try:
+                raw_cadets_record = cadets_in.readline()
+            except UnicodeDecodeError as err:
+                # Skip the entry, but warn about it.
+                logger.warn("Undecodable CADETS entry at byte "+str(current_location)+": " + str(err))
+                continue
             if raw_cadets_record and len(raw_cadets_record) > 3 and raw_cadets_record != previous_record:
                 try:
                     cadets_record = json.loads(raw_cadets_record[2:])
@@ -232,13 +239,15 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 except ValueError as err:
                     # if we expect the file to be added to, try again
                     # otherwise, give up on the line and continue
-                    if not waiting:
-                        logger.warn("Invalid CADETS entry at byte "+str(current_location)+": " + raw_cadets_record)
-                        logger.warn("Error was: " + str(err))
-                        waiting = True
-                    if watch:
+                    if watch and current_location > last_error_location:
+                        last_error_location = current_location
                         cadets_in.seek(current_location)
+                        time.sleep(60)
+                        continue
+                    logger.warn("Invalid CADETS entry at byte "+str(current_location)+": " + raw_cadets_record)
+                    logger.warn("Error was: " + str(err))
                     continue
+
                 waiting = False
 
                 logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
@@ -283,9 +292,10 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                     if not waiting:
                         logger.warn("No more records found at byte " + str(current_location))
                         waiting = True
-                    if watch:
+                    if watch and current_location > last_error_location:
+                        last_error_location = current_location
                         cadets_in.seek(current_location)
-                        time.sleep(1)
+                        time.sleep(60)
                     else:
                         break
                 elif raw_cadets_record.strip() == "]":
