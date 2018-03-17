@@ -231,7 +231,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 # Skip the entry, but warn about it.
                 logger.warn("Undecodable CADETS entry at byte "+str(current_location)+": " + str(err))
                 continue
-            if raw_cadets_record and len(raw_cadets_record) > 3 and raw_cadets_record != previous_record:
+            if raw_cadets_record:
                 try:
                     cadets_record = json.loads(raw_cadets_record[2:])
                     record_cpu = cadets_record.get("cpu_id")
