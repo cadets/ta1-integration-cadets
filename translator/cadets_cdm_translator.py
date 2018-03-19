@@ -206,6 +206,11 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         config["ssl.key.location"] = KEY_LOCATION
         config["ssl.key.password"] = KEY_PASSWORD
         config["security.protocol"] = "ssl"
+# see https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md
+#         config["socket.keepalive.enable"] = True
+#         config["log.connection.close"] = False
+#         config["error_cb"] = None # Function Poiter
+#         config["queue.buffering.max.ms"] = 10
         producer = confluent_kafka.Producer(config)
 
     incount = 0
