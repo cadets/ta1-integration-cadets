@@ -27,11 +27,6 @@ import confluent_kafka
 
 from prometheus_client import CollectorRegistry, Gauge, Counter, push_to_gateway
 
-# Get my IP address that we publish to kafka from
-# TODO: A more general way to get this instead of having vtnet1 hardcoded, maybe a parameter
-import netifaces as ni
-myip = ni.ifaddresses('vtnet2')[2][0]['addr']
-
 from translator import CDMTranslator
 
 # Default values, replace or use command line arguments
@@ -48,7 +43,6 @@ CERT_LOCATION = "/var/private/ssl/kafka.client.pem"
 KEY_LOCATION = "/var/private/ssl/kafka.client.key"
 KEY_PASSWORD = "TransparentComputing"
 TOPIC = "ta1-cadets-cdm13"
-DISABLE_METRICS = None
 
 logger = logging.getLogger("tc")
 
@@ -73,11 +67,16 @@ def get_arg_parser():
     output_group.add_argument("-wj", action="store_true", default=False, help="Write JSON output file")
     output_group.add_argument("-wb", action="store_true", default=False, help="Write binary output file")
     output_group.add_argument("-wk", action="store_true", default=False, help="Write to Kafka")
-    parser.add_argument("-ks", action="store", default=KAFKASTRING, help="Kafka connection string")
+    kafka_settings = parser.add_argument_group('Kafka settings')
+    kafka_settings.add_argument("-ks", action="store", default=KAFKASTRING, required="-wk" in sys.argv, help="Kafka connection string")
+    kafka_settings.add_argument("-ktopic", action="store", type=str, default=TOPIC, required="-wk" in sys.argv,
+                                help="Kafka topic to publish to")
+    kafka_settings.add_argument("-kmetrics", action="store_true", default=False,
+                                help="Enable Kafka metrics")
+    kafka_settings.add_argument("-kmyip", action="store", type=str, required="-wk" in sys.argv,
+                                help="IP address to publish from")
     parser.add_argument("-punctuate", action="store", type=int, default=0,
                         help="Generate time markers, given the number of CPUs in the machine")
-    parser.add_argument("-ktopic", action="store", type=str, default=TOPIC,
-                        help="Kafka topic to publish to")
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
                         help="CDM Version number, make sure this matches the schema file you set with psf")
     parser.add_argument("-p", action="store_true", default=False, help="Print progress message for longer translations")
@@ -149,7 +148,7 @@ def main():
                     else:
                         logger.info("Translating JSON file: "+cfile)
                         path = os.path.join(args.tdir, cfile)
-                        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch, args.punctuate)
+                        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate)
                         if not args.wk: # don't reset if we're just writing a stream of data to kafka
                             translator.reset()
                         logger.info("About "+str(file_queue.qsize())+" files left to translate.")
@@ -167,7 +166,7 @@ def main():
 
     else:
         path = os.path.join(args.tdir, args.f)
-        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.p, args.watch, args.punctuate)
+        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):
@@ -179,7 +178,7 @@ class EnqueueFileHandler(FileSystemEventHandler):
             new_file = event.src_path
             self.file_queue.put(new_file)
 
-def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, show_progress, watch, punctuate):
+def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, enable_metrics, myip, show_progress, watch, punctuate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema,skip_validate=False)
@@ -276,7 +275,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 if write_binary:
                     write_cdm_binary_records(cdm_records, file_writer)
                 if write_kafka:
-                    write_kafka_records(cdm_records, producer, serializer, incount, kafkatopic)
+                    write_kafka_records(cdm_records, producer, serializer, incount, kafkatopic, myip, enable_metrics)
 
                 incount += 1
                 previous_record = raw_cadets_record
@@ -340,11 +339,10 @@ registry = CollectorRegistry()
 ta1_send = Counter('ta1_send_total', 'Count of records sent', ['topic','host'], registry=registry)
 ta1_last = Gauge('ta1_last_send_time', 'Last publish time', ['topic','host'], registry=registry)
 
-def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic):
+def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic, myip, enable_metrics):
     '''
     Write an array of CDM records to Kafka
     '''
-    global DISABLE_METRICS
     for edge in cdm_records:
         # Serialize the record
         message = serializer.serialize(topic, edge)
@@ -354,10 +352,10 @@ def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic):
         producer.poll(0)
     # TODO: Parameters
     try:
-        if not DISABLE_METRICS:
+        if enable_metrics:
             push_to_gateway('ta3-prometheus-1.tc.bbn.com:3332', job='ta1-cadets', registry=registry)
     except Exception as ex:
-        DISABLE_METRICS = True
+        enable_metrics = False
         logger.warn(str(ex))
         logger.warn("Unable to connect to prometheus, disabling metrics push 2")
     
