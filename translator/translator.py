@@ -585,6 +585,8 @@ class CDMTranslator(object):
             event["threadId"] = cadets_record["tid"]
 
             event["properties"] = {}
+            if "exec" in cadets_record:
+                event["properties"]["exec"] = cadets_record["exec"]
 
 
             # Use the event counter as the seq number
