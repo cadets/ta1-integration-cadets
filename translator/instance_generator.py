@@ -11,10 +11,10 @@ import uuid
 
 from tc.schema.records import record_generator
 
-UID_NAMESPACE =     uuid.UUID('6ba7b813-9dad-11d1-80b4-00c04fd430c8')
-EVENT_NAMESPACE =   uuid.UUID('6ba7b815-9dad-11d1-80b4-00c04fd430c8')
+UID_NAMESPACE = uuid.UUID('6ba7b813-9dad-11d1-80b4-00c04fd430c8')
+EVENT_NAMESPACE = uuid.UUID('6ba7b815-9dad-11d1-80b4-00c04fd430c8')
 NETFLOW_NAMESPACE = uuid.UUID('6ba7b816-9dad-11d1-80b4-00c04fd430c8')
-PIPE_NAMESPACE =    uuid.UUID('6ba7b816-9dad-11d1-80b4-00c04fd430c8')
+PIPE_NAMESPACE = uuid.UUID('6ba7b816-9dad-11d1-80b4-00c04fd430c8')
 
 class InstanceGenerator():
 
@@ -55,11 +55,15 @@ class InstanceGenerator():
         self.netflow_counter = 0
         self.host_created = False
 
-    def create_uuid(self, object_type, data):
-        ''' Create a unique ID from an object type ("pid" | "uid" | "tid" | "event" | "file" | "netflow") and data value
-               where the data value is the actual pid, tid, or userId value
+    def uuid_from_string(self, data):
+        return self.create_uuid("uuid", uuid.UUID(data).int)
 
-            UUIDs are now 128 bits
+    def create_uuid(self, object_type, data):
+        ''' Create a unique ID from an object type
+            ("pid" | "id" | "tid" | "event" | "file" | "netflow")
+            and data value where the data value is the actual pid, tid, or userId value
+
+            UUIDs are 128 bits
 
             For "uid", "event", "netflow", generate an RFC4122 v5 UUID
             for "uuid", we use given uuid (on pid, tid, file)
@@ -91,15 +95,15 @@ class InstanceGenerator():
         record = {}
         subject = {}
 
-        subject["localPrincipal"] = self.create_uuid("uid", str(principal)+host);
+        subject["localPrincipal"] = self.create_uuid("uid", str(principal)+host)
         if ppuuid:
-                subject["parentSubject"] = self.create_uuid("uuid", uuid.UUID(ppuuid).int)
+            subject["parentSubject"] = self.uuid_from_string(ppuuid)
 
         subject["cid"] = pid # relevent pid/tid/etc
 
         subject["startTimestampNanos"] = time_nanos
         subject["type"] = "SUBJECT_PROCESS"
-        subject["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
+        subject["hostId"] = self.uuid_from_string(host)
 #         subject["unitId"] = int
 #         subject["interation"] = int
 #         subject["count"] = int
@@ -111,7 +115,7 @@ class InstanceGenerator():
         subject["properties"]["host"] = host
 
         # Generate a uuid for this subject
-        uniq = self.create_uuid("uuid", uuid.UUID(puuid).int)
+        uniq = self.uuid_from_string(puuid)
         self.created_objects.add(puuid)
         subject["uuid"] = uniq
 
@@ -131,13 +135,13 @@ class InstanceGenerator():
         '''
         record = {}
         principal = {}
-        principal["uuid"] = self.create_uuid("uid", str(uid)+host);
+        principal["uuid"] = self.create_uuid("uid", str(uid)+host)
         principal["type"] = "PRINCIPAL_LOCAL"
         principal["userId"] = str(uid)
         principal["username"] = subprocess.getoutput(['id -un '+str(uid)])
         principal["groupIds"] = []
         principal["properties"] = {}
-        principal["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
+        principal["hostId"] = self.uuid_from_string(host)
 
         # Save the uuid for this user
         self.created_users.add(uid)
@@ -163,7 +167,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
+        abstract_object["hostId"] = self.uuid_from_string(host)
 
         fobject["baseObject"] = abstract_object
         fobject["type"] = "FILE_OBJECT_UNIX_SOCKET"
@@ -172,7 +176,7 @@ class InstanceGenerator():
 #         fobject["fileDescriptor"] = int
 #         fobject["peInfo"] = string
 #         fobject["hashes"] = array of hashes
-        fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
+        fobject["uuid"] = self.uuid_from_string(file_uuid)
 
 
         # Save the uuid for this subject
@@ -193,10 +197,10 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
+        abstract_object["hostId"] = self.uuid_from_string(host)
 
         fobject["baseObject"] = abstract_object
-        fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(ipc_uuid).int)
+        fobject["uuid"] = self.uuid_from_string(ipc_uuid)
         fobject["type"] = "SRCSINK_IPC"
 
         # Save the uuid for this subject
@@ -207,7 +211,7 @@ class InstanceGenerator():
         record["datum"] = fobject
         return record
 
-    def create_file_object(self, file_uuid, host, source, is_dir = False):
+    def create_file_object(self, file_uuid, host, source, is_dir=False):
         ''' Infer the existence of a file object, add it to the created list, and return it.
         '''
 
@@ -217,7 +221,7 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
+        abstract_object["hostId"] = self.uuid_from_string(host)
 
         fobject["baseObject"] = abstract_object
         if is_dir:
@@ -229,7 +233,7 @@ class InstanceGenerator():
 #         fobject["fileDescriptor"] = int
 #         fobject["peInfo"] = string
 #         fobject["hashes"] = array of hashes
-        fobject["uuid"] = self.create_uuid("uuid", uuid.UUID(file_uuid).int)
+        fobject["uuid"] = self.uuid_from_string(file_uuid)
 
         # Save the uuid for this subject
         self.created_objects.add(file_uuid)
@@ -239,7 +243,7 @@ class InstanceGenerator():
         record["datum"] = fobject
         return record
 
-    def create_netflow_object(self, destHost, destPort, socket_uuid, host, source, localHost="localhost", localPort=-1):
+    def create_netflow_object(self, dest_host, dest_port, socket_uuid, host, source, local_host="localhost", local_port=-1):
         ''' Infer the existence of a netflow object from a connection event with a addr and port key
             We always create a new netflow, so no need to look for an old uuid
             For now, we don't have the local host or local port, so we use "localhost" and -1
@@ -249,16 +253,16 @@ class InstanceGenerator():
         nobject = {}
         abstract_object = {}
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
+        abstract_object["hostId"] = self.uuid_from_string(host)
 
         nobject["baseObject"] = abstract_object
-        nobject["localAddress"] = localHost
-        nobject["localPort"] = localPort
-        nobject["remoteAddress"] = destHost
-        nobject["remotePort"] = destPort
+        nobject["localAddress"] = local_host
+        nobject["localPort"] = local_port
+        nobject["remoteAddress"] = dest_host
+        nobject["remotePort"] = dest_port
 
         # Generate a uuid for this subject
-        uniq = self.create_uuid("uuid", uuid.UUID(socket_uuid).int)
+        uniq = self.uuid_from_string(socket_uuid)
         self.netflow_counter += 1
         nobject["uuid"] = uniq
 
@@ -276,11 +280,11 @@ class InstanceGenerator():
         pipe = {}
         abstract_object = {}
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.create_uuid("uuid", uuid.UUID(host).int)
+        abstract_object["hostId"] = self.uuid_from_string(host)
 
         pipe["baseObject"] = abstract_object
-        pipe["sourceUUID"] = self.create_uuid("uuid", uuid.UUID(endpoint1).int)
-        pipe["sinkUUID"] = self.create_uuid("uuid", uuid.UUID(endpoint2).int)
+        pipe["sourceUUID"] = self.uuid_from_string(endpoint1)
+        pipe["sinkUUID"] = self.uuid_from_string(endpoint2)
         pipe["uuid"] = self.create_uuid("netflow", endpoint1+endpoint2)
 
         self.remapped_objects[uuid.UUID(endpoint1).int] = pipe["uuid"]
@@ -301,7 +305,7 @@ class InstanceGenerator():
         record = {}
         host = {}
 
-        host["uuid"] = self.create_uuid("uuid", uuid.UUID(host_uuid).int)
+        host["uuid"] = self.uuid_from_string(host_uuid)
         host["hostName"] = subprocess.getoutput(['hostname'])
         host["hostIdentifiers"] = [] # values from `sysctl`?
 # hostIdentifiers : array<HostIdentifier>

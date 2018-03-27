@@ -8,9 +8,9 @@ from instance_generator import InstanceGenerator
 
 # These calls will have files as their parameters
 file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP",
-  "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ",
-  "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK",
-  "aue_symlink", "aue_symlinkat"] # TODO not complete list
+              "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ",
+              "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK",
+              "aue_symlink", "aue_symlinkat"] # TODO not complete list
 # these are the keys that may contain interesting UUIDs
 uuid_keys = ["arg_objuuid1", "arg_objuuid2", "ret_objuuid1", "ret_objuuid2"]
 
@@ -47,7 +47,7 @@ class CDMTranslator(object):
         self.instance_generator.reset()
 
     def get_source(self):
-        ''' Get the InstrumentationSource, for now this is hardcoded to SOURCE_FREEBSD_DTRACE_CADETS '''
+        ''' Get the InstrumentationSource, hardcoded to SOURCE_FREEBSD_DTRACE_CADETS '''
         return "SOURCE_FREEBSD_DTRACE_CADETS"
 
     def handle_error(self, msg):
@@ -100,17 +100,13 @@ class CDMTranslator(object):
 
         # Create a new Process subject if necessary
         pid = cadets_record["pid"]
-        ppid = cadets_record.get("ppid", -1)
         cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]))
 
         if not self.instance_generator.is_known_object(cadets_proc_uuid):
             self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
             # We don't know the time when this process was created, so we'll make it 0 for now
             # Could use time as an upper bound, but we'd need to specify
-
             process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, cadets_record["host"], self.get_source())
-            process = process_record["datum"]
-
             datums.append(process_record)
 
 
@@ -139,7 +135,6 @@ class CDMTranslator(object):
                 proc_record = self.instance_generator.create_process_subject(killed_pid, killed_uuid, None, unknown_uid, 0, cadets_record["host"], self.get_source())
                 datums.append(proc_record)
         elif "exec" in call: # link exec events to the file executed
-            exec_path = cadets_record.get("upath1")
             if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
                 file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), cadets_record["host"], self.get_source())
                 datums.append(file_record)
@@ -155,7 +150,6 @@ class CDMTranslator(object):
             flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_objuuid1"], cadets_record["ret_miouuid"])
             datums.append(flow_obj)
 
-        event = None
         if event_record != None:
             datums.append(event_record)
             object_records = self.create_subjects(event_record["datum"], cadets_record)
@@ -164,7 +158,7 @@ class CDMTranslator(object):
                     datums.insert(0, objr)
         if not self.instance_generator.host_created:
             host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
-            datums.insert(0,host_object)
+            datums.insert(0, host_object)
 
 
         return datums
@@ -172,59 +166,59 @@ class CDMTranslator(object):
 
 
     def create_parameters(self, call, cadets_record):
-        parameters = []
+        params = []
         if call in ["aue_fchmod", "aue_fchmodat", "aue_lchmod", "aue_chmod"]:
-            parameters.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
+            params.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
             if call in ["aue_fchmodat"]:
-                parameters.append(create_int_parameter("CONTROL", "flag", cadets_record.get("flag")))
+                params.append(create_int_parameter("CONTROL", "flag", cadets_record.get("flag")))
         elif call in ["aue_fchown", "aue_fchownat", "aue_lchown", "aue_chown"]:
-            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_uid")))
-            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_gid")))
+            params.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_uid")))
+            params.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_gid")))
 #             if call in ["aue_fchownat"]:
-#                 parameters.append(create_int_parameter("CONTROL", "flag", cadets_record.get("flag")))
+#                 params.append(create_int_parameter("CONTROL", "flag", cadets_record.get("flag")))
         elif call in ["aue_setresgid"]:
-            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_rgid")))
-            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
-            parameters.append(create_int_parameter("CONTROL", "sgid", cadets_record.get("arg_sgid")))
+            params.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_rgid")))
+            params.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
+            params.append(create_int_parameter("CONTROL", "sgid", cadets_record.get("arg_sgid")))
         elif call in ["aue_setresuid"]:
-            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_ruid")))
-            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
-            parameters.append(create_int_parameter("CONTROL", "suid", cadets_record.get("arg_suid")))
+            params.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_ruid")))
+            params.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
+            params.append(create_int_parameter("CONTROL", "suid", cadets_record.get("arg_suid")))
         elif call in ["aue_setregid"]:
-            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_rgid")))
-            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
+            params.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_rgid")))
+            params.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
         elif call in ["aue_setreuid"]:
-            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_ruid")))
-            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
+            params.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_ruid")))
+            params.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
         elif call in ["aue_seteuid"]:
-            parameters.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
+            params.append(create_int_parameter("CONTROL", "euid", cadets_record.get("arg_euid")))
         elif call in ["aue_setegid"]:
-            parameters.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
+            params.append(create_int_parameter("CONTROL", "egid", cadets_record.get("arg_egid")))
         elif call in ["aue_setuid"]:
-            parameters.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_uid")))
+            params.append(create_int_parameter("CONTROL", "uid", cadets_record.get("arg_uid")))
         elif call in ["aue_setgid"]:
-            parameters.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_gid")))
+            params.append(create_int_parameter("CONTROL", "gid", cadets_record.get("arg_gid")))
         elif call in ["aue_kill"]:
-            parameters.append(create_int_parameter("CONTROL", "pid", cadets_record.get("arg_pid")))
-            parameters.append(create_int_parameter("CONTROL", "signum", cadets_record.get("signum")))
+            params.append(create_int_parameter("CONTROL", "pid", cadets_record.get("arg_pid")))
+            params.append(create_int_parameter("CONTROL", "signum", cadets_record.get("signum")))
         elif call in ["aue_open_rwtc", "aue_openat_rwtc"]:
-            parameters.append(create_int_parameter("CONTROL", "flags", cadets_record.get("flags")))
-            parameters.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
+            params.append(create_int_parameter("CONTROL", "flags", cadets_record.get("flags")))
+            params.append(create_int_parameter("CONTROL", "mode", cadets_record.get("mode")))
         elif call in ["aue_fcntl"]:
-            parameters.append(create_int_parameter("CONTROL", "cmd", cadets_record.get("fcntl_cmd")))
+            params.append(create_int_parameter("CONTROL", "cmd", cadets_record.get("fcntl_cmd")))
 
-#         parameters = {}
-#         parameters["size"] = int
-#         parameters["type"] = ValueType [VALUE_TYPE_SRC/VALUE_TYPE_SINK/VALUE_TYPE_CONTROL]
-#         parameters["valueDataType"] = ValueDataType [VALUE_DATA_TYPE_BYTE/VALUE_DATA_TYPE_CHAR/etc]
-#         parameters["isNull"] = bool
-#         parameters["name"] = null or string
-#         parameters["runtimeDataValue"] = null or string
-#         parameters["valueBytes"] = null or bytes
-#         parameters["tag"] = None
-#         parameters["components"] = noll or [Value]
+#         params = {}
+#         params["size"] = int
+#         params["type"] = ValueType [VALUE_TYPE_SRC/VALUE_TYPE_SINK/VALUE_TYPE_CONTROL]
+#         params["valueDataType"] = ValueDataType [VALUE_DATA_TYPE_BYTE/VALUE_DATA_TYPE_CHAR/etc]
+#         params["isNull"] = bool
+#         params["name"] = null or string
+#         params["runtimeDataValue"] = null or string
+#         params["valueBytes"] = null or bytes
+#         params["tag"] = None
+#         params["components"] = noll or [Value]
 
-        return parameters
+        return params
 
 #     returns (first object acted on, its path, second object acted on, its path, event size)
     def predicates_by_event(self, event, call, cadets_record):
@@ -272,7 +266,7 @@ class CDMTranslator(object):
         self.logger.debug("Unhandled event/call: %s/%s\n", event, call)
         return (cadets_record.get("arg_objuuid1"), cadets_record.get("upath1"), cadets_record.get("arg_objuuid2"), cadets_record.get("upath2"), None)
 
-    def translate_call(self, provider, module, call, probe, cadets_record):
+    def translate_call(self, provider, _module, call, _probe, cadets_record):
         ''' Translate a system or function call event '''
 
         record = {}
@@ -281,7 +275,7 @@ class CDMTranslator(object):
         if provider == "audit":
             event["type"] = self.convert_audit_event_type(call)
         else:
-            self.logger.warn("Unexpected provider %s", provider)
+            self.logger.warning("Unexpected provider %s", provider)
             return None
         if call in ["aue_socket"]:
             self.logger.debug("Skipping socket call")
@@ -290,11 +284,11 @@ class CDMTranslator(object):
             self.logger.debug("Skipping event %s", call)
             return None
 
-        event["subject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["subjprocuuid"]).int)
+        event["subject"] = self.instance_generator.uuid_from_string(cadets_record["subjprocuuid"])
         event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
-        (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(event["type"], call, cadets_record);
+        (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(event["type"], call, cadets_record)
         if pred_obj:
-            event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj).int)
+            event["predicateObject"] = self.instance_generator.uuid_from_string(pred_obj)
         elif call in ["aue_close", "aue_closefrom"]:
             # Close is often missing a predicate, and is thus useless
             # Closefrom doesn't specify everything it closes
@@ -303,11 +297,11 @@ class CDMTranslator(object):
         if pred_obj_path:
             event["predicateObjectPath"] = pred_obj_path
         if pred_obj2:
-            event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(pred_obj2).int)
+            event["predicateObject2"] = self.instance_generator.uuid_from_string(pred_obj2)
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
         event["name"] = call
-        event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+        event["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
         event["parameters"] = self.create_parameters(call, cadets_record) # [Values]
 #         event["location"] = long
         if size is not None:
@@ -327,9 +321,7 @@ class CDMTranslator(object):
 
         # Put these possibly interesting thing in properties
         for key, val in cadets_record.items():
-            if (key not in uuid_keys
-                and (key.startswith("ret_")
-                    or key.startswith("arg_"))):
+            if (key not in uuid_keys and (key.startswith("ret_") or key.startswith("arg_"))):
                 event["properties"][key] = str(val)
         if "host" in cadets_record:
             event["properties"]["host"] = cadets_record["host"]
@@ -370,12 +362,12 @@ class CDMTranslator(object):
 
         event["type"] = "EVENT_FLOWS_TO"
 
-        event["subject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["subjprocuuid"]).int)
+        event["subject"] = self.instance_generator.uuid_from_string(cadets_record["subjprocuuid"])
         event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
 
-        event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(source).int)
-        event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(dest).int)
-        event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+        event["predicateObject"] = self.instance_generator.uuid_from_string(source)
+        event["predicateObject2"] = self.instance_generator.uuid_from_string(dest)
+        event["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
         event["parameters"] = []
         event["properties"] = {}
         event["uuid"] = event_uuid
@@ -398,7 +390,9 @@ class CDMTranslator(object):
         return record
 
     def convert_audit_event_type(self, call):
-        ''' Convert the call to one of the CDM EVENT types, since there are specific types defined for common syscalls
+        ''' Convert the call to one of the CDM EVENT types, since there are
+            specific types defined for common syscalls
+
             Fallthrough default is EVENT_OTHER
         '''
         prefix_dict = {'aue_execve' : 'EVENT_EXECUTE',
@@ -471,19 +465,19 @@ class CDMTranslator(object):
     def create_subjects(self, event, cadets_record):
         ''' Given a CDM event that we just created, generate Subject instances
             Currently, we create:
-              a subject for any files that we discover via the uuids
+            * a subject for any files that we discover via the uuids
         '''
-        newRecords = []
+        new_records = []
         if event["type"] in file_calls or event["name"] in file_calls:
             # if this is a file-related event, create events for the uuids on the event.
             # TODO: Make more intelligent, not all or nothing file events
-            newRecords = newRecords + self.create_file_subjects(event, cadets_record)
+            new_records = new_records + self.create_file_subjects(cadets_record)
         if event["name"] in ["aue_chdir", "aue_fchdir"]:
             if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
-                newRecords.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
+                new_records.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
         if event["name"] in ["aue_mkdir"]:
             if not self.instance_generator.is_known_object(cadets_record["ret_objuuid1"]):
-                newRecords.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
+                new_records.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
 
         # NetFlows and sockets
         if event["name"] in ["aue_pipe", "aue_pipe2"]:
@@ -494,79 +488,79 @@ class CDMTranslator(object):
             pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, cadets_record["host"], self.get_source())
             nf_obj = self.instance_generator.create_unnamed_pipe_object(cadets_record["host"], pipe_uuid1, pipe_uuid2, self.get_source())
             event["predicateObject"] = nf_obj["datum"]["uuid"]
-            newRecords.append(nf_obj)
-            newRecords.append(pipe_obj)
-            newRecords.append(pipe_obj2)
+            new_records.append(nf_obj)
+            new_records.append(pipe_obj)
+            new_records.append(pipe_obj2)
         elif event["name"] in ["aue_socket", "aue_socketpair"]:
             socket = cadets_record.get("ret_objuuid1")
             if not self.instance_generator.is_known_object(socket):
                 self.logger.debug("Creating a UnixSocket from socket call")
                 nf_obj = self.instance_generator.create_unix_socket_object(socket, cadets_record["host"], self.get_source())
-                newRecords.append(nf_obj)
+                new_records.append(nf_obj)
             socket2 = cadets_record.get("ret_objuuid2")
             if socket2 and not self.instance_generator.is_known_object(socket2):
                 self.logger.debug("Creating a UnixSocket from socket call")
                 nf_obj = self.instance_generator.create_unix_socket_object(socket2, cadets_record["host"], self.get_source())
-                newRecords.append(nf_obj)
+                new_records.append(nf_obj)
         elif event["type"] in ["EVENT_BIND"]:
-            localAddr = cadets_record.get("address")
-            localPort = cadets_record.get("port")
+            local_addr = cadets_record.get("address")
+            local_port = cadets_record.get("port")
             listening_socket = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(listening_socket):
-                self.logger.debug("Creating a UnixSocket from {h}".format(h=localAddr))
+                self.logger.debug("Creating a UnixSocket from %s:%d" , local_addr, local_port)
                 nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
-                newRecords.append(nf_obj)
+                new_records.append(nf_obj)
         elif event["type"] in ["EVENT_ACCEPT"]:
-            remoteAddr = cadets_record.get("address")
-            remotePort = cadets_record.get("port")
+            remote_addr = cadets_record.get("address")
+            remote_port = cadets_record.get("port")
             listening_socket = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(listening_socket):
-                self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
+                self.logger.debug("Creating a UnixSocket from {h}".format(h=remote_addr))
                 nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
-                newRecords.append(nf_obj)
+                new_records.append(nf_obj)
             accepted_socket = cadets_record.get("ret_objuuid1") # accepted socket
             if not self.instance_generator.is_known_object(accepted_socket):
-                if remotePort:
-                    self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remoteAddr, p=remotePort))
-                    nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, accepted_socket, cadets_record["host"], self.get_source())
-                    newRecords.append(nf_obj)
+                if remote_port:
+                    self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remote_addr, p=remote_port))
+                    nf_obj = self.instance_generator.create_netflow_object(remote_addr, remote_port, accepted_socket, cadets_record["host"], self.get_source())
+                    new_records.append(nf_obj)
                 else:
-                    self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
+                    self.logger.debug("Creating a UnixSocket from {h}".format(h=remote_addr))
                     nf_obj = self.instance_generator.create_unix_socket_object(accepted_socket, cadets_record["host"], self.get_source())
-                    newRecords.append(nf_obj)
+                    new_records.append(nf_obj)
         elif event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
-            if event["name"] is "aue_sendfile":
+            if event["name"] == "aue_sendfile":
                 socket_uuid = cadets_record.get("arg_objuuid2")
             else:
                 socket_uuid = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(socket_uuid):
-                remoteAddr = cadets_record.get("address")
-                remotePort = cadets_record.get("port")
+                remote_addr = cadets_record.get("address")
+                remote_port = cadets_record.get("port")
 
-                if remotePort:
-                    self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remoteAddr, p=remotePort))
-                    nf_obj = self.instance_generator.create_netflow_object(remoteAddr, remotePort, socket_uuid, cadets_record["host"], self.get_source())
-                    newRecords.append(nf_obj)
+                if remote_port:
+                    self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remote_addr, p=remote_port))
+                    nf_obj = self.instance_generator.create_netflow_object(remote_addr, remote_port, socket_uuid, cadets_record["host"], self.get_source())
+                    new_records.append(nf_obj)
                 else:
-                    self.logger.debug("Creating a UnixSocket from {h}".format(h=remoteAddr))
+                    self.logger.debug("Creating a UnixSocket from {h}".format(h=remote_addr))
                     nf_obj = self.instance_generator.create_unix_socket_object(socket_uuid, cadets_record["host"], self.get_source())
-                    newRecords.append(nf_obj)
+                    new_records.append(nf_obj)
 
-        return newRecords
+        return new_records
 
-    def create_file_subjects(self, event, cadets_record):
-        newRecords = []
+    def create_file_subjects(self, cadets_record):
+        new_records = []
         for uuid in uuid_keys:
             if uuid in cadets_record:
                 if not self.instance_generator.is_known_object(cadets_record[uuid]):
                     self.logger.debug("Creating file")
                     # TODO determine if it's a directory first
                     fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record["host"], self.get_source())
-                    newRecords.append(fileobj)
+                    new_records.append(fileobj)
             else:
-                continue;
+                continue
 
-        return newRecords
+        return new_records
 
     def add_updated_object(self, cadets_record, orig_uuid, temp_uuid):
         ''' Create an event to add information to an existing object '''
@@ -577,10 +571,10 @@ class CDMTranslator(object):
         event["type"] = "EVENT_ADD_OBJECT_ATTRIBUTE"
         event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
         event["uuid"] = event_uuid
-        event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+        event["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
         event["timestampNanos"] = cadets_record["time"]
-        event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(orig_uuid).int)
-        event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(temp_uuid).int)
+        event["predicateObject"] = self.instance_generator.uuid_from_string(orig_uuid)
+        event["predicateObject2"] = self.instance_generator.uuid_from_string(temp_uuid)
 
         event["threadId"] = cadets_record["tid"]
 

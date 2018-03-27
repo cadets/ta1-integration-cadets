@@ -1,23 +1,26 @@
 #!/usr/local/bin/python3
 
 """
-Load in trace records in CADETS json format, translate them to CDM format, and write the CDM records to a file
-  Outputs a JSON CDM format and the binary avro format
+Load in trace records in CADETS json format, translate them to CDM format, and
+write the CDM records to a file
+
+Outputs a JSON CDM format and the binary avro format
 
 """
 
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
 import queue
 import logging
-import time
 from logging.config import fileConfig
+import time
 import argparse
 import os
 from os.path import isfile
 import json
 
 import sys
+
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 from tc.schema.serialization import AvroGenericSerializer, Utils
 from tc.schema.serialization.kafka import KafkaAvroGenericSerializer
@@ -59,17 +62,24 @@ def get_arg_parser():
                         help="Directory to write CDM records files to")
     file_group = parser.add_mutually_exclusive_group(required=False)
     file_group.add_argument("-f", action="store", type=str, default=IN_FILE,
-                            help="File to translate, default is to translate every file in the directory that ends with .json")
+                            help="File to translate. Default is to translate every .json file in "
+                                 "the directory")
+    file_group.add_argument("-watch", action="store_true", default=False,
+                            help="Watch for new files in source tdir")
     parser.add_argument("-lc", action="store", type=str, default=LOGGING_CONF,
                         help="Logging configuration file")
     output_group = parser.add_argument_group('output formats')
-    output_group.add_argument("-wj", action="store_true", default=False, help="Write JSON output file")
-    output_group.add_argument("-wb", action="store_true", default=False, help="Write binary output file")
-    output_group.add_argument("-wk", action="store_true", default=False, help="Write to Kafka")
+    output_group.add_argument("-wj", action="store_true", default=False,
+                              help="Write JSON output file")
+    output_group.add_argument("-wb", action="store_true", default=False,
+                              help="Write binary output file")
+    output_group.add_argument("-wk", action="store_true", default=False,
+                              help="Write to Kafka")
     kafka_settings = parser.add_argument_group('Kafka settings')
-    kafka_settings.add_argument("-ks", action="store", default=KAFKASTRING, required="-wk" in sys.argv, help="Kafka connection string")
-    kafka_settings.add_argument("-ktopic", action="store", type=str, default=TOPIC, required="-wk" in sys.argv,
-                                help="Kafka topic to publish to")
+    kafka_settings.add_argument("-ks", action="store", default=KAFKASTRING,
+                                required="-wk" in sys.argv, help="Kafka connection string")
+    kafka_settings.add_argument("-ktopic", action="store", type=str, default=TOPIC,
+                                required="-wk" in sys.argv, help="Kafka topic to publish to")
     kafka_settings.add_argument("-kmetrics", action="store_true", default=False,
                                 help="Enable Kafka metrics")
     kafka_settings.add_argument("-kmyip", action="store", type=str, required="-wk" in sys.argv,
@@ -77,9 +87,9 @@ def get_arg_parser():
     parser.add_argument("-punctuate", action="store", type=int, default=0,
                         help="Generate time markers, given the number of CPUs in the machine")
     parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
-                        help="CDM Version number, make sure this matches the schema file you set with psf")
-    parser.add_argument("-p", action="store_true", default=False, help="Print progress message for longer translations")
-    file_group.add_argument("-watch", action="store_true", default=False, help="Watch for new files in source tdir")
+                        help="CDM Version number. Make sure this matches the schema")
+    parser.add_argument("-p", action="store_true", default=False,
+                        help="Print progress message for longer translations")
 
     host_group = parser.add_mutually_exclusive_group(required=True)
     host_group.add_argument("-hs", action="store_true", default=False,
@@ -118,7 +128,7 @@ def main():
 
     # Make sure the translator is doing something
     if not (args.wj or args.wb or args.wk):
-        logger.warn("Translator will run, but produce no output.")
+        logger.warning("Translator will run, but produce no output.")
 
     # Load the input file
     if args.f is None:
@@ -143,18 +153,18 @@ def main():
                         sys.stdout.write("\n")
                         minutes_since_last_file = 0
                     if cfile.endswith(".cdm.json") or fext != ".json":
-                        logger.info("Skipping file: "+cfile)
+                        logger.info("Skipping file: %s" , cfile)
                     else:
-                        logger.info("Translating JSON file: "+cfile)
+                        logger.info("Translating JSON file: %s" , cfile)
                         path = os.path.join(args.tdir, cfile)
                         translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate)
                         if not args.wk: # don't reset if we're just writing a stream of data to kafka
                             translator.reset()
-                        logger.info("About "+str(file_queue.qsize())+" files left to translate.")
+                        logger.info("About %d files left to translate." , file_queue.qsize())
                 except queue.Empty:
                     if args.p:
                         minutes_since_last_file += 1
-                        sys.stdout.write("\r%d minute(s) without a file to translate." % minutes_since_last_file )
+                        sys.stdout.write("\r%d minute(s) without a file to translate." , minutes_since_last_file)
                         sys.stdout.flush()
                     time.sleep(10)
 
@@ -217,7 +227,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
 
     # Read the JSON CADETS records
     with open(file=path, mode='r', buffering=1, errors='ignore') as cadets_in:
-        logger.info("Loading records from "+cadets_in.name)
+        logger.info("Loading records from %s" , cadets_in.name)
         # Iterate through the records, translating each to a CDM record
         previous_record = ""
         waiting = False # are we already waiting to find another value record?
@@ -232,7 +242,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 raw_cadets_record = cadets_in.readline()
             except UnicodeDecodeError as err:
                 # Skip the entry, but warn about it.
-                logger.warn("Undecodable CADETS entry at byte "+str(current_location)+": " + str(err))
+                logger.warning("Undecodable CADETS entry at byte %d: %s" , current_location, err)
                 continue
             if raw_cadets_record:
                 try:
@@ -247,15 +257,15 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                         cadets_in.seek(current_location)
                         time.sleep(60)
                         continue
-                    logger.warn("Invalid CADETS entry at byte "+str(current_location)+": " + raw_cadets_record)
-                    logger.warn("Error was: " + str(err))
+                    logger.warning("Invalid CADETS entry at byte %d: %s", current_location, raw_cadets_record)
+                    logger.warning("Error was: %s" , err)
                     continue
 
                 waiting = False
 
-                logger.debug("{i} Record: {data}".format(i=incount, data=cadets_record))
+                logger.debug("%d Record: %s" , incount, cadets_record)
                 cdm_records = translator.translate_record(cadets_record)
-                logger.debug("{i} translated to {t1} records".format(i=incount, t1=len(cdm_records)))
+                logger.debug("%d translated to %d records" , incount, len(cdm_records))
 
                 if punctuate:
                     if  record_cpu is not None and record_time is not None:
@@ -284,7 +294,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 incount += 1
                 previous_record = raw_cadets_record
                 if show_progress and incount % 1000 == 0:
-                    sys.stdout.write("\rRead and translated >=%d records so far" % incount)
+                    sys.stdout.write("\rRead and translated >=%d records so far" , incount)
                     sys.stdout.flush()
             else:
                 # "]" marks the end of the records in the file, even if there are still more lines
@@ -293,7 +303,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 # If we reached the actual EOF and we're not waiting, then just consider this file finished.
                 if not raw_cadets_record:
                     if not waiting:
-                        logger.warn("No more records found at byte " + str(current_location))
+                        logger.warning("No more records found at byte %d" , current_location)
                         waiting = True
                     if watch and current_location > last_error_location:
                         last_error_location = current_location
@@ -309,7 +319,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
 
     if show_progress and incount >= 1000:
         sys.stdout.write("\n")
-    logger.info("Translated {i} records into {ic} CDM items".format(i=incount, ic=cdmcount))
+    logger.info("Translated %d records into %d CDM items" , incount, cdmcount)
 
     if json_out != None:
         json_out.close()
@@ -327,7 +337,7 @@ def write_cdm_json_records(cdm_records, serializer, json_out, incount):
     ''' Write an array of CDM records to a json output file via a serializer '''
     for cdm_record in cdm_records:
         if cdm_record != None:
-            logger.debug("{i} -> Translated CDM record: {data}".format(i=incount, data=cdm_record))
+            logger.debug("%d -> Translated CDM record: %s" , incount, cdm_record)
             jout = serializer.serialize_to_json(cdm_record)
             json_out.write(jout+"\n")
 
@@ -360,9 +370,8 @@ def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic, myi
             push_to_gateway('ta3-prometheus-1.tc.bbn.com:3332', job='ta1-cadets', registry=registry)
     except Exception as ex:
         enable_metrics = False
-        logger.warn(str(ex))
-        logger.warn("Unable to connect to prometheus, disabling metrics push 2")
-
+        logger.warning(str(ex))
+        logger.warning("Unable to connect to prometheus, disabling metrics push 2")
 
 if __name__ == '__main__':
     main()
