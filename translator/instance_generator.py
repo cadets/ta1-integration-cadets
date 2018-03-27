@@ -1,5 +1,5 @@
 '''
-Generate instances of CDM Subjects, Principals, and Objects.  
+Generate instances of CDM Subjects, Principals, and Objects.
 Store a map of the instances we've created with their uuids, so we can tell if
 we already created a Record for a specific value (and get the uuid we generated
 for that record)
@@ -36,28 +36,23 @@ class InstanceGenerator():
     # Instead we just use a counter for the netflow uuid, since the host:port may not be unique
     #   (multiple connections to the same dest host:port)
     netflow_counter = 0
-    # Pipes are always created new
-    pipe_counter = 0
 
     CDMVersion = None
 
     def __init__(self, version):
         self.CDMVersion = version
         self.logger = logging.getLogger("tc")
-        self.created_threads = set()
         self.created_users = set()
         self.created_objects = set()
         self.updated_objects = set()
         self.host_created = False
 
     def reset(self):
-        self.created_threads.clear()
         self.created_users.clear()
         self.created_objects.clear()
         self.updated_objects.clear()
         self.remapped_objects.clear()
         self.netflow_counter = 0
-        self.pipe_counter = 0
         self.host_created = False
 
     def create_uuid(self, object_type, data):
@@ -124,12 +119,6 @@ class InstanceGenerator():
         record["source"] = source
         record["datum"] = subject
         return record
-
-    def get_thread_subject_id(self, tid):
-        ''' Given a tid, did we create a subject for tid?
-            If so, return true
-        '''
-        return tid in self.created_threads
 
     def get_user_id(self, uid):
         ''' Given a uid, did we create a Principal for that uid?
@@ -338,20 +327,3 @@ class InstanceGenerator():
         self.host_created = True
         return record
 
-
-    def create_metaio_object(self, asserter, sources, priors):
-        ''' Create a ProvenanceAssertion object to represent metaio
-        '''
-        record = {}
-        assertion = {}
-        assertion["sources"] = {}
-
-        assertion["asserter"] = self.create_uuid("uuid", uuid.UUID(asserter).int) # what should this be?
-        for source in sources:
-            assertion["sources"].append(self.create_uuid("uuid", uuid.UUID(source).int)) # from mio_uuid
-        assertion["provenance"] = priors
-
-        record["CDMVersion"] = self.CDMVersion
-        record["source"] = source
-        record["datum"] = assertion
-        return record

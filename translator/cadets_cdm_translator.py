@@ -18,7 +18,6 @@ from os.path import isfile
 import json
 
 import sys
-#sys.path.insert(0, '../../ta3-api-bindings-python')
 
 from tc.schema.serialization import AvroGenericSerializer, Utils
 from tc.schema.serialization.kafka import KafkaAvroGenericSerializer
@@ -60,7 +59,7 @@ def get_arg_parser():
                         help="Directory to write CDM records files to")
     file_group = parser.add_mutually_exclusive_group(required=False)
     file_group.add_argument("-f", action="store", type=str, default=IN_FILE,
-                        help="File to translate, default is to translate every file in the directory that ends with .json")
+                            help="File to translate, default is to translate every file in the directory that ends with .json")
     parser.add_argument("-lc", action="store", type=str, default=LOGGING_CONF,
                         help="Logging configuration file")
     output_group = parser.add_argument_group('output formats')
@@ -84,9 +83,9 @@ def get_arg_parser():
 
     host_group = parser.add_mutually_exclusive_group(required=True)
     host_group.add_argument("-hs", action="store_true", default=False,
-                        help="Host is a server.")
+                            help="Host is a server.")
     host_group.add_argument("-hd", action="store_true", default=False,
-                        help="Host is a desktop.")
+                            help="Host is a desktop.")
 
     return parser
 
@@ -181,7 +180,7 @@ class EnqueueFileHandler(FileSystemEventHandler):
 def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, enable_metrics, myip, show_progress, watch, punctuate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
-    serializer = KafkaAvroGenericSerializer(p_schema,skip_validate=False)
+    serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=False)
 
     # Open the output files
     base_out = os.path.splitext(os.path.basename(path))[0]
@@ -222,7 +221,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         # Iterate through the records, translating each to a CDM record
         previous_record = ""
         waiting = False # are we already waiting to find another value record?
-        cpu_times={}
+        cpu_times = {}
         for i in range(1, punctuate):
             cpu_times[i] = 0
         last_time_marker = 0
@@ -341,8 +340,8 @@ def write_cdm_binary_records(cdm_records, file_writer):
 
 # Prometheus metric for generated records published to kafka
 registry = CollectorRegistry()
-ta1_send = Counter('ta1_send_total', 'Count of records sent', ['topic','host'], registry=registry)
-ta1_last = Gauge('ta1_last_send_time', 'Last publish time', ['topic','host'], registry=registry)
+ta1_send = Counter('ta1_send_total', 'Count of records sent', ['topic', 'host'], registry=registry)
+ta1_last = Gauge('ta1_last_send_time', 'Last publish time', ['topic', 'host'], registry=registry)
 
 def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic, myip, enable_metrics):
     '''
@@ -363,7 +362,7 @@ def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic, myi
         enable_metrics = False
         logger.warn(str(ex))
         logger.warn("Unable to connect to prometheus, disabling metrics push 2")
-    
+
 
 if __name__ == '__main__':
     main()

@@ -557,79 +557,73 @@ class CDMTranslator(object):
     def create_file_subjects(self, event, cadets_record):
         newRecords = []
         for uuid in uuid_keys:
-                if uuid in cadets_record:
-                    if not self.instance_generator.is_known_object(cadets_record[uuid]):
-                        self.logger.debug("Creating file")
-                        # TODO determine if it's a directory first
-                        fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record["host"], self.get_source())
-                        newRecords.append(fileobj)
-                else:
-                    continue;
+            if uuid in cadets_record:
+                if not self.instance_generator.is_known_object(cadets_record[uuid]):
+                    self.logger.debug("Creating file")
+                    # TODO determine if it's a directory first
+                    fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record["host"], self.get_source())
+                    newRecords.append(fileobj)
+            else:
+                continue;
 
         return newRecords
 
     def add_updated_object(self, cadets_record, orig_uuid, temp_uuid):
-            ''' Create an event to add information to an existing object '''
+        ''' Create an event to add information to an existing object '''
 
-            record = {}
-            event = {}
+        record = {}
+        event = {}
 
-            event["type"] = "EVENT_ADD_OBJECT_ATTRIBUTE"
-            event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
-            event["uuid"] = event_uuid
-            event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
-            event["timestampNanos"] = cadets_record["time"]
-            event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(orig_uuid).int)
-            event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(temp_uuid).int)
+        event["type"] = "EVENT_ADD_OBJECT_ATTRIBUTE"
+        event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+        event["uuid"] = event_uuid
+        event["hostId"] = self.instance_generator.create_uuid("uuid", uuid.UUID(cadets_record["host"]).int)
+        event["timestampNanos"] = cadets_record["time"]
+        event["predicateObject"] = self.instance_generator.create_uuid("uuid", uuid.UUID(orig_uuid).int)
+        event["predicateObject2"] = self.instance_generator.create_uuid("uuid", uuid.UUID(temp_uuid).int)
 
-            event["threadId"] = cadets_record["tid"]
+        event["threadId"] = cadets_record["tid"]
 
-            event["properties"] = {}
-            if "exec" in cadets_record:
-                event["properties"]["exec"] = cadets_record["exec"]
+        event["properties"] = {}
+        if "exec" in cadets_record:
+            event["properties"]["exec"] = cadets_record["exec"]
 
 
-            # Use the event counter as the seq number
-            # This assumes we're processing events in order
-            event["sequence"] = self.eventCounter
-            self.eventCounter += 1
+        # Use the event counter as the seq number
+        # This assumes we're processing events in order
+        event["sequence"] = self.eventCounter
+        self.eventCounter += 1
 
-            record["CDMVersion"] = self.CDMVersion
-            record["source"] = self.get_source()
-            record["datum"] = event
+        record["CDMVersion"] = self.CDMVersion
+        record["source"] = self.get_source()
+        record["datum"] = event
 
-            return record
+        return record
 
 def create_uuid_parameter(value_type, name, value, assertions=None):
-        parameter = {}
-        parameter["size"] = -1 # -1 = primitive
-        parameter["type"] = "VALUE_TYPE_" + value_type
-        parameter["valueDataType"]="VALUE_DATA_TYPE_BYTE"
-        parameter["isNull"] = value is None
-        parameter["name"] = name
-        if not value is None:
-            parameter["valueBytes"] = value
-        if assertions:
-            parameter["provenance"] = assertions
-        return parameter
+    parameter = {}
+    parameter["size"] = -1 # -1 = primitive
+    parameter["type"] = "VALUE_TYPE_" + value_type
+    parameter["valueDataType"] = "VALUE_DATA_TYPE_BYTE"
+    parameter["isNull"] = value is None
+    parameter["name"] = name
+    if not value is None:
+        parameter["valueBytes"] = value
+    if assertions:
+        parameter["provenance"] = assertions
+    return parameter
 
 def create_int_parameter(value_type, name, value, assertions=None):
-        parameter = {}
-        parameter["size"] = -1 # -1 = primitive
-        parameter["type"] = "VALUE_TYPE_" + value_type
-        parameter["valueDataType"]="VALUE_DATA_TYPE_INT"
-        parameter["isNull"] = value is None
-        parameter["name"] = name
-        if not value is None:
-            # encodes, and uses 2s complement if needed.
-            parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=True)
-        if assertions:
-            parameter["provenance"] = assertions
-        return parameter
+    parameter = {}
+    parameter["size"] = -1 # -1 = primitive
+    parameter["type"] = "VALUE_TYPE_" + value_type
+    parameter["valueDataType"] = "VALUE_DATA_TYPE_INT"
+    parameter["isNull"] = value is None
+    parameter["name"] = name
+    if not value is None:
+        # encodes, and uses 2s complement if needed.
+        parameter["valueBytes"] = value.to_bytes((value.bit_length()+8) // 8, "big", signed=True)
+    if assertions:
+        parameter["provenance"] = assertions
+    return parameter
 
-def create_provenance_assertion(asserter, sources, provenance):
-        assertion = {}
-        assertion["asserter"] = asserter # UUID
-        assertion["sources"] = sources # Optional: [UUID]
-        assertion["provenance"] = provenance # Optional: [ProvenanceAssertion]
-        return assertion
