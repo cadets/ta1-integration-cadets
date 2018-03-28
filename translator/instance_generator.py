@@ -130,7 +130,7 @@ class InstanceGenerator():
         '''
         return uid in self.created_users
 
-    def create_user_principal(self, uid, host, source): # TODO add HOST!
+    def create_user_principal(self, uid, host, source):
         ''' Create a user principal, add it to the created list, and return it
         '''
         record = {}

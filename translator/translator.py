@@ -10,7 +10,7 @@ from instance_generator import InstanceGenerator
 file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP",
               "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ",
               "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK",
-              "aue_symlink", "aue_symlinkat"] # TODO not complete list
+              "aue_symlink", "aue_symlinkat"]
 # these are the keys that may contain interesting UUIDs
 uuid_keys = ["arg_objuuid1", "arg_objuuid2", "ret_objuuid1", "ret_objuuid2"]
 
@@ -554,7 +554,6 @@ class CDMTranslator(object):
             if uuid in cadets_record:
                 if not self.instance_generator.is_known_object(cadets_record[uuid]):
                     self.logger.debug("Creating file")
-                    # TODO determine if it's a directory first
                     fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record["host"], self.get_source())
                     new_records.append(fileobj)
             else:
