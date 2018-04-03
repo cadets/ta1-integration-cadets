@@ -51,6 +51,7 @@ logger = logging.getLogger("tc")
 def get_arg_parser():
     parser = argparse.ArgumentParser(description="Translate CADETS json to CDM")
 
+    parser.add_argument("--version", action="version", version="cadets_cdm_translator.py - CDMv"+CDMVERSION)
     parser.add_argument("-psf", action="store", type=str,
                         default=SCHEMA,
                         help="Set the producer's schema file.")
@@ -86,8 +87,6 @@ def get_arg_parser():
                                 help="IP address to publish from")
     parser.add_argument("-punctuate", action="store", type=int, default=0,
                         help="Generate time markers, given the number of CPUs in the machine")
-    parser.add_argument("-cdmv", action="store", type=str, default=CDMVERSION,
-                        help="CDM Version number. Make sure this matches the schema")
     parser.add_argument("-p", action="store_true", default=False,
                         help="Print progress message for longer translations")
 
@@ -120,9 +119,9 @@ def main():
 
     # Initialize a CDM Translator
     if args.hs:
-        translator = CDMTranslator(p_schema, args.cdmv, "HOST_SERVER")
+        translator = CDMTranslator(p_schema, CDMVERSION, "HOST_SERVER")
     elif args.hd:
-        translator = CDMTranslator(p_schema, args.cdmv, "HOST_DESKTOP")
+        translator = CDMTranslator(p_schema, CDMVERSION, "HOST_DESKTOP")
     else:
         logger.error("Unknown host type")
 
