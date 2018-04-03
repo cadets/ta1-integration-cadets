@@ -236,6 +236,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
             cpu_times[i] = 0
         last_time_marker = 0
         last_error_location = -1
+        start_time = time.perf_counter()
         while 1:
             current_location = cadets_in.tell()
             try:
@@ -319,7 +320,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
 
     if show_progress and incount >= 1000:
         sys.stdout.write("\n")
-    logger.info("Translated %d records into %d CDM items" , incount, cdmcount)
+    logger.info("Translated %d records into %d CDM items (%.2f records/sec)" , incount, cdmcount, float(incount) / (time.perf_counter()-start_time))
 
     if json_out != None:
         json_out.close()
