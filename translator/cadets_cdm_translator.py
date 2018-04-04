@@ -76,6 +76,8 @@ def get_arg_parser():
                               help="Write binary output file")
     output_group.add_argument("-wk", action="store_true", default=False,
                               help="Write to Kafka")
+    parser.add_argument("-validate", action="store_true", default=False,
+                              help="Validate CDM produced")
     kafka_settings = parser.add_argument_group('Kafka settings')
     kafka_settings.add_argument("-ks", action="store", default=KAFKASTRING,
                                 required="-wk" in sys.argv, help="Kafka connection string")
@@ -156,7 +158,7 @@ def main():
                     else:
                         logger.info("Translating JSON file: %s" , cfile)
                         path = os.path.join(args.tdir, cfile)
-                        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate)
+                        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate)
                         if not args.wk: # don't reset if we're just writing a stream of data to kafka
                             translator.reset()
                         logger.info("About %d files left to translate." , file_queue.qsize())
@@ -174,7 +176,7 @@ def main():
 
     else:
         path = os.path.join(args.tdir, args.f)
-        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate)
+        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):
@@ -186,10 +188,10 @@ class EnqueueFileHandler(FileSystemEventHandler):
             new_file = event.src_path
             self.file_queue.put(new_file)
 
-def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, enable_metrics, myip, show_progress, watch, punctuate):
+def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, enable_metrics, myip, show_progress, watch, punctuate, validate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
-    serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=False)
+    serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
 
     # Open the output files
     base_out = os.path.splitext(os.path.basename(path))[0]
@@ -202,7 +204,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         bin_out_path = os.path.join(os.path.expanduser(output_dir), base_out+".cdm.bin")
         bin_out = open(bin_out_path, 'wb')
         # Create a file writer and serialize all provided records to it.
-        file_writer = AvroGenericSerializer(p_schema, bin_out, skip_validate=False)
+        file_writer = AvroGenericSerializer(p_schema, bin_out, skip_validate=not validate)
     if write_kafka:
         # Set up the config for the Kafka producer
         config = {}
