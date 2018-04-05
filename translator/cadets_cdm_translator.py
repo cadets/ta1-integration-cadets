@@ -92,10 +92,11 @@ def get_arg_parser():
     parser.add_argument("-p", action="store_true", default=False,
                         help="Print progress message for longer translations")
 
-    host_group = parser.add_mutually_exclusive_group(required=True)
-    host_group.add_argument("-hs", action="store_true", default=False,
+    host_group_top = parser.add_argument_group('Host type (choose one)')
+    host_group = host_group_top.add_mutually_exclusive_group(required=True)
+    host_group.add_argument("-hs", "--host-server", dest='host_type', action="store_const", const="HOST_SERVER",
                             help="Host is a server.")
-    host_group.add_argument("-hd", action="store_true", default=False,
+    host_group.add_argument("-hd", "--host-desktop", dest='host_type', action="store_const", const="HOST_DESKTOP",
                             help="Host is a desktop.")
 
     return parser
@@ -120,12 +121,7 @@ def main():
     p_schema = Utils.load_schema(args.psf)
 
     # Initialize a CDM Translator
-    if args.hs:
-        translator = CDMTranslator(p_schema, CDMVERSION, "HOST_SERVER")
-    elif args.hd:
-        translator = CDMTranslator(p_schema, CDMVERSION, "HOST_DESKTOP")
-    else:
-        logger.error("Unknown host type")
+    translator = CDMTranslator(p_schema, CDMVERSION, args.host_type)
 
     # Make sure the translator is doing something
     if not (args.wj or args.wb or args.wk):
