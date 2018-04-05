@@ -4,6 +4,7 @@ CADETS JSON record format to TC CDM format translator
 
 import logging
 import uuid
+from functools import lru_cache
 from instance_generator import InstanceGenerator
 
 # These calls will have files as their parameters
@@ -389,6 +390,7 @@ class CDMTranslator(object):
 
         return record
 
+    @lru_cache(maxsize=256)
     def convert_audit_event_type(self, call):
         ''' Convert the call to one of the CDM EVENT types, since there are
             specific types defined for common syscalls
