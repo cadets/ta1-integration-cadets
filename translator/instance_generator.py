@@ -55,7 +55,7 @@ class InstanceGenerator():
         self.remapped_objects.clear()
         self.netflow_counter = 0
         self.host_created = False
-        uuid_from_string.cache_clear()
+        self.uuid_from_string.cache_clear()
 
     @lru_cache(maxsize=1024)
     def uuid_from_string(self, data):
