@@ -292,7 +292,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 incount += 1
                 previous_record = raw_cadets_record
                 if show_progress and incount % 1000 == 0:
-                    sys.stdout.write("\rRead and translated >=%d records so far" , incount)
+                    sys.stdout.write("\rRead and translated >=%d records so far" % incount)
                     sys.stdout.flush()
             else:
                 # "]" marks the end of the records in the file, even if there are still more lines
