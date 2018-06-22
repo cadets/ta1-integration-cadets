@@ -253,7 +253,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                     if watch and current_location > last_error_location:
                         last_error_location = current_location
                         cadets_in.seek(current_location)
-                        time.sleep(60)
+                        time.sleep(30)
                         continue
                     logger.warning("Error: %s" , err)
                     logger.warning("Invalid CADETS entry at byte %d: %s", current_location, raw_cadets_record)
@@ -306,7 +306,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                     if watch and current_location > last_error_location:
                         last_error_location = current_location
                         cadets_in.seek(current_location)
-                        time.sleep(60)
+                        time.sleep(30)
                     else:
                         break
                 elif raw_cadets_record.strip() == "]":
