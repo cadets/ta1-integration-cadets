@@ -482,7 +482,7 @@ class CDMTranslator(object):
                 new_records.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
 
         # NetFlows and sockets
-        if event["name"] in ["aue_pipe", "aue_pipe2"]:
+        if event["name"] in ["aue_pipe", "aue_pipe2", "aue_socketpair"]:
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
@@ -493,7 +493,7 @@ class CDMTranslator(object):
             new_records.append(nf_obj)
             new_records.append(pipe_obj)
             new_records.append(pipe_obj2)
-        elif event["name"] in ["aue_socket", "aue_socketpair"]:
+        elif event["name"] in ["aue_socket"]:
             socket = cadets_record.get("ret_objuuid1")
             if not self.instance_generator.is_known_object(socket):
                 self.logger.debug("Creating a UnixSocket from socket call")
