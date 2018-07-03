@@ -95,7 +95,7 @@ class CDMTranslator(object):
         # Create a new user if necessary
         uid = cadets_record["uid"]
         if not self.instance_generator.get_user_id(uid):
-            self.logger.debug("Creating new User Principal for {u}".format(u=uid))
+            self.logger.debug("Creating new User Principal for %d", uid)
             principal = self.instance_generator.create_user_principal(uid, cadets_record["host"], self.get_source())
             datums.append(principal)
 
@@ -104,7 +104,7 @@ class CDMTranslator(object):
         cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]))
 
         if not self.instance_generator.is_known_object(cadets_proc_uuid):
-            self.logger.debug("Creating new Process Subject for {p}".format(p=pid))
+            self.logger.debug("Creating new Process Subject for %d", pid)
             # We don't know the time when this process was created, so we'll make it 0 for now
             # Could use time as an upper bound, but we'd need to specify
             process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, cadets_record["host"], self.get_source())
@@ -128,7 +128,7 @@ class CDMTranslator(object):
                 # info is limited.
                 unknown_uid = -1
                 if not self.instance_generator.get_user_id(unknown_uid):
-                    self.logger.debug("Creating new User Principal for {u}".format(u=unknown_uid))
+                    self.logger.debug("Creating new User Principal for %d", unknown_uid)
                     principal = self.instance_generator.create_user_principal(unknown_uid, cadets_record["host"], self.get_source())
                     principal["datum"]["username"] = "UNKNOWN"
                     datums.append(principal)
@@ -141,7 +141,7 @@ class CDMTranslator(object):
                 datums.append(file_record)
 
         # Create the Event
-        self.logger.debug("Creating Event from {e} ".format(e=event_type))
+        self.logger.debug("Creating Event from %s ", event_type)
         event_record = self.translate_call(provider, module, call, probe, cadets_record)
 
         if "arg_miouuid" in cadets_record:
