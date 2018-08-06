@@ -244,7 +244,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 continue
             if raw_cadets_record:
                 try:
-                    cadets_record = json.loads(raw_cadets_record[2:])
+                    cadets_record = json.loads(raw_cadets_record)
                     record_cpu = cadets_record.get("cpu_id")
                     record_time = cadets_record.get("time")
                 except ValueError as err:
@@ -295,8 +295,6 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                     sys.stdout.write("\rRead and translated >=%d records so far" % incount)
                     sys.stdout.flush()
             else:
-                # "]" marks the end of the records in the file, even if there are still more lines
-                # If we find that, we're all done with the file.
                 # If we reached the actual EOF and we're waiting for the file to finish, reset the file location and retry.
                 # If we reached the actual EOF and we're not waiting, then just consider this file finished.
                 if not raw_cadets_record:
@@ -309,8 +307,6 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                         time.sleep(30)
                     else:
                         break
-                elif raw_cadets_record.strip() == "]":
-                    break
 
         # no more lines in the file. Is it really done, or should we wait for more lines?
         cadets_in.close()
