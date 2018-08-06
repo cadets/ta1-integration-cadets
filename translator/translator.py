@@ -91,6 +91,12 @@ class CDMTranslator(object):
                 self.instance_generator.updated_objects.add(cadets_record["so_uuid"])
                 datums.append(nf_obj)
                 datums.append(update_obj)
+
+            for datum in datums:
+                datum["CDMVersion"] = self.CDMVersion
+                datum["source"] = self.get_source()
+                datum["sessionNumber"] = 0 # TODO real number
+                datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
             return datums
         # Create a new user if necessary
         uid = cadets_record["uid"]
@@ -152,6 +158,7 @@ class CDMTranslator(object):
             datums.append(flow_obj)
 
         if event_record != None:
+            event_record["type"] = "RECORD_EVENT"
             datums.append(event_record)
             object_records = self.create_subjects(event_record["datum"], cadets_record)
             if object_records != None:
@@ -161,6 +168,12 @@ class CDMTranslator(object):
             host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
             datums.insert(0, host_object)
 
+
+        for datum in datums:
+            datum["CDMVersion"] = self.CDMVersion
+            datum["source"] = self.get_source()
+            datum["sessionNumber"] = 0 # TODO real number
+            datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
 
         return datums
 
@@ -301,8 +314,7 @@ class CDMTranslator(object):
             event["predicateObject2"] = self.instance_generator.uuid_from_string(pred_obj2)
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
-        event["name"] = call
-        event["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
+        event["names"] = [call]
         event["parameters"] = self.create_parameters(call, cadets_record) # [Values]
 #         event["location"] = long
         if size is not None:
@@ -349,8 +361,6 @@ class CDMTranslator(object):
 
         event["threadId"] = cadets_record["tid"]
 
-        record["CDMVersion"] = self.CDMVersion
-        record["source"] = self.get_source()
         record["datum"] = event
 
         return record
@@ -368,7 +378,6 @@ class CDMTranslator(object):
 
         event["predicateObject"] = self.instance_generator.uuid_from_string(source)
         event["predicateObject2"] = self.instance_generator.uuid_from_string(dest)
-        event["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
         event["parameters"] = []
         event["properties"] = {}
         event["uuid"] = event_uuid
@@ -384,9 +393,8 @@ class CDMTranslator(object):
 
         event["threadId"] = cadets_record["tid"]
 
-        record["CDMVersion"] = self.CDMVersion
-        record["source"] = self.get_source()
         record["datum"] = event
+        record["type"] = "RECORD_EVENT"
 
         return record
 
@@ -470,19 +478,19 @@ class CDMTranslator(object):
             * a subject for any files that we discover via the uuids
         '''
         new_records = []
-        if event["type"] in file_calls or event["name"] in file_calls:
+        if event["type"] in file_calls or event["names"][0] in file_calls:
             # if this is a file-related event, create events for the uuids on the event.
             # TODO: Make more intelligent, not all or nothing file events
             new_records = new_records + self.create_file_subjects(cadets_record)
-        if event["name"] in ["aue_chdir", "aue_fchdir"]:
+        if event["names"][0] in ["aue_chdir", "aue_fchdir"]:
             if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
                 new_records.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
-        if event["name"] in ["aue_mkdir"]:
+        if event["names"][0] in ["aue_mkdir"]:
             if not self.instance_generator.is_known_object(cadets_record["ret_objuuid1"]):
                 new_records.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
 
         # NetFlows and sockets
-        if event["name"] in ["aue_pipe", "aue_pipe2", "aue_socketpair"]:
+        if event["names"][0] in ["aue_pipe", "aue_pipe2", "aue_socketpair"]:
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
@@ -493,7 +501,7 @@ class CDMTranslator(object):
             new_records.append(nf_obj)
             new_records.append(pipe_obj)
             new_records.append(pipe_obj2)
-        elif event["name"] in ["aue_socket"]:
+        elif event["names"][0] in ["aue_socket"]:
             socket = cadets_record.get("ret_objuuid1")
             if not self.instance_generator.is_known_object(socket):
                 self.logger.debug("Creating a UnixSocket from socket call")
@@ -531,7 +539,7 @@ class CDMTranslator(object):
                     nf_obj = self.instance_generator.create_unix_socket_object(accepted_socket, cadets_record["host"], self.get_source())
                     new_records.append(nf_obj)
         elif event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
-            if event["name"] == "aue_sendfile":
+            if event["names"][0] == "aue_sendfile":
                 socket_uuid = cadets_record.get("arg_objuuid2")
             else:
                 socket_uuid = cadets_record.get("arg_objuuid1")
@@ -572,7 +580,6 @@ class CDMTranslator(object):
         event["type"] = "EVENT_ADD_OBJECT_ATTRIBUTE"
         event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
         event["uuid"] = event_uuid
-        event["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
         event["timestampNanos"] = cadets_record["time"]
         event["predicateObject"] = self.instance_generator.uuid_from_string(orig_uuid)
         event["predicateObject2"] = self.instance_generator.uuid_from_string(temp_uuid)
@@ -589,9 +596,8 @@ class CDMTranslator(object):
         event["sequence"] = self.eventCounter
         self.eventCounter += 1
 
-        record["CDMVersion"] = self.CDMVersion
-        record["source"] = self.get_source()
         record["datum"] = event
+        record["type"] = "RECORD_EVENT"
 
         return record
 

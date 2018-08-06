@@ -38,10 +38,8 @@ class InstanceGenerator():
     #   (multiple connections to the same dest host:port)
     netflow_counter = 0
 
-    CDMVersion = None
 
     def __init__(self, version):
-        self.CDMVersion = version
         self.logger = logging.getLogger("tc")
         self.created_users = set()
         self.created_objects = set()
@@ -106,7 +104,6 @@ class InstanceGenerator():
 
         subject["startTimestampNanos"] = time_nanos
         subject["type"] = "SUBJECT_PROCESS"
-        subject["hostId"] = self.uuid_from_string(host)
 #         subject["unitId"] = int
 #         subject["interation"] = int
 #         subject["count"] = int
@@ -122,9 +119,10 @@ class InstanceGenerator():
         self.created_objects.add(puuid)
         subject["uuid"] = uniq
 
-        record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = subject
+
+        record["type"]="RECORD_SUBJECT"
         return record
 
     def get_user_id(self, uid):
@@ -144,14 +142,13 @@ class InstanceGenerator():
         principal["username"] = subprocess.getoutput(['id -un '+str(uid)])
         principal["groupIds"] = []
         principal["properties"] = {}
-        principal["hostId"] = self.uuid_from_string(host)
 
         # Save the uuid for this user
         self.created_users.add(uid)
 
-        record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = principal
+        record["type"]="RECORD_PRINCIPAL"
         return record
 
     def is_known_object(self, file_key):
@@ -170,7 +167,6 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.uuid_from_string(host)
 
         fobject["baseObject"] = abstract_object
         fobject["type"] = "FILE_OBJECT_UNIX_SOCKET"
@@ -185,9 +181,9 @@ class InstanceGenerator():
         # Save the uuid for this subject
         self.created_objects.add(file_uuid)
 
-        record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = fobject
+        record["type"]="RECORD_FILE_OBJECT"
         return record
 
     def create_pipe_object(self, ipc_uuid, host, source):
@@ -200,7 +196,6 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.uuid_from_string(host)
 
         fobject["baseObject"] = abstract_object
         fobject["uuid"] = self.uuid_from_string(ipc_uuid)
@@ -209,9 +204,9 @@ class InstanceGenerator():
         # Save the uuid for this subject
         self.created_objects.add(ipc_uuid)
 
-        record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = fobject
+        record["type"]="RECORD_SRC_SINK_OBJECT"
         return record
 
     def create_file_object(self, file_uuid, host, source, is_dir=False):
@@ -224,7 +219,6 @@ class InstanceGenerator():
 #         abstract_object["epoch"] = int
 #         abstract_object["permission"] = SHORT
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.uuid_from_string(host)
 
         fobject["baseObject"] = abstract_object
         if is_dir:
@@ -241,9 +235,9 @@ class InstanceGenerator():
         # Save the uuid for this subject
         self.created_objects.add(file_uuid)
 
-        record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = fobject
+        record["type"]="RECORD_FILE_OBJECT"
         return record
 
     def create_netflow_object(self, dest_host, dest_port, socket_uuid, host, source, local_host="localhost", local_port=-1):
@@ -256,7 +250,6 @@ class InstanceGenerator():
         nobject = {}
         abstract_object = {}
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.uuid_from_string(host)
 
         nobject["baseObject"] = abstract_object
         nobject["localAddress"] = local_host
@@ -269,9 +262,9 @@ class InstanceGenerator():
         self.netflow_counter += 1
         nobject["uuid"] = uniq
 
-        record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = nobject
+        record["type"]="RECORD_NET_FLOW_OBJECT"
 
         self.created_objects.add(socket_uuid)
         return record
@@ -283,12 +276,12 @@ class InstanceGenerator():
         pipe = {}
         abstract_object = {}
         abstract_object["properties"] = {}
-        abstract_object["hostId"] = self.uuid_from_string(host)
 
         pipe["baseObject"] = abstract_object
-        pipe["sourceUUID"] = self.uuid_from_string(endpoint1)
-        pipe["sinkUUID"] = self.uuid_from_string(endpoint2)
+        pipe["uuid1"] = self.uuid_from_string(endpoint1)
+        pipe["uuid2"] = self.uuid_from_string(endpoint2)
         pipe["uuid"] = self.create_uuid("netflow", endpoint1+endpoint2)
+        pipe["type"] = "IPC_OBJECT_PIPE_UNNAMED"
 
         self.remapped_objects[uuid.UUID(endpoint1).int] = pipe["uuid"]
         self.remapped_objects[uuid.UUID(endpoint2).int] = pipe["uuid"]
@@ -296,9 +289,9 @@ class InstanceGenerator():
         self.created_objects.add(endpoint1)
         self.created_objects.add(endpoint2)
 
-        record["CDMVersion"] = self.CDMVersion
         record["source"] = source
         record["datum"] = pipe
+        record["type"]="RECORD_IPC_OBJECT"
         self.host_created = True
         return record
 
@@ -328,9 +321,8 @@ class InstanceGenerator():
             for ip_address in subprocess.getoutput(['ifconfig '+interface_name+' | grep \'\<inet.*\>\' | awk \'{print $2}\'']).split():
                 interface["ipAddresses"].append(ip_address)
             host["interfaces"].append(interface)
-        record["CDMVersion"] = self.CDMVersion
-        record["source"] = source
         record["datum"] = host
+        record["type"]="RECORD_HOST"
         self.host_created = True
         return record
 
