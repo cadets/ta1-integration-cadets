@@ -74,21 +74,22 @@ class InstanceGenerator():
         if data in self.remapped_objects:
             return self.remapped_objects[data]
 
+        id = 0
         if object_type == "uid":
-            id = uuid.uuid5(UID_NAMESPACE, str(data))
+            id = uuid.uuid5(UID_NAMESPACE, str(data)).int
         elif object_type == "event":
-            id = uuid.uuid5(EVENT_NAMESPACE, str(data))
+            id = uuid.uuid5(EVENT_NAMESPACE, str(data)).int
         elif object_type == "pipe":
-            id = uuid.uuid5(NETFLOW_NAMESPACE, str(data))
+            id = uuid.uuid5(NETFLOW_NAMESPACE, str(data)).int
         # XXX: Use socket UUIDs eventually
         elif object_type == "netflow":
-            id = uuid.uuid5(NETFLOW_NAMESPACE, str(data))
+            id = uuid.uuid5(NETFLOW_NAMESPACE, str(data)).int
         elif object_type == "uuid":
-            id = uuid.UUID(int=data)
+            id = data
         else:
             raise Exception("Unknown object type in create_uuid: "+object_type)
 
-        return id.bytes
+        return record_generator.Util.get_uuid_from_value(id)
 
     def create_process_subject(self, pid, puuid, ppuuid, principal, time_nanos, host, source):
         ''' Create a process subject, add it to the created list, and return it
