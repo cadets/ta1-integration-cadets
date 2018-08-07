@@ -34,6 +34,8 @@ class CDMTranslator(object):
 
     host_type = None
 
+    session_count = 0
+
     def __init__(self, schema, version, host_type):
         self.schema = schema
         self.CDMVersion = version
@@ -44,6 +46,7 @@ class CDMTranslator(object):
     def reset(self):
         ''' Reset the translators counters and data structures.
             Use if you're parsing a new trace '''
+        self.session_count = 0
         self.eventCounter = 0
         self.instance_generator.reset()
 
@@ -56,6 +59,9 @@ class CDMTranslator(object):
             raise msg
         else:
             self.logger.error(msg)
+
+    def increment_session(self):
+        self.session_count = self.session_count + 1;
 
     def translate_record(self, cadets_record):
         ''' Generate a CDM record from the passed in JSON CADETS record '''
@@ -95,7 +101,7 @@ class CDMTranslator(object):
             for datum in datums:
                 datum["CDMVersion"] = self.CDMVersion
                 datum["source"] = self.get_source()
-                datum["sessionNumber"] = 0 # TODO real number
+                datum["sessionNumber"] = self.session_count
                 datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
             return datums
         # Create a new user if necessary
@@ -168,11 +174,10 @@ class CDMTranslator(object):
             host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
             datums.insert(0, host_object)
 
-
         for datum in datums:
             datum["CDMVersion"] = self.CDMVersion
             datum["source"] = self.get_source()
-            datum["sessionNumber"] = 0 # TODO real number
+            datum["sessionNumber"] = self.session_count
             datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
 
         return datums
