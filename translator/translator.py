@@ -63,6 +63,34 @@ class CDMTranslator(object):
     def increment_session(self):
         self.session_count = self.session_count + 1;
 
+    def translate_correlation(self, cadets_record):
+        datums = []
+
+# {"host1":"blackmarsh3", "uuid1":"7a567aed-8c34-11e8-9f60-44a8421f8dc6",
+#  "host2":"clinch2", "uuid2":"7a579b84-8c34-11e8-80a0-a0369fe11e7a",
+#  "reason":"connected sockets"}
+
+        record = {}
+        record["timestampNanos"] = cadets_record["timestamp"]
+        record["predicateObject"] = cadets_record["uuid1"]
+        record["predicateObject2"] = cadets_record["uuid2"]
+
+        properties  ={}
+        properties["predicateObjectHost"] = cadets_record["host1"]
+        properties["predicateObject2Host"] = cadets_record["host2"]
+#         properties["eventUuid"] = cadets_record["event1"]
+#         properties["event2Uuid"] = cadets_record["event2"]
+        properties["connection"] = cadets_record["reason"]
+
+
+        for datum in datums:
+            datum["CDMVersion"] = self.CDMVersion
+            datum["source"] = self.get_source()
+            datum["sessionNumber"] = self.session_count
+            datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
+
+        return datums
+
     def translate_record(self, cadets_record):
         ''' Generate a CDM record from the passed in JSON CADETS record '''
 
