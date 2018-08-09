@@ -18,6 +18,9 @@ from os.path import isfile
 import json
 
 import sys
+import threading
+import queue
+import multiprocessing
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -139,6 +142,8 @@ def main():
             observer.schedule(EnqueueFileHandler(file_queue), path=os.path.expanduser(args.tdir), recursive=False)
             observer.start()
         minutes_since_last_file = 0
+        threads = []
+        work_queue = queue.Queue(maxsize=100)
         try:
             while args.watch or not file_queue.empty():
                 try:
@@ -154,9 +159,10 @@ def main():
                     else:
                         logger.info("Translating JSON file: %s" , cfile)
                         path = os.path.join(args.tdir, cfile)
-                        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate)
-                        if not args.wk: # don't reset if we're just writing a stream of data to kafka
-                            translator.reset()
+                        translator = CDMTranslator(p_schema, CDMVERSION, args.host_type)
+                        work_thread = multiprocessing.Process(target=translate_file, args=(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate))
+                        work_thread.start()
+                        threads.append(work_thread)
                         logger.info("About %d files left to translate." , file_queue.qsize())
                 except queue.Empty:
                     if args.p:
@@ -169,6 +175,9 @@ def main():
             if args.watch:
                 observer.stop()
                 observer.join()
+            for thread in threading.enumerate():
+                if thread is not threading.main_thread():
+                    thread.join()
 
     else:
         path = os.path.join(args.tdir, args.f)
