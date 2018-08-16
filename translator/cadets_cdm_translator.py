@@ -169,7 +169,7 @@ def main():
                         minutes_since_last_file += 1
                         sys.stdout.write("\r%d minute(s) without a file to translate." , minutes_since_last_file)
                         sys.stdout.flush()
-                    time.sleep(10)
+                    time.sleep(60)
 
         except KeyboardInterrupt: # handle ctrl+c
             if args.watch:
@@ -193,7 +193,7 @@ class EnqueueFileHandler(FileSystemEventHandler):
             new_file = event.src_path
             self.file_queue.put(new_file)
 
-def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, enable_metrics, myip, show_progress, watch, punctuate, validate):
+def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, enable_metrics, myip, show_progress, watch, punctuate, validate, is_correlation=False):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
@@ -271,7 +271,10 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 waiting = False
 
                 logger.debug("%d Record: %s" , incount, cadets_record)
-                cdm_records = translator.translate_record(cadets_record)
+                if not is_correlation:
+                    cdm_records = translator.translate_record(cadets_record)
+                else:
+                    cdm_records = translator.translate_correlation(cadets_record)
                 logger.debug("%d translated to %d records" , incount, len(cdm_records))
 
                 if punctuate:
@@ -314,6 +317,10 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                         last_error_location = current_location
                         cadets_in.seek(current_location)
                         time.sleep(30)
+                    elif watch and is_correlation:
+                        # the correlation stream will have much less traffic than the others
+                        # Just because it's empty for awhile doesn't mean it's done.
+                        time.sleep(60)
                     else:
                         break
 
