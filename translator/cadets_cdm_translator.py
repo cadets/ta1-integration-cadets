@@ -70,6 +70,7 @@ def get_arg_parser():
                                  "the directory")
     file_group.add_argument("-watch", action="store_true", default=False,
                             help="Watch for new files in source tdir")
+    parser.add_argument("-correlation", action="store", type=str, default=None, help="Filepath for event correlations")
     parser.add_argument("-lc", action="store", type=str, default=LOGGING_CONF,
                         help="Logging configuration file")
     output_group = parser.add_argument_group('output formats')
@@ -136,6 +137,8 @@ def main():
         file_queue = queue.Queue()
         for cf in cfiles:
             file_queue.put(cf)
+        if args.correlation:
+            file_queue.put(args.correlation)
 
         if args.watch:
             observer = Observer()
@@ -160,7 +163,7 @@ def main():
                         logger.info("Translating JSON file: %s" , cfile)
                         path = os.path.join(args.tdir, cfile)
                         translator = CDMTranslator(p_schema, CDMVERSION, args.host_type)
-                        work_thread = multiprocessing.Process(target=translate_file, args=(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate))
+                        work_thread = multiprocessing.Process(target=translate_file, args=(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate, path is args.correlation))
                         work_thread.start()
                         threads.append(work_thread)
                         logger.info("About %d files left to translate." , file_queue.qsize())
@@ -182,6 +185,10 @@ def main():
     else:
         path = os.path.join(args.tdir, args.f)
         translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate)
+        if args.correlation:
+            print(args.correlation)
+            path = os.path.expanduser(args.correlation)
+            translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate, is_correlation=True)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):

@@ -82,6 +82,8 @@ class CDMTranslator(object):
 #         properties["event2Uuid"] = cadets_record["event2"]
         properties["connection"] = cadets_record["reason"]
 
+        datums.append(record)
+
 
         for datum in datums:
             datum["CDMVersion"] = self.CDMVersion
