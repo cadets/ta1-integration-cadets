@@ -71,9 +71,14 @@ class CDMTranslator(object):
 #  "reason":"connected sockets"}
 
         record = {}
-        record["timestampNanos"] = cadets_record["timestamp"]
-        record["predicateObject"] = cadets_record["uuid1"]
-        record["predicateObject2"] = cadets_record["uuid2"]
+        event = {}
+        event["uuid"] = self.instance_generator.create_uuid("event", str(self.eventCounter))
+#         event["sequence"] = self.eventCounter
+        self.eventCounter += 1
+        event["timestampNanos"] = cadets_record["timestamp"]
+        event["predicateObject"] = self.instance_generator.uuid_from_string(cadets_record["uuid1"])
+        event["predicateObject2"] = self.instance_generator.uuid_from_string(cadets_record["uuid2"])
+        event["type"] = "EVENT_CORRELATION"
 
         properties  ={}
         properties["predicateObjectHost"] = cadets_record["host1"]
@@ -82,6 +87,9 @@ class CDMTranslator(object):
 #         properties["event2Uuid"] = cadets_record["event2"]
         properties["connection"] = cadets_record["reason"]
 
+        event["properties"] = properties
+        record["datum"] = event
+
         datums.append(record)
 
 
@@ -89,7 +97,8 @@ class CDMTranslator(object):
             datum["CDMVersion"] = self.CDMVersion
             datum["source"] = self.get_source()
             datum["sessionNumber"] = self.session_count
-            datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
+            datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host1"])
+            datum["type"] = "RECORD_EVENT"
 
         return datums
 
