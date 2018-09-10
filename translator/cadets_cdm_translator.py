@@ -271,8 +271,9 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                         cadets_in.seek(current_location)
                         time.sleep(30)
                         continue
-                    logger.warning("Error: %s" , err)
-                    logger.warning("Invalid CADETS entry at byte %d: %s", current_location, raw_cadets_record)
+                    if raw_cadets_record.strip():
+                        logger.warning("Error: %s" , err)
+                        logger.warning("Invalid CADETS entry at byte %d: %s", current_location, raw_cadets_record)
                     continue
 
                 waiting = False
