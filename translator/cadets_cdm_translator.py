@@ -20,8 +20,7 @@ import json
 
 import sys
 import threading
-import queue
-import multiprocessing
+from multiprocessing import Process
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -171,7 +170,7 @@ def main():
                         wk = KafkaOutput(args.ks, args.ktopic, args.kmetrics, args.kmyip) if args.wk else None
                         fi = FileInput(path, args.watch)
 
-                        work_thread = multiprocessing.Process(target=translate_file, args=(translator, fi, wj, wb, wk, args.p, args.punctuate, args.validate))
+                        work_thread = Process(target=translate_source, args=(translator, fi, wj, wb, wk, args.p, args.punctuate, args.validate))
                         work_thread.start()
                         threads.append(work_thread)
                         logger.info("About %d files left to translate." , file_queue.qsize())
@@ -196,7 +195,7 @@ def main():
         wb = BinaryOutput(args.odir) if args.wb else None
         wk = KafkaOutput(args.ks, args.ktopic, args.kmetrics, args.kmyip) if args.wk else None
         fi = FileInput(path, args.watch)
-        translate_file(translator, fi, wj, wb, wk, args.p, args.punctuate, args.validate)
+        translate_source(translator, fi, wj, wb, wk, args.p, args.punctuate, args.validate)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):
@@ -208,7 +207,7 @@ class EnqueueFileHandler(FileSystemEventHandler):
             new_file = event.src_path
             self.file_queue.put(new_file)
 
-def translate_file(translator, input_file, write_json, write_binary, write_kafka, show_progress, punctuate, validate):
+def translate_source(translator, input_file, write_json, write_binary, write_kafka, show_progress, punctuate, validate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
