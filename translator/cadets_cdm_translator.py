@@ -8,6 +8,7 @@ Outputs a JSON CDM format and the binary avro format
 
 """
 
+from collections import namedtuple
 import queue
 import logging
 from logging.config import fileConfig
@@ -50,6 +51,11 @@ KEY_PASSWORD = "TransparentComputing"
 TOPIC = "ta1-cadets-cdm13"
 
 logger = logging.getLogger("tc")
+
+JsonOutput = namedtuple("JsonOutput", "output_dir")
+BinaryOutput = namedtuple("BinaryOutput", "output_dir")
+KafkaOutput = namedtuple("KafkaOutput", "conn_str topic enable_metrics myip")
+FileInput = namedtuple("FileInput", "path watch")
 
 def get_arg_parser():
     parser = argparse.ArgumentParser(description="Translate CADETS json to CDM")
@@ -160,7 +166,12 @@ def main():
                         logger.info("Translating JSON file: %s" , cfile)
                         path = os.path.join(args.tdir, cfile)
                         translator = CDMTranslator(p_schema, CDMVERSION, args.host_type)
-                        work_thread = multiprocessing.Process(target=translate_file, args=(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate))
+                        wj = JsonOutput(args.odir) if args.wj else None
+                        wb = BinaryOutput(args.odir) if args.wb else None
+                        wk = KafkaOutput(args.ks, args.ktopic, args.kmetrics, args.kmyip) if args.wk else None
+                        fi = FileInput(path, args.watch)
+
+                        work_thread = multiprocessing.Process(target=translate_file, args=(translator, fi, wj, wb, wk, args.p, args.punctuate, args.validate))
                         work_thread.start()
                         threads.append(work_thread)
                         logger.info("About %d files left to translate." , file_queue.qsize())
@@ -181,7 +192,11 @@ def main():
 
     else:
         path = os.path.join(args.tdir, args.f)
-        translate_file(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate)
+        wj = JsonOutput(args.odir) if args.wj else None
+        wb = BinaryOutput(args.odir) if args.wb else None
+        wk = KafkaOutput(args.ks, args.ktopic, args.kmetrics, args.kmyip) if args.wk else None
+        fi = FileInput(path, args.watch)
+        translate_file(translator, fi, wj, wb, wk, args.p, args.punctuate, args.validate)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):
@@ -193,27 +208,28 @@ class EnqueueFileHandler(FileSystemEventHandler):
             new_file = event.src_path
             self.file_queue.put(new_file)
 
-def translate_file(translator, path, output_dir, write_binary, write_json, write_kafka, kafkastring, kafkatopic, enable_metrics, myip, show_progress, watch, punctuate, validate):
+def translate_file(translator, input_file, write_json, write_binary, write_kafka, show_progress, punctuate, validate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
 
     # Open the output files
-    base_out = os.path.splitext(os.path.basename(path))[0]
     json_out = None
     bin_out = None
     if write_json:
-        json_out_path = os.path.join(output_dir, base_out+".cdm.json")
+        base_out = os.path.splitext(os.path.basename(write_json.output_dir))[0]
+        json_out_path = os.path.join(write_json.output_dir, base_out+".cdm.json")
         json_out = open(os.path.expanduser(json_out_path), 'w')
     if write_binary:
-        bin_out_path = os.path.join(os.path.expanduser(output_dir), base_out+".cdm.bin")
+        base_out = os.path.splitext(os.path.basename(write_binary.output_dir))[0]
+        bin_out_path = os.path.join(os.path.expanduser(write_binary.output_dir), base_out+".cdm.bin")
         bin_out = open(bin_out_path, 'wb')
         # Create a file writer and serialize all provided records to it.
         file_writer = AvroGenericSerializer(p_schema, bin_out, skip_validate=not validate)
     if write_kafka:
         # Set up the config for the Kafka producer
         config = {}
-        config["bootstrap.servers"] = kafkastring
+        config["bootstrap.servers"] = write_kafka.conn_str
         config["api.version.request"] = True
         config["client.id"] = PRODUCER_ID
         config["ssl.ca.location"] = CA_CERT_LOCATION
@@ -232,7 +248,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
     cdmcount = 0
 
     # Read the JSON CADETS records
-    with open(file=path, mode='r', buffering=1, errors='ignore') as cadets_in:
+    with open(file=input_file.path, mode='r', buffering=1, errors='ignore') as cadets_in:
         logger.info("Loading records from %s" , cadets_in.name)
         # Iterate through the records, translating each to a CDM record
         previous_record = ""
@@ -259,7 +275,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 except ValueError as err:
                     # if we expect the file to be added to, try again
                     # otherwise, give up on the line and continue
-                    if watch and current_location > last_error_location:
+                    if input_file.watch and current_location > last_error_location:
                         last_error_location = current_location
                         cadets_in.seek(current_location)
                         time.sleep(30)
@@ -296,7 +312,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                 if write_binary:
                     write_cdm_binary_records(cdm_records, file_writer)
                 if write_kafka:
-                    write_kafka_records(cdm_records, producer, serializer, incount, kafkatopic, myip, enable_metrics)
+                    write_kafka_records(cdm_records, producer, serializer, incount, write_kafka.topic, write_kafka.myip, write_kafka.enable_metrics)
 
                 incount += 1
                 previous_record = raw_cadets_record
@@ -310,7 +326,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
                     if not waiting:
                         logger.warning("No more records found at byte %d" , current_location)
                         waiting = True
-                    if watch and current_location > last_error_location:
+                    if input_file.watch and current_location > last_error_location:
                         last_error_location = current_location
                         cadets_in.seek(current_location)
                         time.sleep(30)
@@ -334,7 +350,7 @@ def translate_file(translator, path, output_dir, write_binary, write_json, write
         logger.info("Wrote binary CDM records to {bo}".format(bo=bin_out.name))
     if write_kafka:
         producer.flush()
-        logger.info("Wrote CDM records to kafka {to}".format(to=kafkatopic))
+        logger.info("Wrote CDM records to kafka {to}".format(to=write_kafka.topic))
 
 def write_cdm_json_records(cdm_records, serializer, json_out, incount):
     ''' Write an array of CDM records to a json output file via a serializer '''
