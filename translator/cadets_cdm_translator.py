@@ -217,11 +217,11 @@ def translate_file(translator, input_file, write_json, write_binary, write_kafka
     json_out = None
     bin_out = None
     if write_json:
-        base_out = os.path.splitext(os.path.basename(write_json.output_dir))[0]
+        base_out = os.path.splitext(os.path.basename(input_file.path))[0]
         json_out_path = os.path.join(write_json.output_dir, base_out+".cdm.json")
         json_out = open(os.path.expanduser(json_out_path), 'w')
     if write_binary:
-        base_out = os.path.splitext(os.path.basename(write_binary.output_dir))[0]
+        base_out = os.path.splitext(os.path.basename(input_file.path))[0]
         bin_out_path = os.path.join(os.path.expanduser(write_binary.output_dir), base_out+".cdm.bin")
         bin_out = open(bin_out_path, 'wb')
         # Create a file writer and serialize all provided records to it.
