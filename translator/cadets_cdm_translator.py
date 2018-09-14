@@ -95,8 +95,6 @@ def get_arg_parser():
                                 help="Enable Kafka metrics")
     kafka_settings.add_argument("-kmyip", action="store", type=str, required="-wk" in sys.argv,
                                 help="IP address to publish from")
-    parser.add_argument("-punctuate", action="store", type=int, default=0,
-                        help="Generate time markers, given the number of CPUs in the machine")
     parser.add_argument("-p", action="store_true", default=False,
                         help="Print progress message for longer translations")
 
@@ -170,7 +168,7 @@ def main():
                         wk = KafkaOutput(args.ks, args.ktopic, args.kmetrics, args.kmyip) if args.wk else None
                         fi = FileInput(path, args.watch)
 
-                        work_thread = Process(target=translate_source, args=(translator, fi, wj, wb, wk, args.p, args.punctuate, args.validate))
+                        work_thread = Process(target=translate_source, args=(translator, fi, wj, wb, wk, args.p, args.validate))
                         work_thread.start()
                         threads.append(work_thread)
                         logger.info("About %d files left to translate." , file_queue.qsize())
@@ -195,7 +193,7 @@ def main():
         wb = BinaryOutput(args.odir) if args.wb else None
         wk = KafkaOutput(args.ks, args.ktopic, args.kmetrics, args.kmyip) if args.wk else None
         fi = FileInput(path, args.watch)
-        translate_source(translator, fi, wj, wb, wk, args.p, args.punctuate, args.validate)
+        translate_source(translator, fi, wj, wb, wk, args.p, args.validate)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):
@@ -207,7 +205,7 @@ class EnqueueFileHandler(FileSystemEventHandler):
             new_file = event.src_path
             self.file_queue.put(new_file)
 
-def translate_source(translator, input_file, write_json, write_binary, write_kafka, show_progress, punctuate, validate):
+def translate_source(translator, input_file, write_json, write_binary, write_kafka, show_progress, validate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
@@ -252,10 +250,6 @@ def translate_source(translator, input_file, write_json, write_binary, write_kaf
         # Iterate through the records, translating each to a CDM record
         previous_record = ""
         waiting = False # are we already waiting to find another value record?
-        cpu_times = {}
-        for i in range(1, punctuate):
-            cpu_times[i] = 0
-        last_time_marker = 0
         last_error_location = -1
         start_time = time.perf_counter()
         while 1:
@@ -288,21 +282,6 @@ def translate_source(translator, input_file, write_json, write_binary, write_kaf
                 logger.debug("%d Record: %s" , incount, cadets_record)
                 cdm_records = translator.translate_record(cadets_record)
                 logger.debug("%d translated to %d records" , incount, len(cdm_records))
-
-                if punctuate:
-                    if  record_cpu is not None and record_time is not None:
-                        cpu_times[record_cpu] = record_time
-                    if record_time > last_time_marker + 1000001:
-                        oldest_times = min(cpu_times.values())
-                        if oldest_times > last_time_marker + 1000001:
-                            time_marker = {}
-                            time_marker["tsNanos"] = oldest_times - 1
-                            record_wrapper = {}
-                            record_wrapper["source"] = "SOURCE_FREEBSD_DTRACE_CADETS"
-                            record_wrapper["CDMVersion"] = CDMVERSION
-                            record_wrapper["datum"] = time_marker
-                            cdm_records.append(record_wrapper)
-                            last_time_marker = oldest_times
 
                 cdmcount += len(cdm_records)
 
