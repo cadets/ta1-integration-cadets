@@ -55,6 +55,7 @@ JsonOutput = namedtuple("JsonOutput", "output_dir")
 BinaryOutput = namedtuple("BinaryOutput", "output_dir")
 KafkaOutput = namedtuple("KafkaOutput", "conn_str topic enable_metrics myip")
 FileInput = namedtuple("FileInput", "path watch")
+KafkaInput = namedtuple("KafkaInput", "conn_str topic enable_metrics myip")
 
 def get_arg_parser():
     parser = argparse.ArgumentParser(description="Translate CADETS json to CDM")
@@ -85,7 +86,7 @@ def get_arg_parser():
     output_group.add_argument("-wk", action="store_true", default=False,
                               help="Write to Kafka")
     parser.add_argument("-validate", action="store_true", default=False,
-                              help="Validate CDM produced")
+                        help="Validate CDM produced")
     kafka_settings = parser.add_argument_group('Kafka settings')
     kafka_settings.add_argument("-ks", action="store", default=KAFKASTRING,
                                 required="-wk" in sys.argv, help="Kafka connection string")
@@ -95,6 +96,9 @@ def get_arg_parser():
                                 help="Enable Kafka metrics")
     kafka_settings.add_argument("-kmyip", action="store", type=str, required="-wk" in sys.argv,
                                 help="IP address to publish from")
+    kafka_settings.add_argument("-kin", action="store_true", default=False, help="Read input from Kafka")
+    kafka_settings.add_argument("-kintopic", action="store", type=str, default=TOPIC,
+                                required="-kin" in sys.argv, help="Kafka topic to read from")
     parser.add_argument("-p", action="store_true", default=False,
                         help="Print progress message for longer translations")
 
@@ -134,7 +138,9 @@ def main():
         logger.warning("Translator will run, but produce no output.")
 
     # Load the input file
-    if args.f is None:
+    if args.kin:
+        pass
+    elif args.f is None:
         cfiles = [cf for cf in os.listdir(args.tdir) if isfile(os.path.join(args.tdir, cf))]
         file_queue = queue.Queue()
         for cf in cfiles:
@@ -146,7 +152,6 @@ def main():
             observer.start()
         minutes_since_last_file = 0
         threads = []
-        work_queue = queue.Queue(maxsize=100)
         try:
             while args.watch or not file_queue.empty():
                 try:
@@ -158,9 +163,9 @@ def main():
                         sys.stdout.write("\n")
                         minutes_since_last_file = 0
                     if cfile.endswith(".cdm.json") or fext != ".json":
-                        logger.info("Skipping file: %s" , cfile)
+                        logger.info("Skipping file: %s", cfile)
                     else:
-                        logger.info("Translating JSON file: %s" , cfile)
+                        logger.info("Translating JSON file: %s", cfile)
                         path = os.path.join(args.tdir, cfile)
                         translator = CDMTranslator(p_schema, CDMVERSION, args.host_type)
                         wj = JsonOutput(args.odir) if args.wj else None
@@ -168,14 +173,14 @@ def main():
                         wk = KafkaOutput(args.ks, args.ktopic, args.kmetrics, args.kmyip) if args.wk else None
                         fi = FileInput(path, args.watch)
 
-                        work_thread = Process(target=translate_source, args=(translator, fi, wj, wb, wk, args.p, args.validate))
+                        work_thread = Process(target=translate_file, args=(translator, fi, wj, wb, wk, args.p, args.validate))
                         work_thread.start()
                         threads.append(work_thread)
-                        logger.info("About %d files left to translate." , file_queue.qsize())
+                        logger.info("About %d files left to translate.", file_queue.qsize())
                 except queue.Empty:
                     if args.p:
                         minutes_since_last_file += 1
-                        sys.stdout.write("\r%d minute(s) without a file to translate." , minutes_since_last_file)
+                        sys.stdout.write("\r%d minute(s) without a file to translate.", minutes_since_last_file)
                         sys.stdout.flush()
                     time.sleep(10)
 
@@ -192,8 +197,9 @@ def main():
         wj = JsonOutput(args.odir) if args.wj else None
         wb = BinaryOutput(args.odir) if args.wb else None
         wk = KafkaOutput(args.ks, args.ktopic, args.kmetrics, args.kmyip) if args.wk else None
-        fi = FileInput(path, args.watch)
-        translate_source(translator, fi, wj, wb, wk, args.p, args.validate)
+        rf = FileInput(path, args.watch)
+        rk = KafkaInput(args.ks, args.kintopic, args.kmetrics, args.kmyip) if args.kintopic else None
+        translate_file(translator, rf, wj, wb, wk, args.p, args.validate)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):
@@ -205,20 +211,21 @@ class EnqueueFileHandler(FileSystemEventHandler):
             new_file = event.src_path
             self.file_queue.put(new_file)
 
-def translate_source(translator, input_file, write_json, write_binary, write_kafka, show_progress, validate):
-    p_schema = translator.schema
-    # Initialize an avro serializer, this will be used to write out the CDM records
-    serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
+def setup_outputs(input_file, read_kafka, write_json, write_binary, write_kafka, p_schema, validate):
+    if input_file:
+        base_out = os.path.splitext(os.path.basename(input_file.path))[0]
+    elif read_kafka:
+        base_out = read_kafka.topic
 
     # Open the output files
     json_out = None
     bin_out = None
+    producer = None
+    config = None
     if write_json:
-        base_out = os.path.splitext(os.path.basename(input_file.path))[0]
         json_out_path = os.path.join(write_json.output_dir, base_out+".cdm.json")
         json_out = open(os.path.expanduser(json_out_path), 'w')
     if write_binary:
-        base_out = os.path.splitext(os.path.basename(input_file.path))[0]
         bin_out_path = os.path.join(os.path.expanduser(write_binary.output_dir), base_out+".cdm.bin")
         bin_out = open(bin_out_path, 'wb')
         # Create a file writer and serialize all provided records to it.
@@ -240,15 +247,94 @@ def translate_source(translator, input_file, write_json, write_binary, write_kaf
 #         config["error_cb"] = None # Function Poiter
 #         config["queue.buffering.max.ms"] = 10
         producer = confluent_kafka.Producer(config)
+    return (json_out, bin_out, file_writer, producer, config)
+
+def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafka, show_progress, validate):
+    p_schema = translator.schema
+    # Initialize an avro serializer, this will be used to write out the CDM records
+    serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
+
+    (json_out, bin_out, file_writer, producer, config) = setup_outputs(None, read_kafka, write_json, write_binary, write_kafka, p_schema, validate)
+
+    incount = 0
+    cdmcount = 0
+
+    consumer = confluent_kafka.Consumer(config)
+    consumer.subscribe([write_kafka.topic])
+
+    # Read the JSON CADETS records
+    logger.info("Loading records from %s", write_kafka.topic)
+    # Iterate through the records, translating each to a CDM record
+    waiting = False # are we already waiting to find another value record?
+    start_time = time.perf_counter()
+    current_location = None
+    while 1:
+        for loc in consumer.position():
+            if loc.topic is read_kafka.topic:
+                current_location = loc.offset
+                break
+        else:
+            current_location = None
+        try:
+            raw_cadets_record = consumer.consume(timeout=60)
+        except UnicodeDecodeError as err:
+            # Skip the entry, but warn about it.
+            logger.warning("Undecodable CADETS entry at offset %d: %s", current_location, err)
+            continue
+        if raw_cadets_record and not raw_cadets_record.error():
+            (cdm_inc, err) = handle_record(raw_cadets_record, translator, incount, write_kafka, serializer, json_out, file_writer, producer, show_progress)
+            if err:
+                logger.warning("Error: %s", err)
+                logger.warning("Invalid CADETS entry at offset %d: %s", current_location, raw_cadets_record)
+                continue
+            else:
+                cdmcount += cdm_inc
+                waiting = False
+        else:
+            # If we caught up with realtime, print a message if we stay caught up with realtime
+            if waiting:
+                logger.warning("No more records found at offset %d", current_location)
+            waiting = True
+            time.sleep(30)
+
+    # no more lines in the file. Is it really done, or should we wait for more lines?
+    if current_location:
+        consumer.commit(current_location)
+    consumer.close()
+
+    if show_progress and incount >= 1000:
+        sys.stdout.write("\n")
+    logger.info("Translated %d records into %d CDM items (%.2f records/sec)", incount, cdmcount, float(incount) / (time.perf_counter()-start_time))
+
+    close_outputs(write_kafka, json_out, bin_out, file_writer, producer)
+
+def close_outputs(write_kafka, json_out, bin_out, file_writer, producer):
+    if json_out != None:
+        json_out.close()
+        logger.info("Wrote JSON CDM records to {jo}".format(jo=json_out.name))
+    if bin_out != None:
+        file_writer.close_file_serializer()
+        bin_out.close()
+        logger.info("Wrote binary CDM records to {bo}".format(bo=bin_out.name))
+    if write_kafka:
+        producer.flush()
+        logger.info("Wrote CDM records to kafka {to}".format(to=write_kafka.topic))
+
+
+def translate_file(translator, input_file, write_json, write_binary, write_kafka, show_progress, validate):
+    p_schema = translator.schema
+    # Initialize an avro serializer, this will be used to write out the CDM records
+    serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
+
+    (json_out, bin_out, file_writer, producer, _config) = setup_outputs(input_file, None, write_json, write_binary, write_kafka, p_schema, validate)
 
     incount = 0
     cdmcount = 0
 
     # Read the JSON CADETS records
     with open(file=input_file.path, mode='r', buffering=1, errors='ignore') as cadets_in:
-        logger.info("Loading records from %s" , cadets_in.name)
+        logger.info("Loading records from %s", cadets_in.name)
         # Iterate through the records, translating each to a CDM record
-        previous_record = ""
         waiting = False # are we already waiting to find another value record?
         last_error_location = -1
         start_time = time.perf_counter()
@@ -258,83 +344,73 @@ def translate_source(translator, input_file, write_json, write_binary, write_kaf
                 raw_cadets_record = cadets_in.readline()
             except UnicodeDecodeError as err:
                 # Skip the entry, but warn about it.
-                logger.warning("Undecodable CADETS entry at byte %d: %s" , current_location, err)
+                logger.warning("Undecodable CADETS entry at byte %d: %s", current_location, err)
                 continue
             if raw_cadets_record:
-                try:
-                    cadets_record = json.loads(raw_cadets_record)
-                    record_cpu = cadets_record.get("cpu_id")
-                    record_time = cadets_record.get("time")
-                except ValueError as err:
-                    # if we expect the file to be added to, try again
-                    # otherwise, give up on the line and continue
+                (cdm_inc, err) = handle_record(raw_cadets_record, translator, incount, write_kafka, serializer, json_out, file_writer, producer, show_progress)
+                if err:
                     if input_file.watch and current_location > last_error_location:
                         last_error_location = current_location
                         cadets_in.seek(current_location)
                         time.sleep(30)
                         continue
-                    logger.warning("Error: %s" , err)
+                    logger.warning("Error: %s", err)
                     logger.warning("Invalid CADETS entry at byte %d: %s", current_location, raw_cadets_record)
                     continue
-
-                waiting = False
-
-                logger.debug("%d Record: %s" , incount, cadets_record)
-                cdm_records = translator.translate_record(cadets_record)
-                logger.debug("%d translated to %d records" , incount, len(cdm_records))
-
-                cdmcount += len(cdm_records)
-
-                if write_json:
-                    write_cdm_json_records(cdm_records, serializer, json_out, incount)
-                if write_binary:
-                    write_cdm_binary_records(cdm_records, file_writer)
-                if write_kafka:
-                    write_kafka_records(cdm_records, producer, serializer, incount, write_kafka.topic, write_kafka.myip, write_kafka.enable_metrics)
-
-                incount += 1
-                previous_record = raw_cadets_record
-                if show_progress and incount % 1000 == 0:
-                    sys.stdout.write("\rRead and translated >=%d records so far" % incount)
-                    sys.stdout.flush()
+                else:
+                    cdmcount += cdm_inc
+                    waiting = False
             else:
                 # If we reached the actual EOF and we're waiting for the file to finish, reset the file location and retry.
                 # If we reached the actual EOF and we're not waiting, then just consider this file finished.
-                if not raw_cadets_record:
-                    if not waiting:
-                        logger.warning("No more records found at byte %d" , current_location)
-                        waiting = True
-                    if input_file.watch and current_location > last_error_location:
-                        last_error_location = current_location
-                        cadets_in.seek(current_location)
-                        time.sleep(30)
-                    else:
-                        break
+                if not waiting:
+                    logger.warning("No more records found at byte %d", current_location)
+                    waiting = True
+                if input_file.watch and current_location > last_error_location:
+                    last_error_location = current_location
+                    cadets_in.seek(current_location)
+                    time.sleep(30)
+                else:
+                    break
 
         # no more lines in the file. Is it really done, or should we wait for more lines?
         cadets_in.close()
 
     if show_progress and incount >= 1000:
         sys.stdout.write("\n")
-    logger.info("Translated %d records into %d CDM items (%.2f records/sec)" , incount, cdmcount, float(incount) / (time.perf_counter()-start_time))
+    logger.info("Translated %d records into %d CDM items (%.2f records/sec)", incount, cdmcount, float(incount) / (time.perf_counter()-start_time))
 
-    if json_out != None:
-        json_out.close()
-        logger.info("Wrote JSON CDM records to {jo}".format(jo=json_out.name))
+    close_outputs(write_kafka, json_out, bin_out, file_writer, producer)
 
-    if bin_out != None:
-        file_writer.close_file_serializer()
-        bin_out.close()
-        logger.info("Wrote binary CDM records to {bo}".format(bo=bin_out.name))
+def handle_record(raw_cadets_record, translator, incount, write_kafka, serializer, json_writer, binary_writer, producer, show_progress):
+    try:
+        cadets_record = json.loads(raw_cadets_record)
+    except ValueError as err:
+        return (None, err)
+
+    logger.debug("%d Record: %s", incount, cadets_record)
+    cdm_records = translator.translate_record(cadets_record)
+    logger.debug("%d translated to %d records", incount, len(cdm_records))
+
+    if json_writer:
+        write_cdm_json_records(cdm_records, serializer, json_writer, incount)
+    if binary_writer:
+        write_cdm_binary_records(cdm_records, binary_writer)
     if write_kafka:
-        producer.flush()
-        logger.info("Wrote CDM records to kafka {to}".format(to=write_kafka.topic))
+        write_kafka_records(cdm_records, producer, serializer, incount, write_kafka.topic, write_kafka.myip, write_kafka.enable_metrics)
+
+    incount += 1
+    if show_progress and incount % 1000 == 0:
+        sys.stdout.write("\rRead and translated >=%d records so far" % incount)
+        sys.stdout.flush()
+
+    return (len(cdm_records), None)
 
 def write_cdm_json_records(cdm_records, serializer, json_out, incount):
     ''' Write an array of CDM records to a json output file via a serializer '''
     for cdm_record in cdm_records:
         if cdm_record != None:
-            logger.debug("%d -> Translated CDM record: %s" , incount, cdm_record)
+            logger.debug("%d -> Translated CDM record: %s", incount, cdm_record)
             jout = serializer.serialize_to_json(cdm_record)
             json_out.write(jout+"\n")
 
