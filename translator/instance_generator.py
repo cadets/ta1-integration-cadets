@@ -240,10 +240,9 @@ class InstanceGenerator():
         record["type"]="RECORD_FILE_OBJECT"
         return record
 
-    def create_netflow_object(self, dest_host, dest_port, socket_uuid, host, source, local_host="localhost", local_port=-1):
+    def create_netflow_object(self, dest_host, dest_port, socket_uuid, host, source, local_host=None, local_port=None):
         ''' Infer the existence of a netflow object from a connection event with a addr and port key
             We always create a new netflow, so no need to look for an old uuid
-            For now, we don't have the local host or local port, so we use "localhost" and -1
         '''
 
         record = {}
