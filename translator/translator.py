@@ -25,7 +25,6 @@ class CDMTranslator(object):
     eventCounter = 0
 
     # If true, create NetflowObject objects for each event with an address:port
-    # Since we don't have the source host and port, use defaults of localhost:-1
     createNetflowObjects = True
 
     CDMVersion = None
