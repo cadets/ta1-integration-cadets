@@ -25,7 +25,6 @@ class CDMTranslator(object):
     eventCounter = 0
 
     # If true, create NetflowObject objects for each event with an address:port
-    # Since we don't have the source host and port, use defaults of localhost:-1
     createNetflowObjects = True
 
     CDMVersion = None
@@ -36,12 +35,13 @@ class CDMTranslator(object):
 
     session_count = 0
 
-    def __init__(self, schema, version, host_type):
+    def __init__(self, schema, version, host_type, session_count):
         self.schema = schema
         self.CDMVersion = version
         self.host_type = host_type
         self.instance_generator = InstanceGenerator(version)
         self.logger = logging.getLogger("tc")
+        self.session_count = session_count
 
     def reset(self):
         ''' Reset the translators counters and data structures.
@@ -341,6 +341,8 @@ class CDMTranslator(object):
         if event["type"] is None:
             self.logger.debug("Skipping event %s", call)
             return None
+        if call in ["aue_reboot"]:
+            self.increment_session()
 
         event["subject"] = self.instance_generator.uuid_from_string(cadets_record["subjprocuuid"])
         event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
@@ -508,6 +510,7 @@ class CDMTranslator(object):
                        'aue_setlogin' : 'EVENT_LOGIN',
                        'aue_shm' : 'EVENT_SHM',
                        'aue_socket' : 'EVENT_CREATE_OBJECT',
+                       'aue_reboot' : 'EVENT_BOOT',
                        'aue_dup' : None
                       }
         for key in prefix_dict:
