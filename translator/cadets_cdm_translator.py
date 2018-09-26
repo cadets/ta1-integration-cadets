@@ -55,6 +55,8 @@ def get_arg_parser():
     parser = argparse.ArgumentParser(description="Translate CADETS json to CDM")
 
     parser.add_argument("--version", action="version", version="cadets_cdm_translator.py - CDMv"+CDMVERSION)
+    parser.add_argument("-session", action="store", default=0,
+                        help="Initial session count")
     parser.add_argument("-psf", action="store", type=str,
                         default=SCHEMA,
                         help="Set the producer's schema file.")
@@ -124,7 +126,7 @@ def main():
     p_schema = Utils.load_schema(args.psf)
 
     # Initialize a CDM Translator
-    translator = CDMTranslator(p_schema, CDMVERSION, args.host_type)
+    translator = CDMTranslator(p_schema, CDMVERSION, args.host_type, args.session)
 
     # Make sure the translator is doing something
     if not (args.wj or args.wb or args.wk):
@@ -159,7 +161,7 @@ def main():
                     else:
                         logger.info("Translating JSON file: %s" , cfile)
                         path = os.path.join(args.tdir, cfile)
-                        translator = CDMTranslator(p_schema, CDMVERSION, args.host_type)
+                        translator = CDMTranslator(p_schema, CDMVERSION, args.host_type, args.session)
                         work_thread = multiprocessing.Process(target=translate_file, args=(translator, path, args.odir, args.wb, args.wj, args.wk, args.ks, args.ktopic, args.kmetrics, args.kmyip, args.p, args.watch, args.punctuate, args.validate))
                         work_thread.start()
                         threads.append(work_thread)
