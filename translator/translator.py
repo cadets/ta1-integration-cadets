@@ -61,7 +61,7 @@ class CDMTranslator(object):
             self.logger.error(msg)
 
     def increment_session(self):
-        self.session_count = self.session_count + 1;
+        self.session_count += 1
 
     def translate_correlation(self, cadets_record):
         datums = []
@@ -80,7 +80,7 @@ class CDMTranslator(object):
         event["predicateObject2"] = self.instance_generator.uuid_from_string(cadets_record["uuid2"])
         event["type"] = "EVENT_CORRELATION"
 
-        properties  ={}
+        properties = {}
         properties["predicateObjectHost"] = cadets_record["host1"]
         properties["predicateObject2Host"] = cadets_record["host2"]
 #         properties["eventUuid"] = cadets_record["event1"]
@@ -111,7 +111,7 @@ class CDMTranslator(object):
         # dispatch based on type
         event_type = cadets_record.get("event", None)
         if not event_type:
-           return self.translate_correlation(cadets_record)
+            return self.translate_correlation(cadets_record)
 
         event_components = event_type.split(":")
         if len(event_components) < 4:
@@ -567,7 +567,7 @@ class CDMTranslator(object):
             local_port = cadets_record.get("port")
             listening_socket = cadets_record.get("arg_objuuid1")
             if not self.instance_generator.is_known_object(listening_socket):
-                self.logger.debug("Creating a UnixSocket from %s:%d" , local_addr, local_port)
+                self.logger.debug("Creating a UnixSocket from %s:%d", local_addr, local_port)
                 nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
                 new_records.append(nf_obj)
         elif event["type"] in ["EVENT_ACCEPT"]:
@@ -677,4 +677,3 @@ def create_int_parameter(value_type, name, value, assertions=None):
     if assertions:
         parameter["provenance"] = assertions
     return parameter
-

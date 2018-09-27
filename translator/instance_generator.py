@@ -39,7 +39,7 @@ class InstanceGenerator():
     netflow_counter = 0
 
 
-    def __init__(self, version):
+    def __init__(self, _version):
         self.logger = logging.getLogger("tc")
         self.created_users = set()
         self.created_objects = set()
@@ -122,7 +122,7 @@ class InstanceGenerator():
         record["source"] = source
         record["datum"] = subject
 
-        record["type"]="RECORD_SUBJECT"
+        record["type"] = "RECORD_SUBJECT"
         return record
 
     def get_user_id(self, uid):
@@ -148,7 +148,7 @@ class InstanceGenerator():
 
         record["source"] = source
         record["datum"] = principal
-        record["type"]="RECORD_PRINCIPAL"
+        record["type"] = "RECORD_PRINCIPAL"
         return record
 
     def is_known_object(self, file_key):
@@ -157,7 +157,7 @@ class InstanceGenerator():
         '''
         return file_key in self.created_objects
 
-    def create_unix_socket_object(self, file_uuid, host, source):
+    def create_unix_socket_object(self, file_uuid, _host, source):
         ''' Infer the existence of a file object, add it to the created list, and return it.
         '''
 
@@ -183,10 +183,10 @@ class InstanceGenerator():
 
         record["source"] = source
         record["datum"] = fobject
-        record["type"]="RECORD_FILE_OBJECT"
+        record["type"] = "RECORD_FILE_OBJECT"
         return record
 
-    def create_pipe_object(self, ipc_uuid, host, source):
+    def create_pipe_object(self, ipc_uuid, _host, source):
         ''' Create one endpoint of a pipe.
         '''
 
@@ -206,10 +206,10 @@ class InstanceGenerator():
 
         record["source"] = source
         record["datum"] = fobject
-        record["type"]="RECORD_SRC_SINK_OBJECT"
+        record["type"] = "RECORD_SRC_SINK_OBJECT"
         return record
 
-    def create_file_object(self, file_uuid, host, source, is_dir=False):
+    def create_file_object(self, file_uuid, _host, source, is_dir=False):
         ''' Infer the existence of a file object, add it to the created list, and return it.
         '''
 
@@ -237,10 +237,10 @@ class InstanceGenerator():
 
         record["source"] = source
         record["datum"] = fobject
-        record["type"]="RECORD_FILE_OBJECT"
+        record["type"] = "RECORD_FILE_OBJECT"
         return record
 
-    def create_netflow_object(self, dest_host, dest_port, socket_uuid, host, source, local_host=None, local_port=None):
+    def create_netflow_object(self, dest_host, dest_port, socket_uuid, _host, source, local_host=None, local_port=None):
         ''' Infer the existence of a netflow object from a connection event with a addr and port key
             We always create a new netflow, so no need to look for an old uuid
         '''
@@ -263,12 +263,12 @@ class InstanceGenerator():
 
         record["source"] = source
         record["datum"] = nobject
-        record["type"]="RECORD_NET_FLOW_OBJECT"
+        record["type"] = "RECORD_NET_FLOW_OBJECT"
 
         self.created_objects.add(socket_uuid)
         return record
 
-    def create_unnamed_pipe_object(self, host, endpoint1, endpoint2, source):
+    def create_unnamed_pipe_object(self, _host, endpoint1, endpoint2, source):
         ''' Create a host object, add it to the created list, and return it
         '''
         record = {}
@@ -290,11 +290,11 @@ class InstanceGenerator():
 
         record["source"] = source
         record["datum"] = pipe
-        record["type"]="RECORD_IPC_OBJECT"
+        record["type"] = "RECORD_IPC_OBJECT"
         self.host_created = True
         return record
 
-    def create_host_object(self, host_uuid, host_type, source):
+    def create_host_object(self, host_uuid, host_type, _source):
         ''' Create a host object, add it to the created list, and return it
         '''
         record = {}
@@ -321,7 +321,6 @@ class InstanceGenerator():
                 interface["ipAddresses"].append(ip_address)
             host["interfaces"].append(interface)
         record["datum"] = host
-        record["type"]="RECORD_HOST"
+        record["type"] = "RECORD_HOST"
         self.host_created = True
         return record
-

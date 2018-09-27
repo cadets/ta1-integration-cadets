@@ -10,21 +10,20 @@ Outputs a JSON CDM format and the binary avro format
 
 import argparse
 from collections import namedtuple
-import confluent_kafka
 import json
 import logging
 from logging.config import fileConfig
 from multiprocessing import Process
 import os
 from os.path import isfile
-from prometheus_client import CollectorRegistry, Gauge, Counter, push_to_gateway
 import queue
 import subprocess
 import sys
 import threading
-import queue
-import multiprocessing
 import time
+
+import confluent_kafka
+from prometheus_client import CollectorRegistry, Gauge, Counter, push_to_gateway
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
@@ -62,11 +61,10 @@ KafkaInput = namedtuple("KafkaInput", "conn_str topic enable_metrics myip use_ss
 def get_arg_parser():
     parser = argparse.ArgumentParser(description="Translate CADETS json to CDM")
 
-    parser.add_argument("--version", action="version", version="cadets_cdm_translator.py - CDMv"+CDMVERSION)
-    parser.add_argument("-session", action="store", default=0,
-                        help="Initial session count")
-    parser.add_argument("-psf", action="store", type=str,
-                        default=SCHEMA,
+    parser.add_argument("--version", action="version",
+                        version="cadets_cdm_translator.py - CDMv"+CDMVERSION)
+    parser.add_argument("-session", action="store", default=0, help="Initial session count")
+    parser.add_argument("-psf", action="store", type=str, default=SCHEMA,
                         help="Set the producer's schema file.")
     parser.add_argument("-v", action="store_true", default=False,
                         help="Turn up verbosity.")
@@ -93,16 +91,19 @@ def get_arg_parser():
                         help="Validate CDM produced")
     kafka_settings = parser.add_argument_group('Kafka settings')
     kafka_settings.add_argument("-kouts", action="store", default=KAFKASTRING,
-                                required="-wk" in sys.argv or "-rk" in sys.argv, help="Kafka connection string")
+                                required="-wk" in sys.argv or "-rk" in sys.argv,
+                                help="Kafka connection string")
     kafka_settings.add_argument("-kins", action="store", default=KAFKASTRING,
-                                required="-kin" in sys.argv or "-rk" in sys.argv, help="Kafka connection string")
+                                required="-kin" in sys.argv or "-rk" in sys.argv,
+                                help="Kafka connection string")
     kafka_settings.add_argument("-ktopic", action="store", type=str, default=TOPIC,
                                 required="-wk" in sys.argv, help="Kafka topic to publish to")
     kafka_settings.add_argument("-kmetrics", action="store_true", default=False,
                                 help="Enable Kafka metrics")
     kafka_settings.add_argument("-kmyip", action="store", type=str, required="-wk" in sys.argv,
                                 help="IP address to publish from")
-    kafka_settings.add_argument("-kin", action="store_true", default=False, help="Read input from Kafka")
+    kafka_settings.add_argument("-kin", action="store_true", default=False,
+                                help="Read input from Kafka")
     kafka_settings.add_argument("-kintopic", action="store", type=str, default=TOPIC,
                                 required="-kin" in sys.argv, help="Kafka topic to read from")
     kafka_settings.add_argument("-kinssl", action="store_true", default=False,
@@ -114,10 +115,10 @@ def get_arg_parser():
 
     host_group_top = parser.add_argument_group('Host type (choose one)')
     host_group = host_group_top.add_mutually_exclusive_group(required=True)
-    host_group.add_argument("-hs", "--host-server", dest='host_type', action="store_const", const="HOST_SERVER",
-                            help="Host is a server.")
-    host_group.add_argument("-hd", "--host-desktop", dest='host_type', action="store_const", const="HOST_DESKTOP",
-                            help="Host is a desktop.")
+    host_group.add_argument("-hs", "--host-server", dest='host_type', action="store_const",
+                            const="HOST_SERVER", help="Host is a server.")
+    host_group.add_argument("-hd", "--host-desktop", dest='host_type', action="store_const",
+                            const="HOST_DESKTOP", help="Host is a desktop.")
 
     return parser
 
@@ -173,7 +174,6 @@ def main():
             observer.start()
         minutes_since_last_file = 0
         threads = []
-        work_queue = queue.Queue(maxsize=100)
         try:
             while args.watch or not file_queue.empty():
                 try:
@@ -303,7 +303,6 @@ def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafk
     waiting = False # are we already waiting to find another value record?
     start_time = time.perf_counter()
     current_location = None
-    records_in = 0
     while 1:
         try:
             raw_cadets_record = consumer.poll(timeout=20)
@@ -319,7 +318,7 @@ def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafk
                 continue
             elif not raw_cadets_record.error():
                 current_location = raw_cadets_record.offset()
-                logger.debug("Record read: %s" % str(raw_cadets_record.value()))
+                logger.debug("Record read: %s", str(raw_cadets_record.value()))
                 (cdm_inc, err) = handle_record(raw_cadets_record.value(), translator, incount, write_kafka, serializer, json_out, file_writer, producer, show_progress)
                 if err:
                     logger.warning("Error: %s", err)
@@ -330,7 +329,7 @@ def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafk
                     cdmcount += cdm_inc
                     waiting = False
             else:
-                logger.warn("KafkaError: %s" % record.error())
+                logger.warn("KafkaError: %s", record.error())
 
         except UnicodeDecodeError as err:
             # Skip the entry, but warn about it.
@@ -398,7 +397,7 @@ def translate_file(translator, input_file, write_json, write_binary, write_kafka
                         time.sleep(10)
                         continue
                     if raw_cadets_record.strip():
-                        logger.warning("Error: %s" , err)
+                        logger.warning("Error: %s", err)
                         logger.warning("Invalid CADETS entry at byte %d: %s", current_location, raw_cadets_record)
                     continue
                 else:
