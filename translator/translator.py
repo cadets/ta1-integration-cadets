@@ -109,7 +109,10 @@ class CDMTranslator(object):
         datums = []
 
         # dispatch based on type
-        event_type = cadets_record["event"]
+        event_type = cadets_record.get("event", None)
+        if not event_type:
+           return self.translate_correlation(cadets_record)
+
         event_components = event_type.split(":")
         if len(event_components) < 4:
             self.handle_error("Expecting 4 elements in the event type: provider:module:function:probe. Got: "+event_type)

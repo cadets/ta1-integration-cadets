@@ -80,7 +80,6 @@ def get_arg_parser():
                                  "the directory")
     file_group.add_argument("-watch", action="store_true", default=False,
                             help="Watch for new files in source tdir")
-    parser.add_argument("-correlation", action="store", type=str, default=None, help="Filepath for event correlations")
     parser.add_argument("-lc", action="store", type=str, default=LOGGING_CONF,
                         help="Logging configuration file")
     output_group = parser.add_argument_group('output formats')
@@ -168,9 +167,6 @@ def main():
         file_queue = queue.Queue()
         for cf in cfiles:
             file_queue.put(cf)
-        if args.correlation:
-            file_queue.put(args.correlation)
-
         if args.watch:
             observer = Observer()
             observer.schedule(EnqueueFileHandler(file_queue), path=os.path.expanduser(args.tdir), recursive=False)
@@ -199,7 +195,7 @@ def main():
                         wk = KafkaOutput(args.kouts, args.ktopic, args.kmetrics, args.kmyip, args.koutssl) if args.wk else None
                         fi = FileInput(path, args.watch)
 
-                        work_thread = Process(target=translate_file, args=(translator, fi, wj, wb, wk, args.p, args.validate, path is args.correlation))
+                        work_thread = Process(target=translate_file, args=(translator, fi, wj, wb, wk, args.p, args.validate))
                         work_thread.start()
                         threads.append(work_thread)
                         logger.info("About %d files left to translate.", file_queue.qsize())
@@ -225,11 +221,6 @@ def main():
         wk = KafkaOutput(args.kouts, args.ktopic, args.kmetrics, args.kmyip, args.koutssl) if args.wk else None
         rf = FileInput(path, args.watch)
         translate_file(translator, rf, wj, wb, wk, args.p, args.validate)
-        if args.correlation:
-            rc = FileInput(os.path.expanduser(args.correlation), args.watch)
-            print(args.correlation)
-            path = os.path.expanduser(args.correlation)
-            translate_file(translator, rc, wj, wb, wk, args.p, args.validate, is_correlation=True)
 
 
 class EnqueueFileHandler(FileSystemEventHandler):
@@ -281,7 +272,7 @@ def setup_outputs(input_file, read_kafka, write_json, write_binary, write_kafka,
         producer = confluent_kafka.Producer(config)
     return (json_out, bin_out, file_writer, producer)
 
-def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafka, show_progress, validate, is_correlation=False):
+def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafka, show_progress, validate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
@@ -329,7 +320,7 @@ def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafk
             elif not raw_cadets_record.error():
                 current_location = raw_cadets_record.offset()
                 logger.debug("Record read: %s" % str(raw_cadets_record.value()))
-                (cdm_inc, err) = handle_record(raw_cadets_record.value(), translator, incount, write_kafka, serializer, json_out, file_writer, producer, show_progress, is_correlation)
+                (cdm_inc, err) = handle_record(raw_cadets_record.value(), translator, incount, write_kafka, serializer, json_out, file_writer, producer, show_progress)
                 if err:
                     logger.warning("Error: %s", err)
                     logger.warning("Invalid CADETS entry at offset %d: %s", current_location, raw_cadets_record.value())
@@ -373,7 +364,7 @@ def close_outputs(write_kafka, json_out, bin_out, file_writer, producer):
         logger.info("Wrote CDM records to kafka {to}".format(to=write_kafka.topic))
 
 
-def translate_file(translator, input_file, write_json, write_binary, write_kafka, show_progress, validate, is_correlation=False):
+def translate_file(translator, input_file, write_json, write_binary, write_kafka, show_progress, validate):
     p_schema = translator.schema
     # Initialize an avro serializer, this will be used to write out the CDM records
     serializer = KafkaAvroGenericSerializer(p_schema, skip_validate=not validate)
@@ -399,7 +390,7 @@ def translate_file(translator, input_file, write_json, write_binary, write_kafka
                 logger.warning("Undecodable CADETS entry at byte %d: %s", current_location, err)
                 continue
             if raw_cadets_record:
-                (cdm_inc, err) = handle_record(raw_cadets_record, translator, incount, write_kafka, serializer, json_out, file_writer, producer, show_progress, is_correlation)
+                (cdm_inc, err) = handle_record(raw_cadets_record, translator, incount, write_kafka, serializer, json_out, file_writer, producer, show_progress)
                 if err:
                     if input_file.watch and current_location > last_error_location:
                         last_error_location = current_location
@@ -420,16 +411,10 @@ def translate_file(translator, input_file, write_json, write_binary, write_kafka
                 if not waiting:
                     logger.warning("No more records found at byte %d", current_location)
                     waiting = True
-                if not is_correlation and input_file.watch and current_location > last_error_location:
+                if input_file.watch and current_location > last_error_location:
                     last_error_location = current_location
                     cadets_in.seek(current_location)
                     time.sleep(30)
-                elif is_correlation and input_file.watch and current_location > last_error_location:
-                    # the correlation stream will have much less traffic than the others
-                    # Just because it's empty for awhile doesn't mean it's done.
-                    last_error_location = current_location
-                    cadets_in.seek(current_location)
-                    time.sleep(60)
                 else:
                     break
 
@@ -442,17 +427,14 @@ def translate_file(translator, input_file, write_json, write_binary, write_kafka
 
     close_outputs(write_kafka, json_out, bin_out, file_writer, producer)
 
-def handle_record(raw_cadets_record, translator, incount, write_kafka, serializer, json_writer, binary_writer, producer, show_progress, is_correlation):
+def handle_record(raw_cadets_record, translator, incount, write_kafka, serializer, json_writer, binary_writer, producer, show_progress):
     try:
         cadets_record = json.loads(raw_cadets_record)
     except ValueError as err:
         return (None, err)
 
     logger.debug("%d Record: %s", incount, cadets_record)
-    if not is_correlation:
-        cdm_records = translator.translate_record(cadets_record)
-    else:
-        cdm_records = translator.translate_correlation(cadets_record)
+    cdm_records = translator.translate_record(cadets_record)
     logger.debug("%d translated to %d records", incount, len(cdm_records))
 
     if json_writer:
