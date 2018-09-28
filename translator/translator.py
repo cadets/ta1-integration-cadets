@@ -29,22 +29,28 @@ class CDMTranslator(object):
 
     CDMVersion = None
 
-    instance_generator = None
+    instance_generators = {}
 
     host_type = None
 
-    def __init__(self, schema, version, host_type):
+    session_count = 0
+
+    def __init__(self, schema, version, host_type, session_count):
         self.schema = schema
         self.CDMVersion = version
         self.host_type = host_type
-        self.instance_generator = InstanceGenerator(version)
+        self.instance_generators = {}
+        self.instance_generators["0"] = InstanceGenerator(version)
         self.logger = logging.getLogger("tc")
+        self.session_count = session_count
 
     def reset(self):
         ''' Reset the translators counters and data structures.
             Use if you're parsing a new trace '''
+        self.session_count = 0
         self.eventCounter = 0
-        self.instance_generator.reset()
+        self.instance_generators = {}
+        self.instance_generators["0"] = InstanceGenerator(self.CDMVersion)
 
     def get_source(self):
         ''' Get the InstrumentationSource, hardcoded to SOURCE_FREEBSD_DTRACE_CADETS '''
@@ -56,6 +62,87 @@ class CDMTranslator(object):
         else:
             self.logger.error(msg)
 
+    def increment_session(self):
+        self.session_count += 1
+
+    def get_ig_by_host(self, host):
+        if not host in self.instance_generators:
+            self.instance_generators[host] = InstanceGenerator(self.CDMVersion)
+        return self.instance_generators[host]
+
+    def get_ig(self, cadets_record):
+        host = cadets_record.get("host", "0")
+        return self.get_ig_by_host(host)
+
+    def translate_correlation(self, cadets_record):
+        datums = []
+
+# {"host1":"blackmarsh3", "uuid1":"7a567aed-8c34-11e8-9f60-44a8421f8dc6",
+#  "host2":"clinch2", "uuid2":"7a579b84-8c34-11e8-80a0-a0369fe11e7a",
+#  "reason":"connected sockets"}
+
+        record = {}
+        event = {}
+        event["uuid"] = self.get_ig(cadets_record).create_uuid("event", str(self.eventCounter))
+#         event["sequence"] = self.eventCounter # no sequence for correlations
+        self.eventCounter += 1
+        event["timestampNanos"] = cadets_record["timestamp"]
+        event["predicateObject"] = self.get_ig(cadets_record).uuid_from_string(cadets_record["host1"])
+        event["predicateObject2"] = self.get_ig(cadets_record).uuid_from_string(cadets_record["host2"])
+#         properties["predicateObject"] = cadets_record["event1"]
+#         properties["predicateObject2"] = cadets_record["event2"]
+        event["type"] = "EVENT_CORRELATION"
+
+        properties = {}
+        properties["specificPredicateObject"] = cadets_record["uuid1"]
+        properties["specificPredicateObject2"] = cadets_record["uuid2"]
+#         properties["hostUuid"] = cadets_record["host1"]
+#         properties["host2Uuid"] = cadets_record["host2"]
+        properties["connection"] = cadets_record["reason"]
+
+        event["properties"] = properties
+        record["datum"] = event
+
+        datums.append(record)
+
+
+        for datum in datums:
+            datum["CDMVersion"] = self.CDMVersion
+            datum["source"] = self.get_source()
+            datum["sessionNumber"] = self.session_count
+            datum["hostId"] = self.get_ig(cadets_record).uuid_from_string(cadets_record["host1"])
+            datum["type"] = "RECORD_EVENT"
+
+        return datums
+
+
+    def translate_host_info(self, cadets_record):
+
+        ig = self.get_ig(cadets_record)
+
+        datums = []
+        # { "host": "4c4c4544-0036-5810-8044-b5c04f533532", "uname":"FreeBSD
+        # 12.0-ALPHA2 FreeBSD 12.0-ALPHA2 #1 080b110520c(cadets-e4): Thu Aug 30
+        # 19:25:17 NDT 2018
+        # strnad@allendale.engr.mun.ca:/var/build/strnad/obj/usr/home/strnad/build-meta/freebsd/amd64.amd64/sys/CADETS
+        # amd64", "hostname":"blackmarsh3.musec.engr.mun.ca", "network":[
+        # {"name":"bge0", "mac":"44:a8:42:1f:8d:c6", "inet":"192.168.1.102 0.0.0.0",
+        # "inet6":"fe80::46a8:42ff:fe1f:8dc6%bge0"},
+        # {"name":"bge1", "mac":"44:a8:42:1f:8d:c7", "inet":"192.168.1.106", "inet6":""}] }
+
+        if not ig.is_known_object(cadets_record["host"]):
+            datums.append(ig.create_host_object(cadets_record["host"], self.host_type, cadets_record["hostname"], cadets_record["uname"], cadets_record["network"]))
+
+
+        for datum in datums:
+            datum["CDMVersion"] = self.CDMVersion
+            datum["source"] = self.get_source()
+            datum["sessionNumber"] = self.session_count
+            datum["hostId"] = ig.uuid_from_string(cadets_record["host"])
+            datum["type"] = "RECORD_HOST"
+
+        return datums
+
     def translate_record(self, cadets_record):
         ''' Generate a CDM record from the passed in JSON CADETS record '''
 
@@ -63,7 +150,8 @@ class CDMTranslator(object):
         datums = []
 
         # dispatch based on type
-        event_type = cadets_record["event"]
+        event_type = cadets_record.get("event", None)
+
         event_components = event_type.split(":")
         if len(event_components) < 4:
             self.handle_error("Expecting 4 elements in the event type: provider:module:function:probe. Got: "+event_type)
@@ -73,46 +161,50 @@ class CDMTranslator(object):
         call = event_components[2]
         probe = event_components[3]
 
+        if provider == "cadets" and call == "correlator":
+            return self.translate_correlation(cadets_record)
+        elif provider == "host" and call == "info":
+            return self.translate_host_info(cadets_record)
+
+        ig = self.get_ig(cadets_record)
+
         # Handle socket info - the CADETS record is missing most normal record info
         if provider == "fbt" and call in ["cc_conn_init", "syncache_expand"] or provider == "udp":
-            if not self.instance_generator.host_created:
-                host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
-                datums.append(host_object)
             # a socket can be reused. We should only create it once.
-            if not self.instance_generator.is_known_object(cadets_record["so_uuid"]):
-                nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
+            if not ig.is_known_object(cadets_record["so_uuid"]):
+                nf_obj = ig.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], cadets_record["so_uuid"], cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
                 datums.append(nf_obj)
-            elif cadets_record["so_uuid"] not in self.instance_generator.updated_objects and "tid" in cadets_record:
-                alt_uuid = self.instance_generator.create_uuid("netflow", cadets_record["so_uuid"])
+            elif cadets_record["so_uuid"] not in ig.updated_objects and "tid" in cadets_record:
+                alt_uuid = ig.create_uuid("netflow", cadets_record["so_uuid"])
                 alt_uuid = str(uuid.UUID(bytes=alt_uuid))
-                nf_obj = self.instance_generator.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], alt_uuid, cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
+                nf_obj = ig.create_netflow_object(cadets_record["faddr"], cadets_record["fport"], alt_uuid, cadets_record["host"], self.get_source(), cadets_record["laddr"], cadets_record["lport"])
                 update_obj = self.add_updated_object(cadets_record, cadets_record["so_uuid"], alt_uuid)
-                self.instance_generator.updated_objects.add(cadets_record["so_uuid"])
+                ig.updated_objects.add(cadets_record["so_uuid"])
                 datums.append(nf_obj)
                 datums.append(update_obj)
 
             for datum in datums:
                 datum["CDMVersion"] = self.CDMVersion
                 datum["source"] = self.get_source()
-                datum["sessionNumber"] = 0 # TODO real number
-                datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
+                datum["sessionNumber"] = self.session_count
+                datum["hostId"] = ig.uuid_from_string(cadets_record["host"])
             return datums
         # Create a new user if necessary
         uid = cadets_record["uid"]
-        if not self.instance_generator.get_user_id(uid):
+        if not ig.get_user_id(uid):
             self.logger.debug("Creating new User Principal for %d", uid)
-            principal = self.instance_generator.create_user_principal(uid, cadets_record["host"], self.get_source())
+            principal = ig.create_user_principal(uid, cadets_record["host"], self.get_source())
             datums.append(principal)
 
         # Create a new Process subject if necessary
         pid = cadets_record["pid"]
         cadets_proc_uuid = cadets_record.get("subjprocuuid", str(cadets_record["pid"]))
 
-        if not self.instance_generator.is_known_object(cadets_proc_uuid):
+        if not ig.is_known_object(cadets_proc_uuid):
             self.logger.debug("Creating new Process Subject for %d", pid)
             # We don't know the time when this process was created, so we'll make it 0 for now
             # Could use time as an upper bound, but we'd need to specify
-            process_record = self.instance_generator.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, cadets_record["host"], self.get_source())
+            process_record = ig.create_process_subject(pid, cadets_proc_uuid, None, cadets_record["uid"], 0, cadets_record["host"], self.get_source())
             datums.append(process_record)
 
 
@@ -121,28 +213,28 @@ class CDMTranslator(object):
             new_pid = cadets_record.get("retval")
             new_proc_uuid = cadets_record.get("ret_objuuid1", str(new_pid))
 
-            if not self.instance_generator.is_known_object(new_proc_uuid):
-                proc_record = self.instance_generator.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], cadets_record["host"], self.get_source())
+            if not ig.is_known_object(new_proc_uuid):
+                proc_record = ig.create_process_subject(new_pid, new_proc_uuid, cadets_record["subjprocuuid"], cadets_record["uid"], cadets_record["time"], cadets_record["host"], self.get_source())
                 datums.append(proc_record)
         elif "kill" in call:
             killed_pid = cadets_record.get("arg_pid")
             killed_uuid = cadets_record.get("arg_objuuid1")
 
-            if killed_uuid and not self.instance_generator.is_known_object(killed_uuid):
+            if killed_uuid and not ig.is_known_object(killed_uuid):
                 # We only discovered the process when it was killed, so our
                 # info is limited.
                 unknown_uid = -1
-                if not self.instance_generator.get_user_id(unknown_uid):
+                if not ig.get_user_id(unknown_uid):
                     self.logger.debug("Creating new User Principal for %d", unknown_uid)
-                    principal = self.instance_generator.create_user_principal(unknown_uid, cadets_record["host"], self.get_source())
+                    principal = ig.create_user_principal(unknown_uid, cadets_record["host"], self.get_source())
                     principal["datum"]["username"] = "UNKNOWN"
                     datums.append(principal)
 
-                proc_record = self.instance_generator.create_process_subject(killed_pid, killed_uuid, None, unknown_uid, 0, cadets_record["host"], self.get_source())
+                proc_record = ig.create_process_subject(killed_pid, killed_uuid, None, unknown_uid, 0, cadets_record["host"], self.get_source())
                 datums.append(proc_record)
         elif "exec" in call: # link exec events to the file executed
-            if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
-                file_record = self.instance_generator.create_file_object(cadets_record.get("arg_objuuid1"), cadets_record["host"], self.get_source())
+            if not ig.is_known_object(cadets_record["arg_objuuid1"]):
+                file_record = ig.create_file_object(cadets_record.get("arg_objuuid1"), cadets_record["host"], self.get_source())
                 datums.append(file_record)
 
         # Create the Event
@@ -163,16 +255,17 @@ class CDMTranslator(object):
             if object_records != None:
                 for objr in object_records:
                     datums.insert(0, objr)
-        if not self.instance_generator.host_created:
-            host_object = self.instance_generator.create_host_object(cadets_record["host"], self.host_type, self.get_source())
-            datums.insert(0, host_object)
-
+        for datum in datums:
+            datum["CDMVersion"] = self.CDMVersion
+            datum["source"] = self.get_source()
+            datum["sessionNumber"] = self.session_count
+            datum["hostId"] = ig.uuid_from_string(cadets_record["host"])
 
         for datum in datums:
             datum["CDMVersion"] = self.CDMVersion
             datum["source"] = self.get_source()
             datum["sessionNumber"] = 0 # TODO real number
-            datum["hostId"] = self.instance_generator.uuid_from_string(cadets_record["host"])
+            datum["hostId"] = ig.uuid_from_string(cadets_record["host"])
 
         return datums
 
@@ -296,12 +389,16 @@ class CDMTranslator(object):
         if event["type"] is None:
             self.logger.debug("Skipping event %s", call)
             return None
+        if call in ["aue_reboot"]:
+            self.increment_session()
 
-        event["subject"] = self.instance_generator.uuid_from_string(cadets_record["subjprocuuid"])
-        event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+        ig = self.get_ig(cadets_record)
+
+        event["subject"] = ig.uuid_from_string(cadets_record["subjprocuuid"])
+        event_uuid = ig.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
         (pred_obj, pred_obj_path, pred_obj2, pred_obj2_path, size) = self.predicates_by_event(event["type"], call, cadets_record)
         if pred_obj:
-            event["predicateObject"] = self.instance_generator.uuid_from_string(pred_obj)
+            event["predicateObject"] = ig.uuid_from_string(pred_obj)
         elif call in ["aue_close", "aue_closefrom"]:
             # Close is often missing a predicate, and is thus useless
             # Closefrom doesn't specify everything it closes
@@ -310,7 +407,7 @@ class CDMTranslator(object):
         if pred_obj_path:
             event["predicateObjectPath"] = pred_obj_path
         if pred_obj2:
-            event["predicateObject2"] = self.instance_generator.uuid_from_string(pred_obj2)
+            event["predicateObject2"] = ig.uuid_from_string(pred_obj2)
         if pred_obj2_path:
             event["predicateObject2Path"] = pred_obj2_path
         event["names"] = [call]
@@ -372,11 +469,13 @@ class CDMTranslator(object):
 
         event["type"] = "EVENT_FLOWS_TO"
 
-        event["subject"] = self.instance_generator.uuid_from_string(cadets_record["subjprocuuid"])
-        event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+        ig = self.get_ig(cadets_record)
 
-        event["predicateObject"] = self.instance_generator.uuid_from_string(source)
-        event["predicateObject2"] = self.instance_generator.uuid_from_string(dest)
+        event["subject"] = ig.uuid_from_string(cadets_record["subjprocuuid"])
+        event_uuid = ig.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+
+        event["predicateObject"] = ig.uuid_from_string(source)
+        event["predicateObject2"] = ig.uuid_from_string(dest)
         event["parameters"] = []
         event["properties"] = {}
         event["uuid"] = event_uuid
@@ -463,6 +562,7 @@ class CDMTranslator(object):
                        'aue_setlogin' : 'EVENT_LOGIN',
                        'aue_shm' : 'EVENT_SHM',
                        'aue_socket' : 'EVENT_CREATE_OBJECT',
+                       'aue_reboot' : 'EVENT_BOOT',
                        'aue_dup' : None
                       }
         for key in prefix_dict:
@@ -482,77 +582,77 @@ class CDMTranslator(object):
             # TODO: Make more intelligent, not all or nothing file events
             new_records = new_records + self.create_file_subjects(cadets_record)
         if event["names"][0] in ["aue_chdir", "aue_fchdir"]:
-            if not self.instance_generator.is_known_object(cadets_record["arg_objuuid1"]):
-                new_records.append(self.instance_generator.create_file_object(cadets_record["arg_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
+            if not self.get_ig(cadets_record).is_known_object(cadets_record["arg_objuuid1"]):
+                new_records.append(self.get_ig(cadets_record).create_file_object(cadets_record["arg_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
         if event["names"][0] in ["aue_mkdir"]:
-            if not self.instance_generator.is_known_object(cadets_record["ret_objuuid1"]):
-                new_records.append(self.instance_generator.create_file_object(cadets_record["ret_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
+            if not self.get_ig(cadets_record).is_known_object(cadets_record["ret_objuuid1"]):
+                new_records.append(self.get_ig(cadets_record).create_file_object(cadets_record["ret_objuuid1"], cadets_record["host"], self.get_source(), is_dir=True))
 
         # NetFlows and sockets
         if event["names"][0] in ["aue_pipe", "aue_pipe2", "aue_socketpair"]:
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
-            pipe_obj = self.instance_generator.create_pipe_object(pipe_uuid1, cadets_record["host"], self.get_source())
-            pipe_obj2 = self.instance_generator.create_pipe_object(pipe_uuid2, cadets_record["host"], self.get_source())
-            nf_obj = self.instance_generator.create_unnamed_pipe_object(cadets_record["host"], pipe_uuid1, pipe_uuid2, self.get_source())
+            pipe_obj = self.get_ig(cadets_record).create_pipe_object(pipe_uuid1, cadets_record["host"], self.get_source())
+            pipe_obj2 = self.get_ig(cadets_record).create_pipe_object(pipe_uuid2, cadets_record["host"], self.get_source())
+            nf_obj = self.get_ig(cadets_record).create_unnamed_pipe_object(cadets_record["host"], pipe_uuid1, pipe_uuid2, self.get_source())
             event["predicateObject"] = nf_obj["datum"]["uuid"]
             new_records.append(nf_obj)
             new_records.append(pipe_obj)
             new_records.append(pipe_obj2)
         elif event["names"][0] in ["aue_socket"]:
             socket = cadets_record.get("ret_objuuid1")
-            if not self.instance_generator.is_known_object(socket):
+            if not self.get_ig(cadets_record).is_known_object(socket):
                 self.logger.debug("Creating a UnixSocket from socket call")
-                nf_obj = self.instance_generator.create_unix_socket_object(socket, cadets_record["host"], self.get_source())
+                nf_obj = self.get_ig(cadets_record).create_unix_socket_object(socket, cadets_record["host"], self.get_source())
                 new_records.append(nf_obj)
             socket2 = cadets_record.get("ret_objuuid2")
-            if socket2 and not self.instance_generator.is_known_object(socket2):
+            if socket2 and not self.get_ig(cadets_record).is_known_object(socket2):
                 self.logger.debug("Creating a UnixSocket from socket call")
-                nf_obj = self.instance_generator.create_unix_socket_object(socket2, cadets_record["host"], self.get_source())
+                nf_obj = self.get_ig(cadets_record).create_unix_socket_object(socket2, cadets_record["host"], self.get_source())
                 new_records.append(nf_obj)
         elif event["type"] in ["EVENT_BIND"]:
             local_addr = cadets_record.get("address")
             local_port = cadets_record.get("port")
             listening_socket = cadets_record.get("arg_objuuid1")
-            if not self.instance_generator.is_known_object(listening_socket):
-                self.logger.debug("Creating a UnixSocket from %s:%d" , local_addr, local_port)
-                nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
+            if not self.get_ig(cadets_record).is_known_object(listening_socket):
+                self.logger.debug("Creating a UnixSocket from %s:%d", local_addr, local_port)
+                nf_obj = self.get_ig(cadets_record).create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
                 new_records.append(nf_obj)
         elif event["type"] in ["EVENT_ACCEPT"]:
             remote_addr = cadets_record.get("address")
             remote_port = cadets_record.get("port")
             listening_socket = cadets_record.get("arg_objuuid1")
-            if not self.instance_generator.is_known_object(listening_socket):
+            if not self.get_ig(cadets_record).is_known_object(listening_socket):
                 self.logger.debug("Creating a UnixSocket from {h}".format(h=remote_addr))
-                nf_obj = self.instance_generator.create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
+                nf_obj = self.get_ig(cadets_record).create_unix_socket_object(listening_socket, cadets_record["host"], self.get_source())
                 new_records.append(nf_obj)
             accepted_socket = cadets_record.get("ret_objuuid1") # accepted socket
-            if not self.instance_generator.is_known_object(accepted_socket):
+            if not self.get_ig(cadets_record).is_known_object(accepted_socket):
                 if remote_port:
                     self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remote_addr, p=remote_port))
-                    nf_obj = self.instance_generator.create_netflow_object(remote_addr, remote_port, accepted_socket, cadets_record["host"], self.get_source())
+                    nf_obj = self.get_ig(cadets_record).create_netflow_object(remote_addr, remote_port, accepted_socket, cadets_record["host"], self.get_source())
                     new_records.append(nf_obj)
                 else:
                     self.logger.debug("Creating a UnixSocket from {h}".format(h=remote_addr))
-                    nf_obj = self.instance_generator.create_unix_socket_object(accepted_socket, cadets_record["host"], self.get_source())
+                    nf_obj = self.get_ig(cadets_record).create_unix_socket_object(accepted_socket, cadets_record["host"], self.get_source())
                     new_records.append(nf_obj)
         elif event["type"] in ["EVENT_CONNECT", "EVENT_SENDTO", "EVENT_RECVMSG", "EVENT_SENDMSG", "EVENT_RECVFROM"]:
             if event["names"][0] == "aue_sendfile":
                 socket_uuid = cadets_record.get("arg_objuuid2")
             else:
                 socket_uuid = cadets_record.get("arg_objuuid1")
-            if not self.instance_generator.is_known_object(socket_uuid):
+            if not self.get_ig(cadets_record).is_known_object(socket_uuid):
                 remote_addr = cadets_record.get("address")
                 remote_port = cadets_record.get("port")
 
                 if remote_port:
                     self.logger.debug("Creating a NetflowObject from {h}:{p}".format(h=remote_addr, p=remote_port))
-                    nf_obj = self.instance_generator.create_netflow_object(remote_addr, remote_port, socket_uuid, cadets_record["host"], self.get_source())
+                    nf_obj = self.get_ig(cadets_record).create_netflow_object(remote_addr, remote_port, socket_uuid, cadets_record["host"], self.get_source())
                     new_records.append(nf_obj)
                 else:
                     self.logger.debug("Creating a UnixSocket from {h}".format(h=remote_addr))
-                    nf_obj = self.instance_generator.create_unix_socket_object(socket_uuid, cadets_record["host"], self.get_source())
+                    nf_obj = self.get_ig(cadets_record).create_unix_socket_object(socket_uuid, cadets_record["host"], self.get_source())
                     new_records.append(nf_obj)
 
         return new_records
@@ -561,9 +661,9 @@ class CDMTranslator(object):
         new_records = []
         for uuid in uuid_keys:
             if uuid in cadets_record:
-                if not self.instance_generator.is_known_object(cadets_record[uuid]):
+                if not self.get_ig(cadets_record).is_known_object(cadets_record[uuid]):
                     self.logger.debug("Creating file")
-                    fileobj = self.instance_generator.create_file_object(cadets_record.get(uuid), cadets_record["host"], self.get_source())
+                    fileobj = self.get_ig(cadets_record).create_file_object(cadets_record.get(uuid), cadets_record["host"], self.get_source())
                     new_records.append(fileobj)
             else:
                 continue
@@ -577,11 +677,11 @@ class CDMTranslator(object):
         event = {}
 
         event["type"] = "EVENT_ADD_OBJECT_ATTRIBUTE"
-        event_uuid = self.instance_generator.create_uuid("event", str(self.eventCounter)+cadets_record["host"])
+        event_uuid = self.get_ig(cadets_record).create_uuid("event", str(self.eventCounter)+cadets_record["host"])
         event["uuid"] = event_uuid
         event["timestampNanos"] = cadets_record["time"]
-        event["predicateObject"] = self.instance_generator.uuid_from_string(orig_uuid)
-        event["predicateObject2"] = self.instance_generator.uuid_from_string(temp_uuid)
+        event["predicateObject"] = self.get_ig(cadets_record).uuid_from_string(orig_uuid)
+        event["predicateObject2"] = self.get_ig(cadets_record).uuid_from_string(temp_uuid)
 
         event["threadId"] = cadets_record["tid"]
 
@@ -626,4 +726,3 @@ def create_int_parameter(value_type, name, value, assertions=None):
     if assertions:
         parameter["provenance"] = assertions
     return parameter
-
