@@ -157,9 +157,6 @@ def main():
         try:
             translate_kafka(translator, rk, wj, wb, wk, args.p, args.validate)
         except KeyboardInterrupt: # handle ctrl+c
-            if args.watch:
-                observer.stop()
-                observer.join()
             for thread in threading.enumerate():
                 if thread is not threading.main_thread():
                     thread.join()
@@ -329,7 +326,7 @@ def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafk
                     cdmcount += cdm_inc
                     waiting = False
             else:
-                logger.warn("KafkaError: %s", record.error())
+                logger.warn("KafkaError: %s", raw_cadets_record.error())
 
         except (AttributeError, TypeError, UnicodeDecodeError) as err:
             # Skip the entry, but warn about it.
