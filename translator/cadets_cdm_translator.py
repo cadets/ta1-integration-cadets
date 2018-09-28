@@ -331,7 +331,7 @@ def translate_kafka(translator, read_kafka, write_json, write_binary, write_kafk
             else:
                 logger.warn("KafkaError: %s", record.error())
 
-        except UnicodeDecodeError as err:
+        except (AttributeError, TypeError, UnicodeDecodeError) as err:
             # Skip the entry, but warn about it.
             if current_location:
                 logger.warning("Undecodable CADETS entry at offset %d: %s", current_location, err)
