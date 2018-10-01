@@ -261,12 +261,6 @@ class CDMTranslator(object):
             datum["sessionNumber"] = self.session_count
             datum["hostId"] = ig.uuid_from_string(cadets_record["host"])
 
-        for datum in datums:
-            datum["CDMVersion"] = self.CDMVersion
-            datum["source"] = self.get_source()
-            datum["sessionNumber"] = 0 # TODO real number
-            datum["hostId"] = ig.uuid_from_string(cadets_record["host"])
-
         return datums
 
 
