@@ -74,7 +74,7 @@ class InstanceGenerator():
         if object_type == "uid":
             id = uuid.uuid5(UID_NAMESPACE, str(data)).int
         elif object_type == "event":
-            id = uuid.uuid5(EVENT_NAMESPACE, str(data)).int
+            id = uuid.uuid4().int
         elif object_type == "pipe":
             id = uuid.uuid5(NETFLOW_NAMESPACE, str(data)).int
         # XXX: Use socket UUIDs eventually
