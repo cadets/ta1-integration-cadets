@@ -587,13 +587,19 @@ class CDMTranslator(object):
             # Create something to link the two endpoints of the pipe
             pipe_uuid1 = cadets_record.get("ret_objuuid1")
             pipe_uuid2 = cadets_record.get("ret_objuuid2")
-            pipe_obj = self.get_ig(cadets_record).create_pipe_object(pipe_uuid1, cadets_record["host"], self.get_source())
-            pipe_obj2 = self.get_ig(cadets_record).create_pipe_object(pipe_uuid2, cadets_record["host"], self.get_source())
+            pipe_obj = None
+            pipe_obj2 = None
+            if not self.get_ig(cadets_record).is_known_object(pipe_uuid1):
+                pipe_obj = self.get_ig(cadets_record).create_pipe_object(pipe_uuid1, cadets_record["host"], self.get_source())
+            if not self.get_ig(cadets_record).is_known_object(pipe_uuid2):
+                pipe_obj2 = self.get_ig(cadets_record).create_pipe_object(pipe_uuid2, cadets_record["host"], self.get_source())
             nf_obj = self.get_ig(cadets_record).create_unnamed_pipe_object(cadets_record["host"], pipe_uuid1, pipe_uuid2, self.get_source())
             event["predicateObject"] = nf_obj["datum"]["uuid"]
             new_records.append(nf_obj)
-            new_records.append(pipe_obj)
-            new_records.append(pipe_obj2)
+            if pipe_obj:
+                new_records.append(pipe_obj)
+            if pipe_obj2:
+                new_records.append(pipe_obj2)
         elif event["names"][0] in ["aue_socket"]:
             socket = cadets_record.get("ret_objuuid1")
             if not self.get_ig(cadets_record).is_known_object(socket):
