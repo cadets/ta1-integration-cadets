@@ -11,7 +11,7 @@ from instance_generator import InstanceGenerator
 file_calls = ["EVENT_UNLINKAT", "EVENT_UNLINK", "EVENT_RENAME", "EVENT_MMAP",
               "EVENT_TRUNCATE", "EVENT_EXECUTE", "EVENT_OPEN", "EVENT_CLOSE", "EVENT_READ",
               "EVENT_WRITE", "EVENT_MODIFY_FILE_ATTRIBUTES", "EVENT_LSEEK",
-              "aue_symlink", "aue_symlinkat"]
+              "aue_symlink", "aue_symlinkat", "EVENT_LINK", "EVENT_FCNTL"]
 # these are the keys that may contain interesting UUIDs
 uuid_keys = ["arg_objuuid1", "arg_objuuid2", "ret_objuuid1", "ret_objuuid2"]
 
