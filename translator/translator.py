@@ -241,13 +241,6 @@ class CDMTranslator(object):
         self.logger.debug("Creating Event from %s ", event_type)
         event_record = self.translate_call(provider, module, call, probe, cadets_record)
 
-        if "arg_miouuid" in cadets_record:
-            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_miouuid"], cadets_record["arg_objuuid1"])
-            datums.append(flow_obj)
-        elif "ret_miouuid" in cadets_record:
-            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_objuuid1"], cadets_record["ret_miouuid"])
-            datums.append(flow_obj)
-
         if event_record != None:
             event_record["type"] = "RECORD_EVENT"
             datums.append(event_record)
@@ -255,6 +248,14 @@ class CDMTranslator(object):
             if object_records != None:
                 for objr in object_records:
                     datums.insert(0, objr)
+
+        if "arg_miouuid" in cadets_record:
+            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_miouuid"], cadets_record["arg_objuuid1"])
+            datums.append(flow_obj)
+        elif "ret_miouuid" in cadets_record:
+            flow_obj = self.create_flows_to(cadets_record, cadets_record["arg_objuuid1"], cadets_record["ret_miouuid"])
+            datums.append(flow_obj)
+
         for datum in datums:
             datum["CDMVersion"] = self.CDMVersion
             datum["source"] = self.get_source()
