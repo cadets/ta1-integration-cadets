@@ -594,7 +594,10 @@ class CDMTranslator(object):
                 pipe_obj = self.get_ig(cadets_record).create_pipe_object(pipe_uuid1, cadets_record["host"], self.get_source())
             if not self.get_ig(cadets_record).is_known_object(pipe_uuid2):
                 pipe_obj2 = self.get_ig(cadets_record).create_pipe_object(pipe_uuid2, cadets_record["host"], self.get_source())
-            nf_obj = self.get_ig(cadets_record).create_unnamed_pipe_object(cadets_record["host"], pipe_uuid1, pipe_uuid2, self.get_source())
+            if event["names"][0] in ["aue_socketpair"]:
+                nf_obj = self.get_ig(cadets_record).create_socketpair_object(cadets_record["host"], pipe_uuid1, pipe_uuid2, self.get_source())
+            else:
+                nf_obj = self.get_ig(cadets_record).create_unnamed_pipe_object(cadets_record["host"], pipe_uuid1, pipe_uuid2, self.get_source())
             event["predicateObject"] = nf_obj["datum"]["uuid"]
             new_records.append(nf_obj)
             if pipe_obj:
