@@ -131,7 +131,7 @@ class CDMTranslator(object):
         # {"name":"bge1", "mac":"44:a8:42:1f:8d:c7", "inet":"192.168.1.106", "inet6":""}] }
 
         if not ig.is_known_object(cadets_record["host"]):
-            datums.append(ig.create_host_object(cadets_record["host"], self.host_type, cadets_record["hostname"], cadets_record["uname"], cadets_record["network"]))
+            datums.append(ig.create_host_object(cadets_record["host"], self.host_type, cadets_record["hostname"], cadets_record["uname"], cadets_record["network"], cadets_record["version"]))
 
 
         for datum in datums:

@@ -291,7 +291,7 @@ class InstanceGenerator():
         record["type"] = "RECORD_IPC_OBJECT"
         return record
 
-    def create_host_object(self, host_uuid, host_type, hostname, uname, interfaces):
+    def create_host_object(self, host_uuid, host_type, hostname, uname, interfaces, version):
         ''' Create a host object, add it to the created list, and return it
         '''
         record = {}
@@ -306,6 +306,7 @@ class InstanceGenerator():
 #   idValue : string
         host["osDetails"] = uname
         host["hostType"] = host_type
+        host["ta1Version"] = version
 
         host["interfaces"] = []
         for details in interfaces:
