@@ -193,7 +193,7 @@ class CDMTranslator(object):
         uid = cadets_record["uid"]
         if not ig.get_user_id(uid):
             self.logger.debug("Creating new User Principal for %d", uid)
-            principal = ig.create_user_principal(uid, cadets_record["host"], self.get_source())
+            principal = ig.create_user_principal(uid, cadets_record["host"], self.get_source(), cadets_record.get("username"))
             datums.append(principal)
 
         # Create a new Process subject if necessary
@@ -226,7 +226,7 @@ class CDMTranslator(object):
                 unknown_uid = -1
                 if not ig.get_user_id(unknown_uid):
                     self.logger.debug("Creating new User Principal for %d", unknown_uid)
-                    principal = ig.create_user_principal(unknown_uid, cadets_record["host"], self.get_source())
+                    principal = ig.create_user_principal(unknown_uid, cadets_record["host"], self.get_source(), cadets_record.get("username"))
                     principal["datum"]["username"] = "UNKNOWN"
                     datums.append(principal)
 
