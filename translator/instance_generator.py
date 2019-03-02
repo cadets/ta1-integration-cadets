@@ -129,7 +129,7 @@ class InstanceGenerator():
         '''
         return uid in self.created_users
 
-    def create_user_principal(self, uid, host, source):
+    def create_user_principal(self, uid, host, source, username):
         ''' Create a user principal, add it to the created list, and return it
         '''
         record = {}
@@ -137,7 +137,10 @@ class InstanceGenerator():
         principal["uuid"] = self.create_uuid("uid", str(uid)+host)
         principal["type"] = "PRINCIPAL_LOCAL"
         principal["userId"] = str(uid)
-#         principal["username"] = ""
+        if uid == 0:
+            principal["username"] = "root"
+        elif username is not None:
+            principal["username"] = username
         principal["groupIds"] = []
         principal["properties"] = {}
 
