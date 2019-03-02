@@ -306,7 +306,9 @@ class InstanceGenerator():
 #   idValue : string
         host["osDetails"] = uname
         host["hostType"] = host_type
-        host["ta1Version"] = version
+        translator_date = subprocess.getoutput(['git log | awk \'/^Date: / {printf "%s %s %s %s",$6,$3,$4,$5; exit}\''])
+        translator_rev = subprocess.getoutput(['git log | awk \'/^commit / {printf "%s",$2; exit}\''])
+        host["ta1Version"] = version + "translator, "+translator_date + ", "+translator_rev + "; "
 
         host["interfaces"] = []
         for details in interfaces:
