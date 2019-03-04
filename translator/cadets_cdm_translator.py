@@ -92,10 +92,10 @@ def get_arg_parser():
     kafka_settings = parser.add_argument_group('Kafka settings')
     kafka_settings.add_argument("-kouts", action="store", default=KAFKASTRING,
                                 required="-wk" in sys.argv or "-rk" in sys.argv,
-                                help="Kafka connection string")
+                                help="Kafka output connection string")
     kafka_settings.add_argument("-kins", action="store", default=KAFKASTRING,
                                 required="-kin" in sys.argv or "-rk" in sys.argv,
-                                help="Kafka connection string")
+                                help="Kafka input connection string")
     kafka_settings.add_argument("-ktopic", action="store", type=str, default=TOPIC,
                                 required="-wk" in sys.argv, help="Kafka topic to publish to")
     kafka_settings.add_argument("-kmetrics", action="store_true", default=False,
@@ -109,7 +109,7 @@ def get_arg_parser():
     kafka_settings.add_argument("-kinssl", action="store_true", default=False,
                                 help="Use SSL for kafka input")
     kafka_settings.add_argument("-koutssl", action="store_true", default=False,
-                                help="Use SSL for kafka input")
+                                help="Use SSL for kafka output")
     parser.add_argument("-p", action="store_true", default=False,
                         help="Print progress message for longer translations")
 
