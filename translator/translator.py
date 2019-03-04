@@ -372,7 +372,7 @@ class CDMTranslator(object):
         record = {}
         event = {}
 
-        if provider == "audit":
+        if provider == "audit" or (provider == "sdt" and call == "pam_authenticate"):
             event["type"] = self.convert_audit_event_type(call)
         else:
             self.logger.warning("Unexpected provider %s", provider)
@@ -446,6 +446,8 @@ class CDMTranslator(object):
             event["properties"]["address"] = str(cadets_record["address"])
         if "port" in cadets_record:
             event["properties"]["port"] = str(cadets_record["port"])
+        if "username" in cadets_record:
+            event["properties"]["username"] = str(cadets_record["username"])
 
         event["properties"]["exec"] = cadets_record["exec"]
 
