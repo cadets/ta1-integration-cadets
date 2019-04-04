@@ -269,6 +269,13 @@ class InstanceGenerator():
         self.created_objects.add(socket_uuid)
         return record
 
+    def create_socketpair_object(self, _host, endpoint1, endpoint2, source):
+        ''' Create a host object, add it to the created list, and return it
+        '''
+        record = self.create_unnamed_pipe_object(_host, endpoint1, endpoint2, source)
+        record["datum"]["type"] = "IPC_OBJECT_SOCKET_PAIR"
+        return record
+
     def create_unnamed_pipe_object(self, _host, endpoint1, endpoint2, source):
         ''' Create a host object, add it to the created list, and return it
         '''
