@@ -476,8 +476,17 @@ def write_kafka_records(cdm_records, producer, serializer, kafka_key, topic, myi
         message = serializer.serialize(topic, edge)
         ta1_send.labels(topic, myip).inc()
         ta1_last.labels(topic, myip).set_to_current_time()
-        producer.produce(topic, value=message, key=str(kafka_key).encode())
-        producer.poll(0)
+        while True:
+           # if the buffer is full, we can loop and try to send the message again.
+            try:
+                producer.produce(topic, value=message, key=str(kafka_key).encode())
+                producer.poll(0)
+                break
+            except BufferError as ex:
+                # spend up to 10 seconds waiting to deliver messages
+                # Will continue when all are sent, or 10 seconds have elapsed.
+                producer.flush(10)
+
     # TODO: Parameters
     try:
         if enable_metrics:
